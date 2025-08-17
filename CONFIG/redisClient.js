@@ -2,7 +2,7 @@ import { createClient } from "redis";
 // import {config} from "dotenv"
 // config();
 const client=createClient({
-    url:process.env.REDIS_URL|| 'redis://localhost:6379'
+    url:process.env.REDIS_URI|| 'redis://localhost:6379'
 });
 
 client.on('error',(err)=>{
