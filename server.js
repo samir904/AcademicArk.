@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
-dotenv.config();                    
+
+dotenv.config({ path: ['.env.local', '.env'] });                   
 
 import app from "./app.js";
-import mongoose from "mongoose";
 import dbConnection from "./CONFIG/db.config.js";
 import cloudinary from "cloudinary";
 const port=process.env.PORT
