@@ -5,6 +5,7 @@ import cloudinary from "cloudinary";
 import fs from "fs/promises"
 import fetch from "node-fetch";
 import redisClient from "../CONFIG/redisClient.js"
+// import redisClient from "../server.js"
 import axios from "axios";
 export const registerNote=async(req,res,next)=>{
     const{title,description,subject,course,semester,university,category}=req.body;

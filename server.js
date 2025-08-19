@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 
 dotenv.config({ path: ['.env.local', '.env'] });                   
+// console.log('Loaded REDIS_URI:', process.env.REDIS_URI);
+
 
 import app from "./app.js";
 import dbConnection from "./CONFIG/db.config.js";

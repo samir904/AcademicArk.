@@ -1,5 +1,4 @@
 import redisClient from "../CONFIG/redisClient.js"
-
 export const cacheNotes=(req,res,next)=>{
     const key=`notes:${JSON.stringify(req.query)}`;  // unique per filter
 

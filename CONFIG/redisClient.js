@@ -1,17 +1,25 @@
-import { createClient } from "redis";
-// import {config} from "dotenv"
-// config();
-const client=createClient({
-    url:process.env.REDIS_URI|| 'redis://localhost:6379',
+import { createClient } from 'redis';
+
+import {config} from "dotenv"
+config();
+
+// console.log(process.env.REDIS_PASSWORD)
+
+const client = createClient({
+    username: 'default',
+    password:process.env.REDIS_PASSWORD,
+    socket: {
+        host:process.env.REDIS_HOST,
+        port:process.env.REDIS_PORT
+    }
 });
 
-client.on('error',(err)=>{
-    console.error(`Redis client error`,err)
-})
-try{
-await client.connect();
-}catch(err){
-    console.log("Redis error",err)
-}
+client.on('error', err => console.log('Redis Client Error', err));
 
-export default client;
+await client.connect();
+
+await client.set('foo', 'bar');
+const result = await client.get('foo');
+console.log(result)  // >>> bar
+
+export default client

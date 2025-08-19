@@ -1,6 +1,7 @@
 import mongoose  from "mongoose";
 import {config} from "dotenv"
 config();
+
 const mongo_uri=process.env.MONGO_URI||"mongodb://127.0.0.1:27017/academicark"
 
 async function dbConnection() {
