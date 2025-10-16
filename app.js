@@ -30,11 +30,11 @@ app.use(morgan("dev"))
      allowedHeaders: ["Content-Type", "Authorization"], //what is the use of authorization her 
    })
  );
- import path from "path";
-// If using ESM ("type": "module" in package.json)
-const __dirname = path.resolve();
+//  import path from "path";
+// // If using ESM ("type": "module" in package.json)
+// const __dirname = path.resolve();
 
-app.use(express.static(path.join(__dirname, "../FRONTEND/public")));
+// app.use(express.static(path.join(__dirname, "../FRONTEND/public")));
 
 //  app.use(session({
 //     secret:process.env.SESSION_SECRET,
