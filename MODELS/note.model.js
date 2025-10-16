@@ -34,7 +34,7 @@ const noteSchema=new Schema({
         type:Number,
         required:true,
         min:[1,"Semester must be at least 1 "],
-        max:[8,"Semester cannot excees 8 "]
+        max:[8,"Semester cannot exceed 8 "]
     },
     university:{
         type:String,

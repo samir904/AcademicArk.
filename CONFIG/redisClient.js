@@ -1,3 +1,26 @@
+/*this is for development eviroment ok  */
+// import { createClient } from "redis";
+// //  import {config} from "dotenv"
+// //  config();
+
+// console.log(process.env.REDIS_URI)
+// const client=createClient({
+//     url:process.env.REDIS_URI|| 'redis://localhost:6379',
+    
+// });
+
+// client.on('error',(err)=>{
+//     console.error(`Redis client error`,err)
+// })
+// try{
+// await client.connect();
+// }catch(err){
+//     console.log("Redis error",err)
+// }
+
+// export default client;
+
+/* this is for production enviroment ok */
 import { createClient } from 'redis';
 
 import {config} from "dotenv"

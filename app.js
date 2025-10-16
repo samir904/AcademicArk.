@@ -22,15 +22,20 @@ app.use(express.urlencoded({extended:true}));
 app.use(express.json())
 app.use(cookieParser())
 app.use(morgan("dev"))
-
  app.use(
    cors({
      origin: process.env.FRONTEND_URL,
      credentials: true,
      methods: ["GET", "POST", "PUT", "DELETE"],
-     allowedHeaders: ["Content-Type"],
+     allowedHeaders: ["Content-Type", "Authorization"], //what is the use of authorization her 
    })
  );
+ import path from "path";
+// If using ESM ("type": "module" in package.json)
+const __dirname = path.resolve();
+
+app.use(express.static(path.join(__dirname, "../FRONTEND/public")));
+
 //  app.use(session({
 //     secret:process.env.SESSION_SECRET,
 //     resave:false,
@@ -48,6 +53,13 @@ app.get("/health",(req,res)=>{
 })
 
 //more route here 
+// Add this BEFORE your routes
+// app.use((req, res, next) => {
+//   console.log(`📨 Incoming: ${req.method} ${req.url}`);
+//   console.log('📦 Body:', req.body);
+//   console.log('🌐 Origin:', req.get('Origin'));
+//   next();
+// });
 
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
