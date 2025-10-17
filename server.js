@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: ['.env.local', '.env'] });                   
 // console.log('Loaded REDIS_URI:', process.env.REDIS_URI);
 
+import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
 
 import app from "./app.js";
 import dbConnection from "./CONFIG/db.config.js";

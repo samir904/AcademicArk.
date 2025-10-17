@@ -1,4 +1,5 @@
 
+import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
 
 // import "./CONFIG/passport.js";     
 import express from "express";
@@ -6,7 +7,6 @@ import express from "express";
 import cors from "cors"
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
-import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
 
 import userRoute from "./ROUTES/user.route.js"
 import noteRoute from "./ROUTES/note.route.js"
@@ -59,7 +59,7 @@ app.use(session({
         maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production", // True in production (HTTPS)
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", // None for cross-site
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax", // None for cross-site
     path: "/",
 
     }
