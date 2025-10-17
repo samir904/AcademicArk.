@@ -1,5 +1,5 @@
 
-import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
+// import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
 
 // import "./CONFIG/passport.js";     
 import express from "express";
@@ -7,6 +7,9 @@ import express from "express";
 import cors from "cors"
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import session from 'express-session';
+import passport from 'passport';
+
 
 import userRoute from "./ROUTES/user.route.js"
 import noteRoute from "./ROUTES/note.route.js"
@@ -46,8 +49,6 @@ app.use(morgan("dev"))
 //  app.use(passport.initialize());
 //  app.use(passport.session())
 
-import session from 'express-session';
-import passport from 'passport';
 
 // ⭐ IMPORT YOUR PASSPORT CONFIG - THIS IS WHAT'S MISSING!
 // ⭐ Session middleware (REQUIRED for passport)
@@ -90,6 +91,8 @@ app.use("/api/v1/notes",noteRoute);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use("/api/v1/oauth",authRoute)
+
+console.log('✅ OAuth routes registered at /api/v1/oauth');
 
 app.use(errorMiddleware)
 
