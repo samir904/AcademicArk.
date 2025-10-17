@@ -11,7 +11,7 @@ import userRoute from "./ROUTES/user.route.js"
 import noteRoute from "./ROUTES/note.route.js"
 import adminRoutes from "./ROUTES/admin.routes.js"
 import searchRoutes from "./ROUTES/search.routes.js"
-// import authRoute from "./ROUTES/auth.route.js"
+ import authRoute from "./ROUTES/auth.route.js"
 import errorMiddleware from "./MIDDLEWARES/error.middleware.js"
 // import session from "express-session";
 // import passport from "passport";
@@ -45,6 +45,30 @@ app.use(morgan("dev"))
 //  app.use(passport.initialize());
 //  app.use(passport.session())
 
+import session from 'express-session';
+import passport from 'passport';
+
+// ⭐ IMPORT YOUR PASSPORT CONFIG - THIS IS WHAT'S MISSING!
+import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
+// ⭐ Session middleware (REQUIRED for passport)
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key-here',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // True in production (HTTPS)
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", // None for cross-site
+    path: "/",
+
+    }
+}));
+
+// ⭐ Initialize Passport
+app.use(passport.initialize());
+// 
+
 app.get("/health",(req,res)=>{
     res.status(200).json({
         success:"true",
@@ -65,7 +89,7 @@ app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/search', searchRoutes);
-// app.use("/api/v1/oauth",authRoute)
+app.use("/api/v1/oauth",authRoute)
 
 app.use(errorMiddleware)
 
