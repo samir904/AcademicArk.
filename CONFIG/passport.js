@@ -11,6 +11,9 @@ import crypto from "crypto"
 // If these log 'undefined', your .env file isn't loading properly
 
 //serialize/deseralize(not used since we issue jwts)
+console.log('🔧 Configuring Passport...');
+console.log('📍 Callback URL:', `${process.env.BACKEND_URL || 'https://academicark.onrender.com'}/api/v1/oauth/google/callback`);
+
 passport.serializeUser((user, done) => {
     done(null, user.id)
 })

@@ -11,6 +11,10 @@ const cookieoptions = {
 
 
 const router=Router();
+// ✅ Test route to verify router is working
+router.get("/test", (req, res) => {
+    res.json({ success: true, message: "Auth routes working!" });
+});
 
 //1) kick off google oauth
 router.get("/google",

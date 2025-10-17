@@ -67,7 +67,7 @@ app.use(session({
 
 // ⭐ Initialize Passport
 app.use(passport.initialize());
-// 
+app.use(passport.session()); // ⬅️ THIS WAS MISSING!
 
 app.get("/health",(req,res)=>{
     res.status(200).json({
