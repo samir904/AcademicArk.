@@ -6,6 +6,7 @@ import express from "express";
 import cors from "cors"
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
 
 import userRoute from "./ROUTES/user.route.js"
 import noteRoute from "./ROUTES/note.route.js"
@@ -49,7 +50,6 @@ import session from 'express-session';
 import passport from 'passport';
 
 // ⭐ IMPORT YOUR PASSPORT CONFIG - THIS IS WHAT'S MISSING!
-import '../BACKEND/CONFIG/passport.js'; // <-- Add this line! Adjust path if needed
 // ⭐ Session middleware (REQUIRED for passport)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-here',

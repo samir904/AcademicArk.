@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-  config();
+config();
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../MODELS/user.model.js";
@@ -24,27 +24,28 @@ passport.deserializeUser((id, done) => {
 
 //configure google oauth strategy 
 passport.use(new GoogleStrategy({
-    
+
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:5014/api/v1/oauth/google/callback",
-
+    // ✅ Use your production URL
+    callbackURL: `${process.env.BACKEND_URL || 'https://academicark.onrender.com'}/api/v1/oauth/google/callback`,
+    proxy: true
 },
 
     async (accessToken, refreshToken, profile, done) => {
         try {
             //extract email and name  photo
             const email = profile.emails[0].value;
-            const name     = profile.displayName;                // <-- fixed
-    let photoUrl = profile.photos?.[0]?.value || null;
-    console.log("Google profile photo URL:", profile.photos?.[0]?.value);
+            const name = profile.displayName;                // <-- fixed
+            let photoUrl = profile.photos?.[0]?.value || null;
+            console.log("Google profile photo URL:", profile.photos?.[0]?.value);
 
 
-    // Ensure HTTPS
-    if (photoUrl && photoUrl.startsWith("http://")) {
-      photoUrl = photoUrl.replace("http://", "https://");
-    }
-        let user = await User.findOne({ email });
+            // Ensure HTTPS
+            if (photoUrl && photoUrl.startsWith("http://")) {
+                photoUrl = photoUrl.replace("http://", "https://");
+            }
+            let user = await User.findOne({ email });
             if (!user) {
                 user = await User.create({
                     fullName: name,
