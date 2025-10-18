@@ -1,57 +1,85 @@
+// ROUTES/auth.route.js - Fixed with detailed logging
+
 import { Router } from "express";
 import passport from "passport";
-import jwt from "jsonwebtoken"
-const cookieoptions = {
+import jwt from "jsonwebtoken";
+
+const cookieOptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // True in production (HTTPS)
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", // None for cross-site
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
     path: "/",
-}
+};
 
+const router = Router();
 
-const router=Router();
 // ✅ Test route to verify router is working
 router.get("/test", (req, res) => {
+    console.log('✅ Test route hit');
     res.json({ success: true, message: "Auth routes working!" });
 });
 
-//1) kick off google oauth
+// ✅ Initiate Google OAuth
 router.get("/google",
-    passport.authenticate("google",{scope:["profile","email"],prompt:'select_account'})
+    (req, res, next) => {
+        console.log('🚀 Google OAuth flow initiated');
+        next();
+    },
+    passport.authenticate("google", {
+        scope: ["profile", "email"],
+        prompt: 'select_account'
+    })
 );
 
-// 2) Google callback - issue JWT, set cookie
+// ✅ Google OAuth Callback - FIXED with detailed logging
 router.get("/google/callback",
+    (req, res, next) => {
+        console.log('📥 Google callback received');
+        console.log('📋 Query params:', req.query);
+        console.log('🔑 Code present:', !!req.query.code);
+        next();
+    },
     passport.authenticate("google", {
-        failureRedirect: `${process.env.FRONTEND_URL}/login`,
-        session: false
+        failureRedirect: `${process.env.FRONTEND_URL}/login?error=auth_failed`,
+        session: false  // Use JWT instead of sessions
     }),
     (req, res) => {
         try {
-            // ✅ Check if user exists
+            console.log('✅ Passport authentication successful');
+
             if (!req.user) {
-                return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+                console.error('❌ No user object in request');
+                return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_user`);
             }
 
-            // Create JWT
-            const token = jwt.sign({
-                id: req.user._id,
-                email: req.user.email,
-                role: req.user.role
-            }, process.env.JWT_SECRET, {
-                expiresIn: process.env.JWT_EXPIRY
-            });
+            console.log('👤 Authenticated user:', req.user.email);
 
-            // Set cookie
-            res.cookie("token", token, cookieoptions);
+            // Create JWT token
+            const token = jwt.sign(
+                {
+                    id: req.user._id,
+                    email: req.user.email,
+                    role: req.user.role
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRY }
+            );
 
-            // ✅ Redirect to frontend
-            res.redirect(process.env.FRONTEND_URL || "http://localhost:5173");
+            // Set token cookie
+            res.cookie("token", token, cookieOptions);
+            console.log('🍪 Authentication cookie set');
+
+            // Redirect to frontend with success flag
+            const redirectUrl = `${process.env.FRONTEND_URL}?googleAuth=success`;
+            console.log('🔄 Redirecting to:', redirectUrl);
+
+            res.redirect(redirectUrl);
         } catch (error) {
             console.error("❌ OAuth callback error:", error);
             res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
         }
     }
 );
+
 export default router;

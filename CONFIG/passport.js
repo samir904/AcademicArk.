@@ -12,7 +12,7 @@ import crypto from "crypto"
 
 //serialize/deseralize(not used since we issue jwts)
 console.log('🔧 Configuring Passport...');
-console.log('📍 Callback URL:', `${process.env.BACKEND_URL || 'https://academicark.onrender.com'}/api/v1/oauth/google/callback`);
+console.log('📍 Callback URL: https://academicark.onrender.com/api/v1/oauth/google/callback');
 
 passport.serializeUser((user, done) => {
     done(null, user.id)
@@ -31,7 +31,7 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     // ✅ Use your production URL
-    callbackURL: `${process.env.BACKEND_URL || 'https://academicark.onrender.com'}/api/v1/oauth/google/callback`,
+     callbackURL: 'https://academicark.onrender.com/api/v1/oauth/google/callback',
     proxy: true
 },
 
