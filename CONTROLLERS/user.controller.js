@@ -460,3 +460,81 @@ export const getMyBookmarks = async (req, res, next) => {
         return next(new Apperror('Failed to get user bookmarks', 500));
     }
 };
+
+//get public profile 
+export const getPublicProfile=async(req,res,next)=>{
+    const{userId}=req.params;
+
+    if(!userId){
+        return next(new Apperror("User id is required",400));
+    }
+    const user=await User.findById(userId).select(
+        'fullName avatar role bio socialLinks isProfilePublic createdAt'
+    );
+    if(!user.isProfilePublic){
+        return next(new Apperror('This profile is private',403))
+    }
+    //get user's uploaded notes count (only for teachers/admin)
+    let notesCount=0;
+    if(user.role==='TEACHER'||user.role==='ADMIN'){
+        notesCount=await Note.countDocuments({uploadedBy:userId});
+    }
+
+    res.status(200).json({
+        success:true,
+        data:{
+            ...user.toObject(),
+            notesCount
+        }
+    })
+}
+
+//update social links 
+export const updateSocialLinks=async(req,res,next)=>{
+    const { bio, github, linkedin, twitter, website } = req.body;
+    const userId = req.user.id;
+
+    const updateData = {};
+
+    if (bio !== undefined) updateData.bio = bio;
+    if (github !== undefined) updateData['socialLinks.github'] = github;
+    if (linkedin !== undefined) updateData['socialLinks.linkedin'] = linkedin;
+    if (twitter !== undefined) updateData['socialLinks.twitter'] = twitter;
+    if (website !== undefined) updateData['socialLinks.website'] = website;
+
+    const user = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+    ).select('-password');
+
+    if(!user){
+        return next(new Apperror('user not found',404))
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Social links updated successfully',
+        data: user
+    })
+}
+
+//toggle profile visibility
+export const toggleProfileVisibility=async(req,res,next)=>{
+    const userId=req.user.id;
+    
+    const user=await User.findById(userId);
+
+    if(!user){
+        return next(new Apperror('User not found',404))
+    }
+
+    user.isProfilePublic = !user.isProfilePublic;
+    await user.save();
+
+    res.status(200).json({
+        success: true,
+        message: `Profile is now ${user.isProfilePublic ? 'public' : 'private'}`,
+        data: { isProfilePublic: user.isProfilePublic }
+    });
+}

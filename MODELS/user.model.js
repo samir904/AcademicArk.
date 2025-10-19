@@ -40,6 +40,63 @@ const userSchema=new Schema({
         enum:["USER","TEACHER","ADMIN"],
         default:"USER"
     },
+    // NEW: Bio and social links
+    bio: {
+        type: String,
+        maxlength: [200, "Bio must be less than 200 characters"],
+        default: ""
+    },
+    socialLinks: {
+        github: {
+            type: String,
+            default: "",
+            validate: {
+                validator: function(v) {
+                    if (!v) return true;
+                    return /^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_-]+\/?$/.test(v);
+                },
+                message: "Invalid GitHub URL"
+            }
+        },
+        linkedin: {
+            type: String,
+            default: "",
+            validate: {
+                validator: function(v) {
+                    if (!v) return true;
+                    return /^https?:\/\/(www\.)?linkedin\.com\/(in|company)\/[a-zA-Z0-9_-]+\/?$/.test(v);
+                },
+                message: "Invalid LinkedIn URL"
+            }
+        },
+        twitter: {
+            type: String,
+            default: "",
+            validate: {
+                validator: function(v) {
+                    if (!v) return true;
+                    return /^https?:\/\/(www\.)?(twitter|x)\.com\/[a-zA-Z0-9_]+\/?$/.test(v);
+                },
+                message: "Invalid Twitter/X URL"
+            }
+        },
+        website: {
+            type: String,
+            default: "",
+            validate: {
+                validator: function(v) {
+                    if (!v) return true;
+                    return /^https?:\/\/.+\..+/.test(v);
+                },
+                message: "Invalid website URL"
+            }
+        }
+    },
+    // NEW: Profile visibility settings
+    isProfilePublic: {
+        type: Boolean,
+        default: true
+    },
     forgotPasswordToken:{
         type:String
     },
@@ -58,6 +115,7 @@ const userSchema=new Schema({
 
 userSchema.index({ role: 1 }); // accelerate role-based queries
 userSchema.index({ forgotPasswordToken: 1 });     // speed up password reset lookups
+userSchema.index({ isProfilePublic: 1 }); // NEW: Index for public profiles
 
 userSchema.pre("save",async function (next) {
     if(!this.isModified("password")){
