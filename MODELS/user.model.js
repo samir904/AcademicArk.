@@ -71,7 +71,7 @@ const userSchema = new Schema({
     }
 }
 
-
+,
         twitter: {
             type: String,
             default: "",
