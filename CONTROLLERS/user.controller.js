@@ -514,7 +514,7 @@ export const updateSocialLinks=async(req,res,next)=>{
 
     res.status(200).json({
         success: true,
-        message: 'Social links updated successfully',
+        message: 'Social profile updated successfully',
         data: user
     })
 }
