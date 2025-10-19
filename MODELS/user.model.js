@@ -59,16 +59,18 @@ const userSchema=new Schema({
             }
         },
         linkedin: {
-            type: String,
-            default: "",
-            validate: {
-                validator: function(v) {
-                    if (!v) return true;
-                    return /^https?:\/\/(www\.)?linkedin\.com\/(in|company)\/[a-zA-Z0-9_-]+\/?$/.test(v);
-                },
-                message: "Invalid LinkedIn URL"
-            }
-        },
+  type: String,
+  default: "",
+  validate: {
+    validator: function (v) {
+      if (!v) return true;
+      // Allow any LinkedIn domain or subdomain, paths with in/company/school, with optional www, trailing slash or not
+      return /^https?:\/\/([a-z]+\.)?linkedin\.com\/(in|company|school)\/[a-zA-Z0-9._-]+\/?$/i.test(v);
+    },
+    message: "Invalid LinkedIn URL"
+  }
+},
+
         twitter: {
             type: String,
             default: "",
