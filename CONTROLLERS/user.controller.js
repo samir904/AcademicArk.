@@ -6,6 +6,7 @@ import fs from "fs/promises"
 import { getResetPasswordEmailHtml, sendEmail } from "../UTIL/sendemail.js";
 import crypto from "crypto";
 import mongoose from "mongoose";
+import sessionTracker from "../UTIL/sessionTracker.js";
 const cookieoptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -100,6 +101,7 @@ export const login = async (req, res, next) => {
 
 export const logout = async (req, res, next) => {
     // ✅ Clear cookie properly with same options used when setting it
+    sessionTracker.removeSession(req.user.id);
     res.cookie("token", null, {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,

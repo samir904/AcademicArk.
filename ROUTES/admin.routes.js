@@ -7,12 +7,22 @@ import {
     deleteUser, 
     deleteNote,
     updateUserRole,
-    getRecentActivity 
+    getRecentActivity, 
+    getServerMetrics,
+    getSessionMetrics,
+    getTrafficPattern,
+    getSessionHistory,
+    getWeeklyComparison
 } from '../CONTROLLERS/admin.controller.js';
 import { authorizedRoles, isLoggedIn } from '../MIDDLEWARES/auth.middleware.js';
 import asyncWrap from '../UTIL/asyncWrap.js';
+import notificationRoutes from './admin.notification.routes.js';
 
 const router = Router();
+
+// In admin.routes.js
+router.use('/', notificationRoutes);
+
 
 router.get('/dashboard/stats', 
     asyncWrap(isLoggedIn),
@@ -54,6 +64,37 @@ router.get('/activity',
     asyncWrap(isLoggedIn),
     asyncWrap(authorizedRoles('ADMIN')),
     asyncWrap(getRecentActivity)
+);
+
+router.get('/server-metrics',
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(getServerMetrics)
+)
+
+router.get('/session-metrics',
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(getSessionMetrics)
+)
+
+// Add these routes
+router.get('/session-history', 
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(getSessionHistory)
+);
+
+router.get('/weekly-comparison', 
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(getWeeklyComparison)
+);
+
+router.get('/traffic-pattern', 
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(getTrafficPattern)
 );
 
 export default router;

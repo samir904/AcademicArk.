@@ -17,6 +17,9 @@ import adminRoutes from "./ROUTES/admin.routes.js"
 import searchRoutes from "./ROUTES/search.routes.js"
  import authRoute from "./ROUTES/auth.route.js"
 import errorMiddleware from "./MIDDLEWARES/error.middleware.js"
+import responseTime from "response-time";
+import serverMetrics from "./UTIL/serverMetrics.js";
+import { initSessionCronJobs } from "./UTIL/sessionCronJobs.js";
 // import session from "express-session";
 // import passport from "passport";
 
@@ -86,11 +89,22 @@ app.get("/health",(req,res)=>{
 //   next();
 // });
 
+app.use(responseTime((req,res,time)=>{
+  serverMetrics.incrementRequest();
+  serverMetrics.addResponseTime(time);
+}));
+
+//error tracking middleware (add)
+
+
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use("/api/v1/oauth",authRoute)
+
+// After all middleware and routes
+initSessionCronJobs();
 
 console.log('✅ OAuth routes registered at /api/v1/oauth');
 

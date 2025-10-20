@@ -25,11 +25,14 @@
     "mongoose": "^8.17.1",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.10",
+    "os-utils": "^0.0.14",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "redis": "^5.8.0"
+    "redis": "^5.8.0",
+    "response-time": "^2.3.4"
   }
 }

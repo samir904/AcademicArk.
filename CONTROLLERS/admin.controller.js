@@ -3,6 +3,9 @@ import User from '../MODELS/user.model.js';
 import Note from '../MODELS/note.model.js';
 import mongoose from 'mongoose';
 import Apperror from '../UTIL/error.util.js';
+import serverMetrics from '../UTIL/serverMetrics.js';
+import sessionTracker from '../UTIL/sessionTracker.js';
+import SessionLog from '../MODELS/SessionLog.model.js';
 
 export const getDashboardStats = async (req, res, next) => {
     try {
@@ -283,5 +286,145 @@ export const getRecentActivity = async (req, res, next) => {
     } catch (error) {
         console.error('Get recent activity error:', error);
         return next(new Apperror('Failed to get recent activity', 500));
+    }
+};
+
+export const getServerMetrics=async(req,res,next)=>{
+    try{
+        const metrics=await serverMetrics.getMetrics();
+
+        res.status(200).json({
+            success:true,
+            message:'Server metrics retrieved successfully',
+            data:metrics
+        })
+    }catch(err){
+        console.error('server metrics error',err);
+        return next(new Apperror('Failed to get server metrics',500));
+    }
+}
+
+export const getSessionMetrics=async(req,res,next)=>{
+    
+        const metrics=sessionTracker.getMetrics();
+
+        //get user details for active users
+        const activeUserDetails=await User.find({
+            _id:{$in: metrics.activeUsers}//what is this line meaning what is metrics.activeusers
+        }).select('fullName email avatar role');
+
+        res.status(200).json({
+            success:true,
+            message:'session metrics retrieved successfully',
+            data:{
+                ...metrics,
+                activeUserDetails
+            }
+        });
+   
+}
+
+// Get session history (last 30 days)
+export const getSessionHistory = async (req, res, next) => {
+    try {
+        const { days = 30 } = req.query;
+        const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        
+        const history = await SessionLog.find({
+            date: { $gte: startDate }
+        }).sort({ date: 1 });
+        
+        res.status(200).json({
+            success: true,
+            message: 'Session history retrieved successfully',
+            data: history
+        });
+    } catch (error) {
+        console.error('Session history error:', error);
+        return next(new Apperror('Failed to get session history', 500));
+    }
+};
+
+
+/// Get weekly comparison
+export const getWeeklyComparison = async (req, res, next) => {
+    try {
+        const thisWeekStart = new Date();
+        thisWeekStart.setDate(thisWeekStart.getDate() - 7);
+        thisWeekStart.setHours(0, 0, 0, 0);
+        
+        const lastWeekStart = new Date();
+        lastWeekStart.setDate(lastWeekStart.getDate() - 14);
+        lastWeekStart.setHours(0, 0, 0, 0);
+        
+        const thisWeek = await SessionLog.find({
+            date: { $gte: thisWeekStart }
+        });
+        
+        const lastWeek = await SessionLog.find({
+            date: { $gte: lastWeekStart, $lt: thisWeekStart }
+        });
+        
+        const thisWeekAvg = thisWeek.length > 0
+            ? thisWeek.reduce((sum, day) => sum + day.maxConcurrent, 0) / thisWeek.length
+            : 0;
+            
+        const lastWeekAvg = lastWeek.length > 0
+            ? lastWeek.reduce((sum, day) => sum + day.maxConcurrent, 0) / lastWeek.length
+            : 0;
+        
+        const growth = lastWeekAvg > 0 
+            ? ((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100 
+            : 0;
+        
+        res.status(200).json({
+            success: true,
+            message: 'Weekly comparison retrieved successfully',
+            data: {
+                thisWeekAvg: Math.round(thisWeekAvg),
+                lastWeekAvg: Math.round(lastWeekAvg),
+                growth: growth.toFixed(2),
+                thisWeekData: thisWeek,
+                lastWeekData: lastWeek
+            }
+        });
+    } catch (error) {
+        console.error('Weekly comparison error:', error);
+        return next(new Apperror('Failed to get weekly comparison', 500));
+    }
+};
+
+// Get traffic pattern by day of week
+export const getTrafficPattern = async (req, res, next) => {
+    try {
+        const pattern = await SessionLog.aggregate([
+            {
+                $group: {
+                    _id: { $dayOfWeek: '$date' },
+                    avgPeak: { $avg: '$maxConcurrent' },
+                    avgConcurrent: { $avg: '$avgConcurrent' },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+        
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        const formattedPattern = pattern.map(day => ({
+            day: dayNames[day._id - 1],
+            avgPeak: Math.round(day.avgPeak),
+            avgConcurrent: Math.round(day.avgConcurrent),
+            dataPoints: day.count
+        }));
+        
+        res.status(200).json({
+            success: true,
+            message: 'Traffic pattern retrieved successfully',
+            data: formattedPattern
+        });
+    } catch (error) {
+        console.error('Traffic pattern error:', error);
+        return next(new Apperror('Failed to get traffic pattern', 500));
     }
 };

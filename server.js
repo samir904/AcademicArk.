@@ -18,6 +18,8 @@ cloudinary.v2.config({
     api_key:process.env.CLOUDINARY_API_KEY,
     api_secret:process.env.CLOUDINARY_API_SECRET
 })
+// Seed data (only runs once if database is empty)
+
 app.listen(port,()=>{
     dbConnection();
     console.log(`APP IS LISTNING ON :  ${port}!`)

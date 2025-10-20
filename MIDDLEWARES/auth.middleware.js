@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import Apperror from "../UTIL/error.util.js";
+import sessionTracker from "../UTIL/sessionTracker.js";
 
 export const isLoggedIn=async(req,res,next)=>{
     const{token}=req.cookies;
@@ -8,6 +9,10 @@ export const isLoggedIn=async(req,res,next)=>{
     }
     const userdetails=await jwt.verify(token,process.env.JWT_SECRET);
     req.user=userdetails;
+
+    // Track user activity
+    sessionTracker.recordActivity(userdetails.id);
+    
     next();
 }
 
