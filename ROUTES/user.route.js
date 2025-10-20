@@ -10,7 +10,7 @@ const router= Router();
 
 router.post("/register",upload.single('avatar'),asyncWrap(register));
 router.post("/login",asyncWrap(login));
-router.get("/logout",asyncWrap(logout));
+router.get("/logout",asyncWrap(isLoggedIn),asyncWrap(logout));
 router.get("/getprofile",asyncWrap(isLoggedIn),asyncWrap(getProfile));
 
 router.post("/reset",asyncWrap(forgotPassword));
