@@ -94,7 +94,7 @@ export const login = async (req, res, next) => {
 
     res.status(200).json({
         success:true,
-        message:"Welcome back! Login successful 🎉",
+        message:`Welcome back! ${user.fullName} 🎉`,
         data:user
     })
 }
