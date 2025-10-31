@@ -60,7 +60,7 @@ const noteSchema=new Schema({
     },
     category:{
         type:String,
-        enum:["Notes","Important Question","PYQ"],
+        enum:["Notes","Important Question","PYQ", "Handwritten Notes"],
         default:"Notes"
     },
     downloads:{
