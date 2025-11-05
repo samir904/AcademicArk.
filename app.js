@@ -13,6 +13,7 @@ import passport from 'passport';
 
 import userRoute from "./ROUTES/user.route.js"
 import noteRoute from "./ROUTES/note.route.js"
+import publicRoutes from "./ROUTES/public.routes.js"
 import adminRoutes from "./ROUTES/admin.routes.js"
 import searchRoutes from "./ROUTES/search.routes.js"
  import authRoute from "./ROUTES/auth.route.js"
@@ -99,6 +100,7 @@ app.use(responseTime((req,res,time)=>{
 
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
+app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use("/api/v1/oauth",authRoute)

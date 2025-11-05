@@ -6,6 +6,21 @@ import Apperror from '../UTIL/error.util.js';
 import serverMetrics from '../UTIL/serverMetrics.js';
 import sessionTracker from '../UTIL/sessionTracker.js';
 import SessionLog from '../MODELS/SessionLog.model.js';
+import AdminLog from '../MODELS/adminLog.model.js';
+// ✅ CORRECTED: Helper function to create admin logs
+async function createAdminLog(logData) {
+    try {
+        // Make sure all required fields are present
+        if (!logData.adminId || !logData.adminName) {
+            console.warn('Missing admin info for log:', logData);
+            return;
+        }
+        await AdminLog.create(logData);
+    } catch (error) {
+        console.error('Error creating admin log:', error);
+    }
+}
+
 
 export const getDashboardStats = async (req, res, next) => {
     try {
@@ -15,23 +30,23 @@ export const getDashboardStats = async (req, res, next) => {
         const totalDownloads = await Note.aggregate([
             { $group: { _id: null, total: { $sum: '$downloads' } } }
         ]);
-        
+
         // Get user distribution by role
         const usersByRole = await User.aggregate([
             { $group: { _id: '$role', count: { $sum: 1 } } }
         ]);
-        
+
         // Get notes by category
         const notesByCategory = await Note.aggregate([
             { $group: { _id: '$category', count: { $sum: 1 } } }
         ]);
-        
+
         // Get notes by semester
         const notesBySemester = await Note.aggregate([
             { $group: { _id: '$semester', count: { $sum: 1 } } },
             { $sort: { _id: 1 } }
         ]);
-        
+
         // Get top rated notes
         const topRatedNotes = await Note.aggregate([
             {
@@ -95,7 +110,7 @@ export const getAllUsers = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const search = req.query.search || '';
-        
+
         const searchQuery = search ? {
             $or: [
                 { fullName: { $regex: search, $options: 'i' } },
@@ -135,7 +150,7 @@ export const getAllNotes = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const search = req.query.search || '';
-        
+
         const searchQuery = search ? {
             $or: [
                 { title: { $regex: search, $options: 'i' } },
@@ -184,16 +199,36 @@ export const deleteUser = async (req, res, next) => {
 
         // Delete user's notes first
         await Note.deleteMany({ uploadedBy: id });
-        
+
         // Then delete user
         await User.findByIdAndDelete(id);
-
+        // ✅ Log the action
+       // ✅ CORRECTED: Check if res.locals.adminLog exists before using it
+        if (res.locals.adminLog) {
+            await createAdminLog({
+                ...res.locals.adminLog,
+                targetId: id,
+                targetName: user.fullName,
+                status: 'SUCCESS'
+            });
+        } else {
+            console.warn('adminLog not available for deleteUser');
+        }
         res.status(200).json({
             success: true,
             message: 'User deleted successfully'
         });
     } catch (error) {
-        console.error('Delete user error:', error);
+        // ✅ CORRECTED: Log failures too
+        if (res.locals.adminLog) {
+            await createAdminLog({
+                ...res.locals.adminLog,
+                targetId: req.params.id,
+                status: 'FAILED',
+                errorMessage: error.message
+            });
+        }
+
         return next(new Apperror('Failed to delete user', 500));
     }
 };
@@ -211,6 +246,18 @@ export const deleteNote = async (req, res, next) => {
             return next(new Apperror('Note not found', 404));
         }
 
+        // ✅ CORRECTED: Use note title, not user fullName
+        if (res.locals.adminLog) {
+            await createAdminLog({
+                ...res.locals.adminLog,
+                targetId: id,
+                targetName: note.title,  // ✅ FIXED: was user?.fullName (undefined)
+                status: 'SUCCESS'
+            });
+        } else {
+            console.warn('adminLog not available for deleteNote');
+        }
+
         res.status(200).json({
             success: true,
             message: 'Note deleted successfully'
@@ -221,6 +268,7 @@ export const deleteNote = async (req, res, next) => {
     }
 };
 
+// ✅ CORRECTED: updateUserRole with proper logging
 export const updateUserRole = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -234,46 +282,65 @@ export const updateUserRole = async (req, res, next) => {
             return next(new Apperror('Invalid role', 400));
         }
 
-        const user = await User.findByIdAndUpdate(
-            id, 
-            { role }, 
+        // ✅ CORRECTED: Get old role BEFORE update
+        const user = await User.findById(id);
+        const oldRole = user?.role;
+
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { role },
             { new: true, select: '-password' }
         );
 
-        if (!user) {
+        if (!updatedUser) {
             return next(new Apperror('User not found', 404));
+        }
+
+        // ✅ CORRECTED: Log with old and new role
+        if (res.locals.adminLog) {
+            await createAdminLog({
+                ...res.locals.adminLog,
+                targetId: id,
+                targetName: updatedUser.fullName,
+                details: {
+                    oldValue: { role: oldRole },
+                    newValue: { role: updatedUser.role }
+                },
+                status: 'SUCCESS'
+            });
+        } else {
+            console.warn('adminLog not available for updateUserRole');
         }
 
         res.status(200).json({
             success: true,
             message: 'User role updated successfully',
-            data: user
+            data: updatedUser
         });
     } catch (error) {
         console.error('Update user role error:', error);
         return next(new Apperror('Failed to update user role', 500));
     }
 };
-
 export const getRecentActivity = async (req, res, next) => {
     try {
         // Get recent users (last 7 days)
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        
+
         const recentUsers = await User.find({
             createdAt: { $gte: sevenDaysAgo }
         })
-        .select('fullName email createdAt')
-        .sort({ createdAt: -1 })
-        .limit(5);
+            .select('fullName email createdAt')
+            .sort({ createdAt: -1 })
+            .limit(5);
 
         // Get recent notes (last 7 days)
         const recentNotes = await Note.find({
             createdAt: { $gte: sevenDaysAgo }
         })
-        .populate('uploadedBy', 'fullName')
-        .sort({ createdAt: -1 })
-        .limit(5);
+            .populate('uploadedBy', 'fullName')
+            .sort({ createdAt: -1 })
+            .limit(5);
 
         res.status(200).json({
             success: true,
@@ -289,18 +356,18 @@ export const getRecentActivity = async (req, res, next) => {
     }
 };
 
-export const getServerMetrics=async(req,res,next)=>{
-    try{
-        const metrics=await serverMetrics.getMetrics();
+export const getServerMetrics = async (req, res, next) => {
+    try {
+        const metrics = await serverMetrics.getMetrics();
 
         res.status(200).json({
-            success:true,
-            message:'Server metrics retrieved successfully',
-            data:metrics
+            success: true,
+            message: 'Server metrics retrieved successfully',
+            data: metrics
         })
-    }catch(err){
-        console.error('server metrics error',err);
-        return next(new Apperror('Failed to get server metrics',500));
+    } catch (err) {
+        console.error('server metrics error', err);
+        return next(new Apperror('Failed to get server metrics', 500));
     }
 }
 
@@ -313,15 +380,15 @@ export const getSessionMetrics=async(req,res,next)=>{
             _id:{$in: metrics.activeUsers}//what is this line meaning what is metrics.activeusers
         }).select('fullName email avatar role');
 
-        res.status(200).json({
-            success:true,
-            message:'session metrics retrieved successfully',
-            data:{
-                ...metrics,
-                activeUserDetails
-            }
-        });
-   
+    res.status(200).json({
+        success: true,
+        message: 'session metrics retrieved successfully',
+        data: {
+            ...metrics,
+            activeUserDetails
+        }
+    });
+
 }
 
 // Get session history (last 30 days)
@@ -329,11 +396,11 @@ export const getSessionHistory = async (req, res, next) => {
     try {
         const { days = 30 } = req.query;
         const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-        
+
         const history = await SessionLog.find({
             date: { $gte: startDate }
         }).sort({ date: 1 });
-        
+
         res.status(200).json({
             success: true,
             message: 'Session history retrieved successfully',
@@ -352,7 +419,7 @@ export const getWeeklyComparison = async (req, res, next) => {
         const thisWeekStart = new Date();
         thisWeekStart.setDate(thisWeekStart.getDate() - 7);
         thisWeekStart.setHours(0, 0, 0, 0);
-        
+
         const lastWeekStart = new Date();
         lastWeekStart.setDate(lastWeekStart.getDate() - 14);
         lastWeekStart.setHours(0, 0, 0, 0);
@@ -372,11 +439,11 @@ export const getWeeklyComparison = async (req, res, next) => {
         const lastWeekAvg = lastWeek.length > 0
             ? lastWeek.reduce((sum, day) => sum + day.maxConcurrent, 0) / lastWeek.length
             : 0;
-        
-        const growth = lastWeekAvg > 0 
-            ? ((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100 
+
+        const growth = lastWeekAvg > 0
+            ? ((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100
             : 0;
-        
+
         res.status(200).json({
             success: true,
             message: 'Weekly comparison retrieved successfully',
@@ -428,3 +495,35 @@ export const getTrafficPattern = async (req, res, next) => {
         return next(new Apperror('Failed to get traffic pattern', 500));
     }
 };
+
+export const getAdminLogs = async (req, res, next) => {
+    try {
+        const { days = 7, action, page = 1, limit = 20 } = req.query;
+        
+        const daysAgo = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        
+        let query = { timestamp: { $gte: daysAgo } };
+        if (action) query.action = action;
+        
+        const logs = await AdminLog.find(query)
+            .populate('adminId', 'fullName email')
+            .sort({ timestamp: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+        
+        const total = await AdminLog.countDocuments(query);
+        
+        res.json({
+            success: true,
+            data: logs,
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                currentPage: page
+            }
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+

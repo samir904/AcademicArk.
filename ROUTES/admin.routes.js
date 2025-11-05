@@ -12,11 +12,13 @@ import {
     getSessionMetrics,
     getTrafficPattern,
     getSessionHistory,
-    getWeeklyComparison
+    getWeeklyComparison,
+    getAdminLogs
 } from '../CONTROLLERS/admin.controller.js';
 import { authorizedRoles, isLoggedIn } from '../MIDDLEWARES/auth.middleware.js';
 import asyncWrap from '../UTIL/asyncWrap.js';
 import notificationRoutes from './admin.notification.routes.js';
+import { logAdminAction } from '../MIDDLEWARES/logAdminAction.middleware.js';
 
 const router = Router();
 
@@ -45,20 +47,32 @@ router.get('/notes',
 router.delete('/users/:id', 
     asyncWrap(isLoggedIn),
     asyncWrap(authorizedRoles('ADMIN')),
+   asyncWrap(logAdminAction('DELETE_USER', 'USER')),  // ✅ ADD THIS
     asyncWrap(deleteUser)
 );
 
 router.delete('/notes/:id', 
     asyncWrap(isLoggedIn),
     asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(logAdminAction('DELETE_NOTE', 'NOTE')),  // ✅ ADD THIS
     asyncWrap(deleteNote)
 );
 
+// ✅ CORRECT ORDER - logAdminAction BEFORE asyncWrap
 router.put('/users/:id/role', 
-    asyncWrap(isLoggedIn),
-    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(isLoggedIn),  // ← Without asyncWrap first
+    asyncWrap(authorizedRoles('ADMIN')),  // ← Without asyncWrap first
+    asyncWrap(logAdminAction('UPDATE_ROLE', 'ROLE')),  // ✅ Now middleware can access req.user
     asyncWrap(updateUserRole)
 );
+
+
+router.get('/admin-logs', 
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles('ADMIN')),
+    asyncWrap(getAdminLogs)
+);
+
 
 router.get('/activity', 
     asyncWrap(isLoggedIn),
