@@ -37,7 +37,7 @@ const subjectAttendanceSchema = new Schema({
     min: 0
   },
   records: [attendanceRecordSchema]
-}, );
+});
 
 const attendanceSchema = new Schema({
   user: {

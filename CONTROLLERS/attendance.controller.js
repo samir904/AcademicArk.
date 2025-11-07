@@ -10,9 +10,7 @@ import Apperror from '../UTIL/error.util.js';
 export const getAttendance = async (req, res, next) => {
   try {
     const { semester } = req.params;
-    // ✨ NEW: Handle guest users
     if (!req.user) {
-      // Return empty attendance for non-logged users
       return res.status(200).json({
         success: true,
         message: 'Please login to view your attendance',
@@ -22,8 +20,8 @@ export const getAttendance = async (req, res, next) => {
         }
       });
     }
+    
     const userId = req.user.id;
-
     let attendance = await Attendance.findOne({ 
       user: userId, 
       semester 
@@ -37,7 +35,7 @@ export const getAttendance = async (req, res, next) => {
       });
     }
 
-    // ✨ UPDATED: Calculate with initial classes + prediction + 2 decimal precision
+    // ✨ CRITICAL: Calculate currentPercentage for each subject
     const subjectsWithPercentage = attendance.subjects.map(subject => {
       const recordPresent = subject.records.filter(r => r.status === 'present').length;
       const recordTotal = subject.records.length;
@@ -45,10 +43,10 @@ export const getAttendance = async (req, res, next) => {
       const totalPresent = subject.initialPresentClasses + recordPresent;
       const totalClasses = subject.initialTotalClasses + recordTotal;
       
-      // ✨ CHANGED: 2 decimal places
-      const percentage = totalClasses > 0 ? parseFloat(((totalPresent / totalClasses) * 100).toFixed(2)) : 0;
+      const percentage = totalClasses > 0 
+        ? parseFloat(((totalPresent / totalClasses) * 100).toFixed(2)) 
+        : 0;
 
-      // ✨ NEW: Calculate classes needed/can skip
       const targetPercentage = subject.targetPercentage || 75;
       let prediction = null;
 
@@ -79,9 +77,10 @@ export const getAttendance = async (req, res, next) => {
       }
 
       return {
+        _id: subject._id,  // ✨ Include _id for React keys
         subject: subject.subject,
         targetPercentage: subject.targetPercentage,
-        currentPercentage: percentage, // ✨ NOW 2 DECIMAL PLACES
+        currentPercentage: percentage,  // ✨ CRITICAL: Include this!
         classesAttended: totalPresent,
         totalClasses: totalClasses,
         initialTotalClasses: subject.initialTotalClasses,
@@ -121,7 +120,6 @@ export const addSubject = async (req, res, next) => {
       return next(new Apperror('Subject name is required', 400));
     }
 
-    // ✨ VALIDATION: Present classes can't exceed total classes
     if (initialPresentClasses > initialTotalClasses) {
       return next(new Apperror('Present classes cannot exceed total classes', 400));
     }
@@ -147,7 +145,6 @@ export const addSubject = async (req, res, next) => {
       return next(new Apperror('Subject already exists', 400));
     }
 
-    // ✨ UPDATED: Include initial classes
     attendance.subjects.push({
       subject,
       targetPercentage: targetPercentage || 75,
@@ -158,16 +155,76 @@ export const addSubject = async (req, res, next) => {
 
     await attendance.save();
 
+    // ✨ FIXED: Calculate currentPercentage for EACH subject like getAttendance does
+    const subjectsWithPercentage = attendance.subjects.map(subj => {
+      const recordPresent = subj.records.filter(r => r.status === 'present').length;
+      const recordTotal = subj.records.length;
+      
+      const totalPresent = subj.initialPresentClasses + recordPresent;
+      const totalClasses = subj.initialTotalClasses + recordTotal;
+      
+      const percentage = totalClasses > 0 
+        ? parseFloat(((totalPresent / totalClasses) * 100).toFixed(2)) 
+        : 0;
+
+      const tgtPercentage = subj.targetPercentage || 75;
+      let prediction = null;
+
+      if (percentage < tgtPercentage) {
+        const classesNeeded = Math.ceil((tgtPercentage * totalClasses - 100 * totalPresent) / (100 - tgtPercentage));
+        prediction = {
+          type: 'need',
+          classes: classesNeeded > 0 ? classesNeeded : 0,
+          message: classesNeeded > 0 
+            ? `Need to attend ${classesNeeded} more ${classesNeeded === 1 ? 'class' : 'classes'} to reach ${tgtPercentage}%`
+            : `On track to reach ${tgtPercentage}%`
+        };
+      } else if (percentage > tgtPercentage) {
+        const canSkip = Math.floor((100 * totalPresent - tgtPercentage * totalClasses) / tgtPercentage);
+        prediction = {
+          type: 'skip',
+          classes: canSkip > 0 ? canSkip : 0,
+          message: canSkip > 0 
+            ? `Can skip ${canSkip} ${canSkip === 1 ? 'class' : 'classes'} and stay above ${tgtPercentage}%`
+            : `Maintain attendance to stay above ${tgtPercentage}%`
+        };
+      } else {
+        prediction = {
+          type: 'exact',
+          classes: 0,
+          message: `Perfect! At exactly ${tgtPercentage}%`
+        };
+      }
+
+      return {
+        _id: subj._id,
+        subject: subj.subject,
+        targetPercentage: subj.targetPercentage,
+        currentPercentage: percentage,
+        classesAttended: totalPresent,
+        totalClasses: totalClasses,
+        initialTotalClasses: subj.initialTotalClasses,
+        initialPresentClasses: subj.initialPresentClasses,
+        prediction,
+        records: subj.records.sort((a, b) => new Date(b.date) - new Date(a.date))
+      };
+    });
+
     res.status(201).json({
       success: true,
       message: 'Subject added successfully',
-      data: attendance
+      data: {
+        semester,
+        subjects: subjectsWithPercentage  // ✨ Return calculated data!
+      }
     });
 
   } catch (error) {
     return next(new Apperror(error.message, 500));
   }
 };
+
+
 
 /**
  * ✨ NEW: EDIT_SUBJECT
@@ -487,8 +544,10 @@ export const getAttendanceStats = async (req, res, next) => {
   try {
     const { semester } = req.params;
     // ✨ NEW: Handle guest users
+    console.log('🔍 getAttendanceStats called');
+    console.log('req.user:', req.user);  // ✨ Debuga
     if (!req.user) {
-      // Return empty stats for non-logged users
+      console.log('⚠️ No user found - returning empty stats');
       return res.status(200).json({
         success: true,
         data: {

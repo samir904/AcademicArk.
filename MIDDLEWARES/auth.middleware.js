@@ -14,8 +14,12 @@ export const optionalAuth = async (req, res, next) => {
     }
 
     // Token exists? Verify it
-    const userDetails = await JWT.verify(token, process.env.JWT_SECRET);
-    req.user = userDetails;
+    const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+    req.user = {
+      id: userDetails.id,      // ✨ Make sure id exists!
+      email: userDetails.email,
+      ...userDetails
+    };;
     next();
   } catch (error) {
     // Invalid token? Treat as guest
@@ -47,7 +51,11 @@ export const isLoggedIn = async (req, res, next) => {
 
     try {
         const userdetails = await jwt.verify(token, process.env.JWT_SECRET);
-        req.user = userdetails;
+        req.user = {
+      id: userdetails.id,      // ✨ Make sure id exists!
+      email: userdetails.email,
+      ...userdetails
+    };
 
         // Track user activity
         sessionTracker.recordActivity(userdetails.id);
