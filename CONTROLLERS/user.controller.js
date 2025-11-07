@@ -115,37 +115,37 @@ export const logout = async (req, res, next) => {
     })
 }
 
-// Add this to your auth controller
-export const validateToken = async (req, res, next) => {
-    try {
-        const { token } = req.body;
+// // Add this to your auth controller
+// export const validateToken = async (req, res, next) => {
+//     try {
+//         const { token } = req.body;
         
-        if (!token) {
-            return next(new Apperror("Token is required", 400));
-        }
+//         if (!token) {
+//             return next(new Apperror("Token is required", 400));
+//         }
 
-        // Verify the token
-        const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+//         // Verify the token
+//         const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
         
-        // Get user data
-        const user = await User.findById(userDetails.id).select('-password');
+//         // Get user data
+//         const user = await User.findById(userDetails.id).select('-password');
         
-        if (!user) {
-            return next(new Apperror("User not found", 404));
-        }
+//         if (!user) {
+//             return next(new Apperror("User not found", 404));
+//         }
 
-        // Set the cookie for future requests
-        res.cookie("token", token, cookieOptions);
+//         // Set the cookie for future requests
+//         res.cookie("token", token, cookieOptions);
 
-        res.status(200).json({
-            success: true,
-            message: `Welcome back! ${user.fullName} 🎉`,
-            data: user
-        });
-    } catch (error) {
-        return next(new Apperror("Invalid token", 401));
-    }
-};
+//         res.status(200).json({
+//             success: true,
+//             message: `Welcome back! ${user.fullName} 🎉`,
+//             data: user
+//         });
+//     } catch (error) {
+//         return next(new Apperror("Invalid token", 401));
+//     }
+// };
 
 
 export const getProfile = async (req, res, next) => {

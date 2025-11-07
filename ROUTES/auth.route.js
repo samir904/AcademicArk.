@@ -10,9 +10,6 @@ const cookieOptions = {
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
     path: "/",
-    // ✨ NEW: Add domain for cross-origin cookies
-    domain: process.env.NODE_ENV === "production" ? ".academicark.onrender.com" : undefined
-
 };
 
 const router = Router();
@@ -72,17 +69,9 @@ router.get("/google/callback",
             // Set token cookie
             res.cookie("token", token, cookieOptions);
             console.log('🍪 Authentication cookie set');
-// ✨ SOLUTION 2: Pass token and user data in URL for fallback
-            const userData = encodeURIComponent(JSON.stringify({
-                id: req.user._id,
-                email: req.user.email,
-                fullName: req.user.fullName,
-                role: req.user.role,
-                avatar: req.user.avatar
-            }));
+
             // Redirect to frontend with success flag
-            // Redirect with token and user data for cookie-blocked browsers
-            const redirectUrl = `${process.env.FRONTEND_URL}?googleAuth=success&token=${token}&userData=${userData}`;
+            const redirectUrl = `${process.env.FRONTEND_URL}?googleAuth=success`;
             console.log('🔄 Redirecting to:', redirectUrl);
 
             res.redirect(redirectUrl);
