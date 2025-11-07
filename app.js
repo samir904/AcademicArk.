@@ -17,6 +17,7 @@ import publicRoutes from "./ROUTES/public.routes.js"
 import adminRoutes from "./ROUTES/admin.routes.js"
 import searchRoutes from "./ROUTES/search.routes.js"
  import authRoute from "./ROUTES/auth.route.js"
+ import attendanceRoute from "./ROUTES/attendance.route.js"
  import analyticsRoutes from "./ROUTES/analytics.routes.js"
 import errorMiddleware from "./MIDDLEWARES/error.middleware.js"
 import responseTime from "response-time";
@@ -106,7 +107,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use("/api/v1/oauth",authRoute);
 app.use('/api/v1/analytics', analyticsRoutes)
-
+app.use("/api/v1/attendance", attendanceRoute);
 // After all middleware and routes
 initSessionCronJobs();
 

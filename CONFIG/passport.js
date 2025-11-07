@@ -35,6 +35,17 @@ passport.use(new GoogleStrategy({
     proxy: true
 },
 
+// passport.use(new GoogleStrategy({
+//     clientID: process.env.GOOGLE_CLIENT_ID,
+//     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+//     // ✅ Dynamic based on environment
+//     callbackURL: process.env.NODE_ENV === 'production'
+//         ? 'https://academicark.onrender.com/api/v1/oauth/google/callback'
+//         : 'http://localhost:5014/api/v1/oauth/google/callback',
+//     proxy: true
+// },
+
+
     async (accessToken, refreshToken, profile, done) => {
         try {
             //extract email and name  photo
