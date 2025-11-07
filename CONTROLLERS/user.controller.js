@@ -98,22 +98,27 @@ export const login = async (req, res, next) => {
         data:user
     })
 }
-
 export const logout = async (req, res, next) => {
-    // ✅ Clear cookie properly with same options used when setting it
-    sessionTracker.removeSession(req.user.id);
-    res.cookie("token", null, {
-        secure: process.env.NODE_ENV === "production",
-        httpOnly: true,
-        maxAge: 0,
-        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-        path: "/"
-    });
-    res.status(200).json({
-        success:true,
-        message:"Logged out successfully"
-    })
-}
+    try {
+        sessionTracker.removeSession(req.user.id);
+        
+        // ✅ CORRECT way to clear cookie (must match set options)
+        res.clearCookie('token', {
+            secure: process.env.NODE_ENV === "production",
+            httpOnly: true,
+            sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+            path: "/"
+        });
+        
+        res.status(200).json({
+            success: true,
+            message: "Logged out successfully"
+        });
+    } catch (error) {
+        return next(new Apperror(error.message || "Logout failed", 500));
+    }
+};
+
 
 // // Add this to your auth controller
 // export const validateToken = async (req, res, next) => {
