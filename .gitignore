@@ -1,3 +1,4 @@
 .env
 node_modules/
 CONFIG/google-analytics-key.json
+CONFIG/google-analytics-key.json
