@@ -279,8 +279,7 @@ export const markAttendance = async (req, res, next) => {
     const totalPresent = subjectData.initialPresentClasses + recordPresent;
     const totalClasses = subjectData.initialTotalClasses + recordTotal;
     
-    const percentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
-
+    const percentage = totalClasses > 0 ? parseFloat(((totalPresent / totalClasses) * 100).toFixed(2)) : 0;
     // Calculate prediction
     const targetPercentage = subjectData.targetPercentage || 75;
     let prediction = null;
@@ -369,7 +368,8 @@ export const getSubjectDetails = async (req, res, next) => {
     const totalPresent = subjectData.initialPresentClasses + recordPresent;
     const totalClasses = subjectData.initialTotalClasses + recordTotal;
     
-    const percentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
+   // ✨ CHANGED: 2 decimal places (consistent with getAttendance)
+const percentage = totalClasses > 0 ? parseFloat(((totalPresent / totalClasses) * 100).toFixed(2)) : 0;
 
     res.status(200).json({
       success: true,
