@@ -27,19 +27,98 @@ export const optionalAuth = async (req, res, next) => {
     next();
   }
 };
+// ✅ Optional authentication for logout
+export const optionalAuthForLogout = async (req, res, next) => {
+    try {
+        const { token } = req.cookies;
+        
+        if (!token) {
+            // No token? Just proceed to logout
+            req.user = null;
+            return next();
+        }
 
-export const isLoggedIn=async(req,res,next)=>{
-    const{token}=req.cookies;
-    if(!token){
-        return next(new Apperror("cookie not found please login again",400))
+        // Token exists? Verify it
+        const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+        req.user = userDetails;
+        next();
+    } catch (error) {
+        // Invalid token? Still allow logout
+        req.user = null;
+        next();
     }
-    const userdetails=await jwt.verify(token,process.env.JWT_SECRET);
-    req.user=userdetails;
+};
 
-    // Track user activity
-    sessionTracker.recordActivity(userdetails.id);
+
+// export const isLoggedIn=async(req,res,next)=>{
+//     const{token}=req.cookies;
+//     if(!token){
+//         return next(new Apperror("cookie not found please login again",400))
+//     }
+//     const userdetails=await jwt.verify(token,process.env.JWT_SECRET);
+//     req.user=userdetails;
+
+//     // Track user activity
+//     sessionTracker.recordActivity(userdetails.id);
     
-    next();
+//     next();
+// };
+
+export const isLoggedIn = async (req, res, next) => {
+    try {
+        const { token } = req.cookies;
+        
+        // ✅ Better: Check if token exists
+        if (!token) {
+            return next(new Apperror(
+                "Session expired. Please login again.",  // ← Better message
+                401  // ← Use 401 (Unauthorized) not 400
+            ));
+        }
+
+        try {
+            // ✅ Verify token
+            const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+            req.user = userDetails;
+            
+            // Track user activity
+            sessionTracker.recordActivity(userDetails.id);
+            
+            next();
+        } catch (tokenError) {
+            // ✅ Handle different token errors
+            if (tokenError.name === 'TokenExpiredError') {
+                // Token expired
+                res.clearCookie('token', {
+                    secure: process.env.NODE_ENV === "production",
+                    httpOnly: true,
+                    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+                    path: "/"
+                });
+                return next(new Apperror(
+                    "Your session has expired. Please login again.",
+                    401
+                ));
+            } else if (tokenError.name === 'JsonWebTokenError') {
+                // Invalid token
+                return next(new Apperror(
+                    "Invalid session. Please login again.",
+                    401
+                ));
+            } else {
+                // Other errors
+                return next(new Apperror(
+                    "Authentication failed. Please login again.",
+                    401
+                ));
+            }
+        }
+    } catch (error) {
+        return next(new Apperror(
+            "Authentication error. Please try again.",
+            500
+        ));
+    }
 };
 
 

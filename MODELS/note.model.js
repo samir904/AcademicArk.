@@ -1,5 +1,5 @@
 import { Schema,model } from "mongoose";
-
+import mongoose from "mongoose";
 
 const noteSchema=new Schema({
     title:{
@@ -106,6 +106,6 @@ noteSchema.virtual('totalBookmarks').get(function() {
 
 
 
-const Note=model("Note",noteSchema);
+const Note = mongoose.models.Note || model("Note", noteSchema);
 
 export default Note;

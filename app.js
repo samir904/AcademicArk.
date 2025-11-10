@@ -19,6 +19,9 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import authRoute from "./ROUTES/auth.route.js"
  import attendanceRoute from "./ROUTES/attendance.route.js"
  import analyticsRoutes from "./ROUTES/analytics.routes.js"
+ import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
+import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
+
 import errorMiddleware from "./MIDDLEWARES/error.middleware.js"
 import responseTime from "response-time";
 import serverMetrics from "./UTIL/serverMetrics.js";
@@ -108,6 +111,8 @@ app.use('/api/v1/search', searchRoutes);
 app.use("/api/v1/oauth",authRoute);
 app.use('/api/v1/analytics', analyticsRoutes)
 app.use("/api/v1/attendance", attendanceRoute);
+app.use('/api/v1/study-buddy', studyBuddyRoutes);
+app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes
 initSessionCronJobs();
 
