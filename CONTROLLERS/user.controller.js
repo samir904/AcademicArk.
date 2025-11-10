@@ -100,9 +100,21 @@ export const login = async (req, res, next) => {
 }
 export const logout = async (req, res, next) => {
     try {
-        sessionTracker.removeSession(req.user.id);
+        // ✅ Get token to check if user was logged in
+        const { token } = req.cookies;
         
-        // ✅ CORRECT way to clear cookie (must match set options)
+        // If token exists, try to decode and remove session
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                sessionTracker.removeSession(decoded.id);
+            } catch (error) {
+                // Token invalid but still clear cookie
+                console.log('Invalid token during logout, clearing anyway');
+            }
+        }
+        
+        // ✅ Always clear cookie (even if token was invalid)
         res.clearCookie('token', {
             secure: process.env.NODE_ENV === "production",
             httpOnly: true,
@@ -118,6 +130,7 @@ export const logout = async (req, res, next) => {
         return next(new Apperror(error.message || "Logout failed", 500));
     }
 };
+
 
 
 // // Add this to your auth controller

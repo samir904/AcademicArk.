@@ -1,7 +1,7 @@
 import { Router } from "express";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { changePassword, forgotPassword, getMyAnalytics, getMyBookmarks, getMyNotes, getProfile, getPublicProfile, login, logout, register, resetPassword, toggleProfileVisibility, updateProfile, updateSocialLinks } from "../CONTROLLERS/user.controller.js";
-import { authorizedRoles, isLoggedIn } from "../MIDDLEWARES/auth.middleware.js";
+import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 
 
@@ -10,7 +10,7 @@ const router= Router();
 
 router.post("/register",upload.single('avatar'),asyncWrap(register));
 router.post("/login",asyncWrap(login));
-router.get("/logout",asyncWrap(isLoggedIn),asyncWrap(logout));
+router.get("/logout",asyncWrap(logout));
 // router.post('/validate-token', validateToken);
 router.get("/getprofile",asyncWrap(isLoggedIn),asyncWrap(getProfile));
 
