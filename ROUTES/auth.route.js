@@ -1,24 +1,94 @@
 // ROUTES/auth.route.js - Fixed with detailed logging
 
+// import { Router } from "express";
+// import passport from "passport";
+// import jwt from "jsonwebtoken";
+
+// const cookieOptions = {
+//     maxAge: 7 * 24 * 60 * 60 * 1000,
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+//     path: "/",
+// };
+
+// const router = Router();
+
+// // ✅ Test route to verify router is working
+// router.get("/test", (req, res) => {
+//     console.log('✅ Test route hit');
+//     res.json({ success: true, message: "Auth routes working!" });
+// });
+
+// // ✅ Initiate Google OAuth
+// router.get("/google",
+//     (req, res, next) => {
+//         console.log('🚀 Google OAuth flow initiated');
+//         next();
+//     },
+//     passport.authenticate("google", {
+//         scope: ["profile", "email"],
+//         prompt: 'select_account'
+//     })
+// );
+
+// // ✅ Google OAuth Callback - FIXED with detailed logging
+// router.get("/google/callback",
+//     (req, res, next) => {
+//         console.log('📥 Google callback received');
+//         console.log('📋 Query params:', req.query);
+//         console.log('🔑 Code present:', !!req.query.code);
+//         next();
+//     },
+//     passport.authenticate("google", {
+//         failureRedirect: `${process.env.FRONTEND_URL}/login?error=auth_failed`,
+//         session: false  // Use JWT instead of sessions
+//     }),
+//     (req, res) => {
+//         try {
+//             console.log('✅ Passport authentication successful');
+
+//             if (!req.user) {
+//                 console.error('❌ No user object in request');
+//                 return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_user`);
+//             }
+
+//             console.log('👤 Authenticated user:', req.user.email);
+
+//             // Create JWT token
+//             const token = jwt.sign(
+//                 {
+//                     id: req.user._id,
+//                     email: req.user.email,
+//                     role: req.user.role
+//                 },
+//                 process.env.JWT_SECRET,
+//                 { expiresIn: process.env.JWT_EXPIRY }
+//             );
+
+//             // Set token cookie
+//             res.cookie("token", token, cookieOptions);
+//             console.log('🍪 Authentication cookie set');
+
+//             // Redirect to frontend with success flag
+//             const redirectUrl = `${process.env.FRONTEND_URL}?googleAuth=success`;
+//             console.log('🔄 Redirecting to:', redirectUrl);
+
+//             res.redirect(redirectUrl);
+//         } catch (error) {
+//             console.error("❌ OAuth callback error:", error);
+//             res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
+//         }
+//     }
+// );
+
+// export default router;
+
 import { Router } from "express";
 import passport from "passport";
 import jwt from "jsonwebtoken";
 
-const cookieOptions = {
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    path: "/",
-};
-
 const router = Router();
-
-// ✅ Test route to verify router is working
-router.get("/test", (req, res) => {
-    console.log('✅ Test route hit');
-    res.json({ success: true, message: "Auth routes working!" });
-});
 
 // ✅ Initiate Google OAuth
 router.get("/google",
@@ -32,51 +102,45 @@ router.get("/google",
     })
 );
 
-// ✅ Google OAuth Callback - FIXED with detailed logging
+// ✅ Google OAuth Callback - SEND TOKEN IN URL
 router.get("/google/callback",
-    (req, res, next) => {
-        console.log('📥 Google callback received');
-        console.log('📋 Query params:', req.query);
-        console.log('🔑 Code present:', !!req.query.code);
-        next();
-    },
     passport.authenticate("google", {
-        failureRedirect: `${process.env.FRONTEND_URL}/login?error=auth_failed`,
-        session: false  // Use JWT instead of sessions
+        failureRedirect: '/login?error=auth_failed',
+        session: false
     }),
     (req, res) => {
         try {
             console.log('✅ Passport authentication successful');
+            console.log('👤 User:', req.user.email);
 
             if (!req.user) {
-                console.error('❌ No user object in request');
+                console.error('❌ No user in request');
                 return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_user`);
             }
 
-            console.log('👤 Authenticated user:', req.user.email);
-
-            // Create JWT token
+            // ✅ Create JWT token
             const token = jwt.sign(
                 {
                     id: req.user._id,
                     email: req.user.email,
-                    role: req.user.role
+                    role: req.user.role,
+                    fullName: req.user.fullName
                 },
                 process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRY }
+                { expiresIn: '7d' }
             );
 
-            // Set token cookie
-            res.cookie("token", token, cookieOptions);
-            console.log('🍪 Authentication cookie set');
+            console.log('🔑 JWT token created');
 
-            // Redirect to frontend with success flag
-            const redirectUrl = `${process.env.FRONTEND_URL}?googleAuth=success`;
-            console.log('🔄 Redirecting to:', redirectUrl);
+            // ✅ CRITICAL: Send token in URL (not just cookie)
+            const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const redirectURL = `${frontendURL}?googleAuth=success&token=${token}`;
 
-            res.redirect(redirectUrl);
+            console.log('🔄 Redirecting with token to:', frontendURL);
+            res.redirect(redirectURL);
+
         } catch (error) {
-            console.error("❌ OAuth callback error:", error);
+            console.error('❌ OAuth error:', error.message);
             res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
         }
     }
