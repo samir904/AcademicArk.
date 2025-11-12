@@ -150,6 +150,7 @@ export const isLoggedIn = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
+      sessionTracker.recordActivity(decoded.id);
       console.log('✅ Token verified:', decoded.email);
       next();
     } catch (error) {
