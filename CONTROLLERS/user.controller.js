@@ -68,7 +68,7 @@ export const register = async (req, res, next) => {
 
     res.status(201).json({
         success:true,
-        message:"Account created successfully! Welcome to AcademicArk 🎉",
+        message:`You're all set, ${user.fullName}! Enjoy exploring AcademicArk and all it has to offer.`,
         data:user
     })
 
