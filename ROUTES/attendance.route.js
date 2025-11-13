@@ -13,10 +13,13 @@ import {isLoggedIn, optionalAuth} from '../MIDDLEWARES/auth.middleware.js';
 
 const router = Router();
 
+// ✨ NEW: Get subject details
+router.get('/:semester/subject/:subjectName',optionalAuth, getSubjectDetails);
+router.get('/:semester/stats',optionalAuth, getAttendanceStats);
+
 // Get attendance for a semester
 router.get('/:semester',optionalAuth, getAttendance);
 // Get stats
-router.get('/:semester/stats',optionalAuth, getAttendanceStats);
 
 
 // All routes require authentication
