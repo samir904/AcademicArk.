@@ -5,48 +5,107 @@ import sessionTracker from "../UTIL/sessionTracker.js";
 // ✨ NEW: Optional authentication (doesn't require login)
 export const optionalAuth = async (req, res, next) => {
   try {
-    const { token } = req.cookies;
-    
+    console.log('🔓 optionalAuth middleware checking...');
+    let token;
+
+    // ✅ Try Authorization header FIRST
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+      console.log('✅ Token from Authorization header');
+    }
+    // ✅ Try cookie as FALLBACK
+    else if (req.cookies.token) {
+      token = req.cookies.token;
+      console.log('✅ Token from cookie');
+    }
+
     if (!token) {
-      // ✨ No token? Set req.user to null and continue
+      console.log('⚠️ No token - allowing as guest');
       req.user = null;
       return next();
     }
 
-    // Token exists? Verify it
-    const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
-    req.user = {
-      id: userDetails.id,      // ✨ Make sure id exists!
-      email: userDetails.email,
-      ...userDetails
-    };
-    next();
+    try {
+      const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+      req.user = {
+        id: userDetails.id,
+        email: userDetails.email,
+        ...userDetails
+      };
+      console.log('✅ optionalAuth verified:', userDetails.email);
+      next();
+    } catch (error) {
+      console.log('⚠️ optionalAuth token invalid - treating as guest');
+      req.user = null;
+      next();
+    }
   } catch (error) {
-    // Invalid token? Treat as guest
+    console.error('❌ optionalAuth error:', error.message);
     req.user = null;
     next();
   }
 };
 // ✅ Optional authentication for logout
-export const optionalAuthForLogout = async (req, res, next) => {
-    try {
-        const { token } = req.cookies;
+// export const optionalAuthForLogout = async (req, res, next) => {
+//     try {
+//         const { token } = req.cookies;
         
-        if (!token) {
-            // No token? Just proceed to logout
-            req.user = null;
-            return next();
-        }
+//         if (!token) {
+//             // No token? Just proceed to logout
+//             req.user = null;
+//             return next();
+//         }
 
-        // Token exists? Verify it
-        const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
-        req.user = userDetails;
-        next();
-    } catch (error) {
-        // Invalid token? Still allow logout
-        req.user = null;
-        next();
+//         // Token exists? Verify it
+//         const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+//         req.user = userDetails;
+//         next();
+//     } catch (error) {
+//         // Invalid token? Still allow logout
+//         req.user = null;
+//         next();
+//     }
+// };
+
+export const optionalAuthForLogout = async (req, res, next) => {
+  try {
+    console.log('🔓 optionalAuthForLogout middleware checking...');
+    let token;
+
+    // ✅ Try Authorization header FIRST
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+      console.log('✅ Token from Authorization header');
     }
+    // ✅ Try cookie as FALLBACK
+    else if (req.cookies.token) {
+      token = req.cookies.token;
+      console.log('✅ Token from cookie');
+    }
+
+    if (!token) {
+      console.log('⚠️ No token - allowing logout');
+      req.user = null;
+      return next();
+    }
+
+    try {
+      const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
+      req.user = userDetails;
+      console.log('✅ optionalAuthForLogout verified:', userDetails.email);
+      next();
+    } catch (error) {
+      console.log('⚠️ optionalAuthForLogout token invalid');
+      req.user = null;
+      next();
+    }
+  } catch (error) {
+    console.error('❌ optionalAuthForLogout error:', error.message);
+    req.user = null;
+    next();
+  }
 };
 
 
