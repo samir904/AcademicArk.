@@ -19,7 +19,7 @@ export const optionalAuth = async (req, res, next) => {
       id: userDetails.id,      // ✨ Make sure id exists!
       email: userDetails.email,
       ...userDetails
-    };;
+    };
     next();
   } catch (error) {
     // Invalid token? Treat as guest
