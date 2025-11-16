@@ -19,12 +19,14 @@ import { authorizedRoles, isLoggedIn } from '../MIDDLEWARES/auth.middleware.js';
 import asyncWrap from '../UTIL/asyncWrap.js';
 import notificationRoutes from './admin.notification.routes.js';
 import { logAdminAction } from '../MIDDLEWARES/logAdminAction.middleware.js';
-
+import emailRoutes from './email.routes.js'
+import emailCampaignRoutes from "./emailCampaign.routes.js"
 const router = Router();
 
 // In admin.routes.js
 router.use('/', notificationRoutes);
-
+router.use('/email',emailRoutes);
+router.use("/campaign",emailCampaignRoutes)
 
 router.get('/dashboard/stats', 
     asyncWrap(isLoggedIn),

@@ -6,7 +6,7 @@
 // console.log(process.env.REDIS_URI)
 // const client=createClient({
 //     url:process.env.REDIS_URI|| 'redis://localhost:6379',
-    
+
 // });
 
 // client.on('error',(err)=>{
@@ -21,28 +21,28 @@
 // export default client;
 
 /* this is for production enviroment ok */
-import { createClient } from 'redis';
+import { createClient } from "redis";
 
-import {config} from "dotenv"
+import { config } from "dotenv";
 config();
 
 // console.log(process.env.REDIS_PASSWORD)
 
 const client = createClient({
-    username: 'default',
-    password:process.env.REDIS_PASSWORD,
-    socket: {
-        host:process.env.REDIS_HOST,
-        port:process.env.REDIS_PORT
-    }
+  username: "default",
+  password: process.env.REDIS_PASSWORD,
+  socket: {
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+  },
 });
 
-client.on('error', err => console.log('Redis Client Error', err));
+client.on("error", (err) => console.log("Redis Client Error", err));
 
 await client.connect();
 
-await client.set('foo', 'bar');
-const result = await client.get('foo');
-console.log(result)  // >>> bar
+await client.set("foo", "bar");
+const result = await client.get("foo");
+console.log(result); // >>> bar
 
-export default client
+export default client;
