@@ -94,6 +94,66 @@ const userSchema = new Schema({
                 message: "Invalid website URL"
             }
         }
+    }, // ✨ NEW: ACADEMIC PROFILE - CRITICAL FOR PERSONALIZATION
+    academicProfile: {
+        // ✅ Track if profile is completed
+        isCompleted: {
+            type: Boolean,
+            default: false
+        },
+        
+        // ✅ Semester (1-8)
+        semester: {
+            type: Number,
+            enum: [1, 2, 3, 4, 5, 6, 7, 8],
+            default: null
+        },
+        
+         // ✨ UPDATED: College with predefined list + custom
+        college: {
+            // College name - either predefined or custom
+            name: {
+                type: String,
+                default: "",
+                trim: true,
+                maxlength: [100, "College name must be less than 100 characters"]
+            },
+            
+            // ✨ NEW: Is it a predefined college or custom?
+            isPredefined: {
+                type: Boolean,
+                default: true
+            },
+            
+            // ✨ NEW: If custom, approval status
+            isApproved: {
+                type: Boolean,
+                default: false  // Needs admin approval
+            }
+        },
+        
+        // ✅ Branch/Stream
+        branch: {
+            type: String,
+            enum: [
+                "CSE",           // Computer Science
+                "IT",            // Information Technology
+                "ECE",           // Electronics & Communication
+                "EEE",           // Electrical & Electronics
+                "MECH",          // Mechanical
+                "CIVIL",         // Civil
+                "CHEMICAL",      // Chemical
+                "BIOTECH",       // Biotechnology
+                "OTHER"          // Other
+            ],
+            default: null
+        },
+
+        // ✅ Profile last updated
+        lastUpdated: {
+            type: Date,
+            default: null
+        }
     },
     // NEW: Profile visibility settings
     isProfilePublic: {
@@ -109,13 +169,20 @@ const userSchema = new Schema({
     authProvider: {
         type: String,
         default: 'email'
-    }
+    },
+    
 
 
 }, {
     timestamps: true
-})
-
+})// ✨ NEW: Index for college queries
+userSchema.index({ 'academicProfile.college.name': 1 });
+userSchema.index({ 'academicProfile.college.isPredefined': 1 });
+// ✨ NEW: Add indexes for analytics queries
+userSchema.index({ 'academicProfile.semester': 1 });
+userSchema.index({ 'academicProfile.college': 1 });
+userSchema.index({ 'academicProfile.branch': 1 });
+userSchema.index({ 'academicProfile.isCompleted': 1 });
 userSchema.index({ role: 1 }); // accelerate role-based queries
 userSchema.index({ forgotPasswordToken: 1 });     // speed up password reset lookups
 userSchema.index({ isProfilePublic: 1 }); // NEW: Index for public profiles

@@ -7,6 +7,8 @@ import { getResetPasswordEmailHtml, sendEmail } from "../UTIL/sendemail.js";
 import crypto from "crypto";
 import mongoose from "mongoose";
 import sessionTracker from "../UTIL/sessionTracker.js";
+import { PREDEFINED_COLLEGES, isValidCollege } from "../CONSTANTS/colleges.js";
+import asyncWrap from "../UTIL/asyncWrap.js";
 const cookieoptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -522,8 +524,8 @@ export const getPublicProfile=async(req,res,next)=>{
         return next(new Apperror("User id is required",400));
     }
     const user=await User.findById(userId).select(
-        'fullName avatar role bio socialLinks isProfilePublic createdAt'
-    );
+        'fullName avatar role bio socialLinks isProfilePublic createdAt academicProfile'
+    ); // ✨ NEW LINE
     if(!user.isProfilePublic){
         return next(new Apperror('This profile is private',403))
     }
@@ -591,3 +593,249 @@ export const toggleProfileVisibility=async(req,res,next)=>{
         data: { isProfilePublic: user.isProfilePublic }
     });
 }
+// ✅ UPDATE ACADEMIC PROFILE - UPDATED
+export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
+    const { semester, college, customCollege, branch } = req.body;
+    const userId = req.user.id;
+
+    // ✨ Validation
+    if (!semester) {
+        return next(new AppError('Semester is required', 400));
+    }
+
+    if (![1, 2, 3, 4, 5, 6, 7, 8].includes(semester)) {
+        return next(new AppError('Invalid semester. Must be between 1 and 8', 400));
+    }
+
+    if (!branch) {
+        return next(new AppError('Branch is required', 400));
+    }
+
+    const validBranches = ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL", "CHEMICAL", "BIOTECH", "OTHER"];
+    if (!validBranches.includes(branch)) {
+        return next(new AppError(`Invalid branch. Must be one of: ${validBranches.join(', ')}`, 400));
+    }
+
+    // ✨ UPDATED: Handle college selection
+    let collegeName = "";
+    let isPredefined = false;
+    let isApproved = true;
+
+    // Case 1: User selected a predefined college
+    if (college && college !== "Other") {
+        if (!PREDEFINED_COLLEGES.includes(college)) {
+            return next(new AppError('Invalid college selected', 400));
+        }
+        collegeName = college;
+        isPredefined = true;
+        isApproved = true;
+    }
+    // Case 2: User selected "Other" and provided custom college name
+    else if (college === "Other" && customCollege) {
+        if (!customCollege.trim()) {
+            return next(new AppError('Please enter your college name', 400));
+        }
+        if (customCollege.trim().length > 100) {
+            return next(new AppError('College name must be less than 100 characters', 400));
+        }
+        collegeName = customCollege.trim();
+        isPredefined = false;
+        isApproved = false; // ✨ Needs admin approval for custom colleges
+    }
+    // Case 3: No valid college provided
+    else {
+        return next(new AppError('Please select or enter a college name', 400));
+    }
+
+    // ✨ Update user academic profile
+    const user = await User.findByIdAndUpdate(
+        userId,
+        {
+            "academicProfile.semester": semester,
+            "academicProfile.college.name": collegeName,
+            "academicProfile.college.isPredefined": isPredefined,
+            "academicProfile.college.isApproved": isApproved,
+            "academicProfile.branch": branch,
+            "academicProfile.isCompleted": true,
+            "academicProfile.lastUpdated": new Date()
+        },
+        { new: true, runValidators: true }
+    );
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: isPredefined 
+            ? 'Academic profile updated successfully'
+            : 'Academic profile submitted! Our team will verify your college information soon.',
+        data: {
+            academicProfile: user.academicProfile,
+            fullName: user.fullName,
+            email: user.email
+        }
+    });
+});
+
+// ✅ GET ACADEMIC PROFILE - SAME
+export const getAcademicProfile = asyncWrap(async (req, res, next) => {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select('academicProfile fullName email');
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    res.status(200).json({
+        success: true,
+        data: user.academicProfile
+    });
+});
+
+// ✅ CHECK PROFILE COMPLETION - SAME
+export const checkProfileCompletion = asyncWrap(async (req, res, next) => {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select('academicProfile');
+
+    res.status(200).json({
+        success: true,
+        data: {
+            isCompleted: user?.academicProfile?.isCompleted || false,
+            academicProfile: user?.academicProfile || null
+        }
+    });
+});
+
+// ✅ NEW: GET COLLEGE LIST - For frontend
+export const getCollegeList = asyncWrap(async (req, res, next) => {
+    const collegeList = PREDEFINED_COLLEGES.map(college => ({
+        value: college,
+        label: college,
+        isPredefined: college !== "Other"
+    }));
+
+    res.status(200).json({
+        success: true,
+        data: collegeList
+    });
+});
+
+// ✅ UPDATED: Analytics to handle new college structure
+export const getAcademicAnalytics = asyncWrap(async (req, res, next) => {
+    try {
+        const completedProfiles = await User.countDocuments({ 'academicProfile.isCompleted': true });
+        const totalUsers = await User.countDocuments();
+
+        // Semester distribution
+        const semesterDistribution = await User.aggregate([
+            { $match: { 'academicProfile.isCompleted': true } },
+            { $group: { 
+                _id: '$academicProfile.semester', 
+                count: { $sum: 1 } 
+            }},
+            { $sort: { _id: 1 } }
+        ]);
+
+        // ✨ UPDATED: College distribution (now using college.name)
+        const collegeDistribution = await User.aggregate([
+            { $match: { 'academicProfile.isCompleted': true } },
+            { $group: { 
+                _id: '$academicProfile.college.name', 
+                count: { $sum: 1 },
+                isPredefined: { $first: '$academicProfile.college.isPredefined' },
+                isApproved: { $first: '$academicProfile.college.isApproved' }
+            }},
+            { $sort: { count: -1 } },
+            { $limit: 20 }
+        ]);
+
+        // ✨ NEW: Pending custom colleges (needs approval)
+        const pendingCustomColleges = await User.aggregate([
+            { $match: { 
+                'academicProfile.isCompleted': true,
+                'academicProfile.college.isPredefined': false,
+                'academicProfile.college.isApproved': false
+            }},
+            { $group: { 
+                _id: '$academicProfile.college.name', 
+                count: { $sum: 1 } 
+            }},
+            { $sort: { count: -1 } }
+        ]);
+
+        // Branch distribution
+        const branchDistribution = await User.aggregate([
+            { $match: { 'academicProfile.isCompleted': true } },
+            { $group: { 
+                _id: '$academicProfile.branch', 
+                count: { $sum: 1 } 
+            }},
+            { $sort: { count: -1 } }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                profileCompletionStats: {
+                    completed: completedProfiles,
+                    total: totalUsers,
+                    percentage: Math.round((completedProfiles / totalUsers) * 100)
+                },
+                semesterDistribution: semesterDistribution.map(item => ({
+                    semester: item._id,
+                    count: item.count
+                })),
+                collegeDistribution: collegeDistribution.map(item => ({
+                    college: item._id,
+                    count: item.count,
+                    isPredefined: item.isPredefined,
+                    isApproved: item.isApproved
+                })),
+                pendingCustomColleges: pendingCustomColleges.map(item => ({
+                    college: item._id,
+                    count: item.count,
+                    status: 'pending_approval'
+                })),
+                branchDistribution: branchDistribution.map(item => ({
+                    branch: item._id,
+                    count: item.count
+                }))
+            }
+        });
+    } catch (error) {
+        return next(new AppError('Failed to fetch analytics', 500));
+    }
+});
+
+// ✨ ADMIN: Approve custom colleges
+export const approveCustomCollege = asyncWrap(async (req, res, next) => {
+    const { collegeName } = req.body;
+
+    if (!collegeName || !collegeName.trim()) {
+        return next(new AppError('College name is required', 400));
+    }
+
+    // Update all users with this custom college
+    const result = await User.updateMany(
+        { 
+            'academicProfile.college.name': collegeName.trim(),
+            'academicProfile.college.isPredefined': false,
+            'academicProfile.college.isApproved': false
+        },
+        {
+            $set: { 'academicProfile.college.isApproved': true }
+        }
+    );
+
+    res.status(200).json({
+        success: true,
+        message: `College "${collegeName}" approved for ${result.modifiedCount} users`,
+        data: {
+            modifiedCount: result.modifiedCount
+        }
+    });
+});
