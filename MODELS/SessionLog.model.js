@@ -31,3 +31,8 @@ export default model('SessionLog', sessionLogSchema);
 // const SessionLog = model("SessionLog", userSchema);
 
 // export default SessionLog;
+
+
+//how many user has been visited the website thsi week and this month there session and login rate 
+//bounce rate so that we can now the active user on my website to know the 
+//second thing is that how to know page traffic so that i can enhace the component 

@@ -663,7 +663,7 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     );
 
     if (!user) {
-        return next(new AppError('User not found', 404));
+        return next(new Apperror('User not found', 404));
     }
 
     res.status(200).json({

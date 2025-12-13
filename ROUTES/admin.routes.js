@@ -21,12 +21,15 @@ import notificationRoutes from "./admin.notification.routes.js";
 import { logAdminAction } from "../MIDDLEWARES/logAdminAction.middleware.js";
 // import emailRoutes from './email.routes.js'
 import emailCampaignRoutes from "./emailCampaign.routes.js";
+import userRequestRoutes from "./userRequest.routes.js"
 const router = Router();
 
 // In admin.routes.js
 router.use("/", notificationRoutes);
 // router.use('/email',emailRoutes);
 router.use("/campaign", emailCampaignRoutes);
+
+router.use("/requests",userRequestRoutes);
 
 router.get(
   "/dashboard/stats",

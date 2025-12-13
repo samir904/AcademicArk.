@@ -121,7 +121,7 @@ export const sendDailyCampaignEmails = async (req, res, next) => {
     // ✅ Use Apple-style template
     const templatePath = path.join(
       __dirname,
-      "../TEMPLATES/appleStyleEmail.hbs"
+      "../TEMPLATES/campaignEmailWithImage.hbs"
     );
     const templateSource = fs.readFileSync(templatePath, "utf-8");
     const template = Handlebars.compile(templateSource);
