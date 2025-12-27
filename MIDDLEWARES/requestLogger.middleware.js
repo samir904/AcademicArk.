@@ -21,7 +21,9 @@ const SKIP_PATHS = [
   '/api/v1/admin/banner',
   '/console',
   '/requests',
-  '/stats'
+  '/stats',
+  '/analytics',
+  '/users'
 ];
 
 
