@@ -21,6 +21,7 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import analyticsRoutes from "./ROUTES/analytics.routes.js"
  import feedbackRoute from './ROUTES/feedback.routes.js'
  import loginLogRoutes from './ROUTES/loginLog.routes.js'
+ import logsRoutes from './ROUTES/logs.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -28,11 +29,15 @@ import errorMiddleware from "./MIDDLEWARES/error.middleware.js"
 import responseTime from "response-time";
 import serverMetrics from "./UTIL/serverMetrics.js";
 import { initSessionCronJobs } from "./UTIL/sessionCronJobs.js";
+import initConsoleLogger from "./UTIL/consoleLogger.js";
+import requestLoggerMiddleware from "./MIDDLEWARES/requestLogger.middleware.js";
 // import session from "express-session";
 // import passport from "passport";
 
 const app=express();
 // config();
+// ✅ ADD THIS - Initialize console logger (EARLY, before other code)
+initConsoleLogger();
 app.use(express.urlencoded({extended:true}));
 app.use(express.json())
 app.use(cookieParser())
@@ -45,7 +50,7 @@ app.use(morgan("dev"))
      allowedHeaders: ["Content-Type", "Authorization"], //what is the use of authorization her 
    })
  );
-//  import path from "path";
+//  import path from "path";a
 // // If using ESM ("type": "module" in package.json)
 // const __dirname = path.resolve();
 
@@ -103,7 +108,8 @@ app.use(responseTime((req,res,time)=>{
 }));
 
 //error tracking middleware (add)
-
+// ✅ ADD THIS - Request logger middleware (AFTER morgan, BEFORE routes)
+app.use(requestLoggerMiddleware);
 
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
@@ -115,6 +121,7 @@ app.use('/api/v1/analytics', analyticsRoutes)
 app.use("/api/v1/attendance", attendanceRoute);
 app.use('/api/v1/feedback',feedbackRoute);
 app.use('/api/v1/login-logs', loginLogRoutes);
+app.use('/api/v1/logs', logsRoutes);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes

@@ -5,23 +5,23 @@ import sessionTracker from "../UTIL/sessionTracker.js";
 // ✨ NEW: Optional authentication (doesn't require login)
 export const optionalAuth = async (req, res, next) => {
   try {
-    console.log('🔓 optionalAuth middleware checking...');
+    // console.log('🔓 optionalAuth middleware checking...');
     let token;
 
     // ✅ Try Authorization header FIRST
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
-      console.log('✅ Token from Authorization header');
+      // console.log('✅ Token from Authorization header');
     }
     // ✅ Try cookie as FALLBACK
     else if (req.cookies.token) {
       token = req.cookies.token;
-      console.log('✅ Token from cookie');
+      // console.log('✅ Token from cookie');
     }
 
     if (!token) {
-      console.log('⚠️ No token - allowing as guest');
+      // console.log('⚠️ No token - allowing as guest');
       req.user = null;
       return next();
     }
@@ -33,15 +33,15 @@ export const optionalAuth = async (req, res, next) => {
         email: userDetails.email,
         ...userDetails
       };
-      console.log('✅ optionalAuth verified:', userDetails.email);
+      // console.log('✅ optionalAuth verified:', userDetails.email);
       next();
     } catch (error) {
-      console.log('⚠️ optionalAuth token invalid - treating as guest');
+      // console.log('⚠️ optionalAuth token invalid - treating as guest');
       req.user = null;
       next();
     }
   } catch (error) {
-    console.error('❌ optionalAuth error:', error.message);
+    // console.error('❌ optionalAuth error:', error.message);
     req.user = null;
     next();
   }
@@ -70,23 +70,23 @@ export const optionalAuth = async (req, res, next) => {
 
 export const optionalAuthForLogout = async (req, res, next) => {
   try {
-    console.log('🔓 optionalAuthForLogout middleware checking...');
+    // console.log('🔓 optionalAuthForLogout middleware checking...');
     let token;
 
     // ✅ Try Authorization header FIRST
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
-      console.log('✅ Token from Authorization header');
+      // console.log('✅ Token from Authorization header');
     }
     // ✅ Try cookie as FALLBACK
     else if (req.cookies.token) {
       token = req.cookies.token;
-      console.log('✅ Token from cookie');
+      // console.log('✅ Token from cookie');
     }
 
     if (!token) {
-      console.log('⚠️ No token - allowing logout');
+      // console.log('⚠️ No token - allowing logout');
       req.user = null;
       return next();
     }
@@ -94,10 +94,10 @@ export const optionalAuthForLogout = async (req, res, next) => {
     try {
       const userDetails = await jwt.verify(token, process.env.JWT_SECRET);
       req.user = userDetails;
-      console.log('✅ optionalAuthForLogout verified:', userDetails.email);
+      // console.log('✅ optionalAuthForLogout verified:', userDetails.email);
       next();
     } catch (error) {
-      console.log('⚠️ optionalAuthForLogout token invalid');
+      // console.log('⚠️ optionalAuthForLogout token invalid');
       req.user = null;
       next();
     }
@@ -182,23 +182,23 @@ export const optionalAuthForLogout = async (req, res, next) => {
 
 export const isLoggedIn = async (req, res, next) => {
   try {
-    console.log('🔐 Auth middleware checking...');
+    // console.log('🔐 Auth middleware checking...');
     let token;
 
     // ✅ Try Authorization header first (from frontend)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
-      console.log('✅ Token from Authorization header');
+      // console.log('✅ Token from Authorization header');
     }
     // ✅ Try cookie as fallback
     else if (req.cookies.token) {
       token = req.cookies.token;
-      console.log('✅ Token from cookie');
+      // console.log('✅ Token from cookie');
     }
 
     if (!token) {
-      console.log('❌ No token found in header or cookie');
+      // console.log('❌ No token found in header or cookie');
       return res.status(401).json({
         success: false,
         message: 'Session expired. Please login again.'
@@ -210,7 +210,7 @@ export const isLoggedIn = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
       sessionTracker.recordActivity(decoded.id);
-      console.log('✅ Token verified:', decoded.email);
+      // console.log('✅ Token verified:', decoded.email);
       next();
     } catch (error) {
       console.error('❌ Token verification failed:', error.message);
