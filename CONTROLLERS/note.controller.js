@@ -361,7 +361,7 @@ export const downloadNote = async (req, res, next) => {
         }
 
         // Log URL for manual testing
-        console.log('Fetching PDF from:', note.fileDetails.secure_url);
+        // console.log('Fetching PDF from:', note.fileDetails.secure_url);
 
         // Increment download count
         note.downloads += 1;
@@ -373,7 +373,7 @@ export const downloadNote = async (req, res, next) => {
         });
 
         // Log fetched size to check
-        console.log('Fetched PDF size:', fileResponse.data.length, 'bytes');
+        // console.log('Fetched PDF size:', fileResponse.data.length, 'bytes');
 
         // Set headers
         res.setHeader('Content-Type', 'application/pdf');

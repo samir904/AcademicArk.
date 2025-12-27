@@ -111,7 +111,7 @@ router.get("/google/callback",
     }),
     async(req, res) => {
         try {
-            console.log('✅ Passport authentication successful');
+            // console.log('✅ Passport authentication successful');
             console.log('👤 User:', req.user.email);
 
             if (!req.user) {
@@ -131,14 +131,14 @@ router.get("/google/callback",
                 { expiresIn: '7d' }
             );
 
-            console.log('🔑 JWT token created');
+            // console.log('🔑 JWT token created');
 // ✅ LOG SUCCESSFUL GOOGLE LOGIN
             await createLoginLog(req.user._id, req, 'success');
             // ✅ CRITICAL: Send token in URL (not just cookie)
             const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
             const redirectURL = `${frontendURL}?googleAuth=success&token=${token}`;
 
-            console.log('🔄 Redirecting with token to:', frontendURL);
+            // console.log('🔄 Redirecting with token to:', frontendURL);
             res.redirect(redirectURL);
 
         } catch (error) {
