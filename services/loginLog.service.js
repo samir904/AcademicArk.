@@ -6,70 +6,94 @@ import geoip from 'geoip-lite';
  * Extract device info from User-Agent string
  */
 export const parseUserAgent = (userAgentString) => {
-    if (!userAgentString) {
-        return {
-            browser: { name: 'Unknown', version: 'Unknown' },
-            os: { name: 'Unknown', version: 'Unknown' },
-            device: 'desktop',
-            deviceName: 'Unknown Device'
-        };
+  if (!userAgentString) {
+    return {
+      browser: { name: 'Unknown', version: 'Unknown' },
+      os: { name: 'Unknown', version: 'Unknown' },
+      device: 'desktop',
+      deviceName: 'Unknown Device'
+    };
+  }
+
+  try {
+    const ua = useragent.parse(userAgentString);
+
+    // ✅ FIX: Detect device type more accurately
+    // Check user agent string directly for mobile keywords
+    let deviceType = 'desktop';
+    const uaLower = userAgentString.toLowerCase();
+    
+    // Mobile detection - check actual user agent string
+    if (/mobile|android|iphone|ipod|opera mini|iemobile|wpdesktop/.test(uaLower)) {
+      deviceType = 'mobile';
+    } 
+    // Tablet detection
+    else if (/tablet|ipad|kindle|playbook|nexus 7|nexus 10|xoom/.test(uaLower)) {
+      deviceType = 'tablet';
+    }
+    // Fallback to useragent library detection
+    else if (ua.isMobile) {
+      deviceType = 'mobile';
+    } 
+    else if (ua.isTablet) {
+      deviceType = 'tablet';
     }
 
-    try {
-        const ua = useragent.parse(userAgentString);
-
-        // Detect device type
-        let deviceType = 'desktop';
-        if (ua.isMobile) deviceType = 'mobile';
-        if (ua.isTablet) deviceType = 'tablet';
-
-        // Get device name - with proper fallback
-        let deviceName = 'Unknown Device';
-
-        if (ua.device && ua.device.family && ua.device.family !== 'Other') {
-            deviceName = ua.device.family;
-        } else if (deviceType === 'mobile') {
-            deviceName = 'Mobile Device';
-        } else if (deviceType === 'tablet') {
-            deviceName = 'Tablet';
-        } else {
-            deviceName = 'Desktop';
-        }
-
-        // ✅ CORRECT CODE:
-        // ✅ FIXED - Get browser name - clean (without version)
-        let browserName = 'Unknown';
-        if (ua.family && ua.family !== 'Other') {
-            browserName = ua.family;  // Just the name, not the full string
-        } else {
-            browserName = 'Unknown';
-        }
-
-
-        return {
-            browser: {
-                name: browserName || 'Unknown',
-                version: ua.major || 'Unknown'
-            },
-            os: {
-                name: ua.os?.family || 'Unknown',
-                version: ua.os?.major || 'Unknown'
-            },
-            device: deviceType,
-            deviceName: deviceName,
-            userAgent: userAgentString
-        };
-    } catch (error) {
-        console.error('[LOGIN_LOG] Error parsing user agent:', error);
-        return {
-            browser: { name: 'Unknown', version: 'Unknown' },
-            os: { name: 'Unknown', version: 'Unknown' },
-            device: 'desktop',
-            deviceName: 'Unknown Device',
-            userAgent: userAgentString
-        };
+    // Get device name - with proper fallback
+    let deviceName = 'Unknown Device';
+    
+    if (ua.device && ua.device.family && ua.device.family !== 'Other') {
+      deviceName = ua.device.family;
+    } else if (deviceType === 'mobile') {
+      deviceName = 'Mobile Device';
+    } else if (deviceType === 'tablet') {
+      deviceName = 'Tablet Device';
+    } else {
+      deviceName = 'Desktop';
     }
+
+    // Get browser name - clean (without version)
+    let browserName = 'Unknown';
+    if (ua.family && ua.family !== 'Other') {
+      browserName = ua.family;
+    } else {
+      browserName = 'Unknown';
+    }
+
+    // ✅ ADD LOGGING for debugging
+    console.log('[LOGIN_LOG] Parsed user agent:', {
+      userAgent: userAgentString,
+      device: deviceType,
+      deviceName: deviceName,
+      browser: browserName,
+      os: ua.os?.family || 'Unknown'
+    });
+
+    return {
+      browser: {
+        name: browserName || 'Unknown',
+        version: ua.major || 'Unknown'
+      },
+      os: {
+        name: ua.os?.family || 'Unknown',
+        version: ua.os?.major || 'Unknown'
+      },
+      device: deviceType,
+      deviceName: deviceName,
+      userAgent: userAgentString
+    };
+  } catch (error) {
+    console.error('[LOGIN_LOG] Error parsing user agent:', error);
+    return {
+      browser: { name: 'Unknown', version: 'Unknown' },
+      os: { name: 'Unknown', version: 'Unknown' },
+      device: 'desktop',
+      deviceName: 'Unknown Device',
+      userAgent: userAgentString
+    };
+  }
 };
+
 
 /**
  * Get location from IP address
