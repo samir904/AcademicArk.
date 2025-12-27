@@ -23,7 +23,19 @@ const SKIP_PATHS = [
   '/requests',
   '/stats',
   '/analytics',
-  '/users'
+  '/users',
+  '/academic-analytics',
+  '/admin-logs',
+  '/admin/all',
+  '/analytics/overview',
+  '/suspicious',
+  '/by-device',
+  '/by-browser',
+  '/cohorts',
+  '/ltv-metrics',
+  '/churn-analysis',
+  '/retention-metrics',
+  
 ];
 
 
