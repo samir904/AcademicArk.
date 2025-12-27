@@ -7,6 +7,9 @@ import serverMetrics from '../UTIL/serverMetrics.js';
 import sessionTracker from '../UTIL/sessionTracker.js';
 import SessionLog from '../MODELS/SessionLog.model.js';
 import AdminLog from '../MODELS/adminLog.model.js';
+import UserCohort from '../MODELS/UserCohort.model.js';
+// import SessionLog from '../MODELS/SessionLog.model.js';
+
 // ✅ CORRECTED: Helper function to create admin logs
 async function createAdminLog(logData) {
     try {
@@ -526,4 +529,336 @@ export const getAdminLogs = async (req, res, next) => {
         return next(error);
     }
 };
+// Get overall retention metrics
+export const getRetentionMetrics = async (req, res, next) => {
+  try {
+    // Get current date info
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Last month start and end
+    const lastMonthStart = new Date(currentYear, currentMonth - 1, 1);
+    lastMonthStart.setHours(0, 0, 0, 0);
+    
+    const lastMonthEnd = new Date(currentYear, currentMonth, 1);
+    lastMonthEnd.setHours(0, 0, 0, 0);
+    
+    console.log('📅 Date Range:');
+    console.log('Start:', lastMonthStart.toISOString());
+    console.log('End:', lastMonthEnd.toISOString());
+    
+    // Users at start of month
+    const usersStartOfMonth = await User.countDocuments({
+      createdAt: { $lt: lastMonthStart }
+    });
+    
+    console.log('👥 Users at month start:', usersStartOfMonth);
+    
+    // New users in month
+    const newUsersThisMonth = await User.countDocuments({
+      createdAt: { $gte: lastMonthStart, $lt: lastMonthEnd }
+    });
+    
+    console.log('⭐ New users this month:', newUsersThisMonth);
+    
+    // Active users in month (from SessionLog)
+    let activeUsersCount = 0;
+    
+    // Check if SessionLog collection has data
+    const sessionCount = await SessionLog.countDocuments();
+    console.log('📊 Total SessionLogs:', sessionCount);
+    
+    if (sessionCount > 0) {
+      // Try to get active users
+      const activeUsersResult = await SessionLog.aggregate([
+        {
+          $match: {
+            date: { $gte: lastMonthStart, $lt: lastMonthEnd }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            uniqueUsers: { $addToSet: '$userId' }
+          }
+        }
+      ]);
+      
+      console.log('Active users result:', activeUsersResult);
+      
+      // ✅ FIX: Safely extract count
+      if (activeUsersResult && activeUsersResult.length > 0 && activeUsersResult.uniqueUsers) {
+        activeUsersCount = activeUsersResult.uniqueUsers.length;
+      }
+    }
+    
+    console.log('💼 Active users:', activeUsersCount);
+    
+    // Calculate retention rate
+    let retentionRate = '0';
+    if (usersStartOfMonth > 0) {
+      const retained = activeUsersCount - newUsersThisMonth;
+      const rate = (retained / usersStartOfMonth) * 100;
+      retentionRate = Math.max(0, rate).toFixed(2); // Prevent negative
+    }
+    
+    // Get churn rate
+    const churnRate = Math.min(100, (100 - parseFloat(retentionRate))).toFixed(2);
+    
+    // Get cohorts
+    const cohorts = await UserCohort.find()
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .lean();
+    
+    // ✅ FIX: Safely map cohorts with fallbacks
+    const formattedCohorts = cohorts.map(c => ({
+      _id: c._id,
+      name: c.cohortName || c.name || 'Unknown',
+      totalUsers: c.totalUsers || 0,
+      week0: c.retention?.week0 || c.week0 || 100,
+      week1: c.retention?.week1 || c.week1 || 0,
+      week2: c.retention?.week2 || c.week2 || 0,
+      month1: c.retention?.month1 || c.month1 || 0,
+      month3: c.retention?.month3 || c.month3 || 0
+    }));
+    
+    const responseData = {
+      retentionRate: `${retentionRate}%`,
+      churnRate: `${churnRate}%`,
+      usersStartOfMonth,
+      newUsersThisMonth,
+      activeUsersThisMonth: activeUsersCount,
+      cohorts: formattedCohorts
+    };
+    
+    console.log('✅ Final response:', responseData);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Retention metrics retrieved successfully',
+      data: responseData
+    });
+  } catch (error) {
+    console.error('❌ Retention metrics error:', error);
+    console.error('Stack:', error.stack);
+    return next(new Apperror('Failed to get retention metrics', 500));
+  }
+};
 
+// Get user churn analysis
+export const getChurnAnalysis = async (req, res, next) => {
+  try {
+    const { days = 30 } = req.query;
+    
+    // Calculate date range
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    startDate.setHours(0, 0, 0, 0);
+    
+    console.log('📅 Churn analysis period:', days, 'days');
+    console.log('Start date:', startDate.toISOString());
+    
+    // Get active users in this period
+    let activeUsers = [];
+    const sessionCount = await SessionLog.countDocuments();
+    
+    if (sessionCount > 0) {
+      activeUsers = await SessionLog.find({
+        date: { $gte: startDate }
+      }).distinct('userId');
+    }
+    
+    activeUsers = activeUsers || [];
+    console.log('👥 Active users:', activeUsers.length);
+    
+    // Get total users (created before this period)
+    const totalUsers = await User.countDocuments({
+      createdAt: { $lt: startDate }
+    });
+    
+    console.log('📊 Total users:', totalUsers);
+    
+    // Calculate churn
+    let churnedUsers = 0;
+    let churnRate = '0';
+    
+    if (totalUsers > 0) {
+      churnedUsers = totalUsers - activeUsers.length;
+      churnRate = ((churnedUsers / totalUsers) * 100).toFixed(2);
+    }
+    
+    console.log('❌ Churned users:', churnedUsers);
+    console.log('📉 Churn rate:', churnRate, '%');
+    
+    // Get at-risk users (inactive for 3 days)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    threeDaysAgo.setHours(0, 0, 0, 0);
+    
+    let atRiskUsers = [];
+    
+    if (sessionCount > 0) {
+      const atRiskResult = await SessionLog.aggregate([
+        {
+          $match: {
+            date: { $gte: threeDaysAgo }
+          }
+        },
+        {
+          $group: {
+            _id: '$userId',
+            lastActive: { $max: '$date' }
+          }
+        },
+        {
+          $match: {
+            lastActive: { $lt: threeDaysAgo }
+          }
+        }
+      ]);
+      
+      atRiskUsers = atRiskResult || [];
+    }
+    
+    console.log('⚠️ At-risk users:', atRiskUsers.length);
+    
+    const responseData = {
+      period: `${days} days`,
+      totalUsers,
+      activeUsers: activeUsers.length,
+      churnedUsers,
+      churnRate: `${churnRate}%`,
+      atRiskCount: atRiskUsers.length,
+      atRiskUsers: atRiskUsers.map(u => u._id)
+    };
+    
+    console.log('✅ Churn analysis response:', responseData);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Churn analysis retrieved successfully',
+      data: responseData
+    });
+  } catch (error) {
+    console.error('❌ Churn analysis error:', error);
+    return next(new Apperror('Failed to get churn analysis', 500));
+  }
+};
+
+// Get user lifetime value (LTV) estimate
+export const getUserLifetimeValue = async (req, res, next) => {
+  try {
+    // Calculate average session duration
+    let avgSessionDuration = 0;
+    const sessionCount = await SessionLog.countDocuments();
+    
+    if (sessionCount > 0) {
+      const avgSessionResult = await SessionLog.aggregate([
+        {
+          $group: {
+            _id: null,
+            avgDuration: { $avg: '$sessionDuration' }
+          }
+        }
+      ]);
+      
+      if (avgSessionResult && avgSessionResult.length > 0) {
+        avgSessionDuration = avgSessionResult.avgDuration || 0;
+      }
+    }
+    
+    console.log('⏱️ Average session duration:', avgSessionDuration);
+    
+    // Calculate average engagement (downloads per note)
+    let avgEngagement = 0;
+    const noteCount = await Note.countDocuments();
+    
+    if (noteCount > 0) {
+      const totalDownloads = await Note.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalDownloads: { $sum: '$downloads' }
+          }
+        }
+      ]);
+      
+      if (totalDownloads && totalDownloads.length > 0) {
+        avgEngagement = (totalDownloads.totalDownloads || 0) / noteCount;
+      }
+    }
+    
+    console.log('📊 Average engagement:', avgEngagement);
+    
+    // Calculate average user lifetime
+    let avgUserLifetime = 0;
+    const userCount = await User.countDocuments();
+    
+    if (userCount > 0) {
+      const userLifetimesResult = await User.aggregate([
+        {
+          $lookup: {
+            from: 'sessionlogs',
+            localField: '_id',
+            foreignField: 'userId',
+            as: 'sessions'
+          }
+        },
+        {
+          $addFields: {
+            lifetime: {
+              $cond: [
+                { $gt: [{ $size: '$sessions' }, 0] },
+                {
+                  $divide: [
+                    {
+                      $subtract: [
+                        { $max: '$sessions.date' },
+                        '$createdAt'
+                      ]
+                    },
+                    1000 * 60 * 60 * 24 // Convert to days
+                  ]
+                },
+                0
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            avgLifetime: { $avg: '$lifetime' }
+          }
+        }
+      ]);
+      
+      if (userLifetimesResult && userLifetimesResult.length > 0) {
+        avgUserLifetime = userLifetimesResult.avgLifetime || 0;
+      }
+    }
+    
+    console.log('📅 Average user lifetime:', avgUserLifetime);
+    
+    // ✅ FIX: Ensure all values are numbers
+    const responseData = {
+      avgSessionDuration: Number(avgSessionDuration) || 0,
+      avgEngagement: Number(avgEngagement) || 0,
+      avgUserLifetime: Number(avgUserLifetime) || 0,
+      estimatedLTV: 'Custom calculation based on your monetization model'
+    };
+    
+    console.log('✅ LTV response:', responseData);
+    
+    res.status(200).json({
+      success: true,
+      message: 'User LTV retrieved successfully',
+      data: responseData
+    });
+  } catch (error) {
+    console.error('❌ LTV error:', error);
+    return next(new Apperror('Failed to get LTV', 500));
+  }
+};

@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import sessionTracker from "../UTIL/sessionTracker.js";
 import { PREDEFINED_COLLEGES, isValidCollege } from "../CONSTANTS/colleges.js";
 import asyncWrap from "../UTIL/asyncWrap.js";
+import { createLoginLog } from "../services/loginLog.service.js";
 const cookieoptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -64,7 +65,9 @@ export const register = async (req, res, next) => {
 }
     await user.save();
     user.password = undefined;
-
+//✅ LOG SUCCESSFUL LOGIN
+    await createLoginLog(user._id, req, 'success');
+ 
     const token = await user.generateJWTToken();
     res.cookie("token", token, cookieoptions);
 
@@ -93,7 +96,8 @@ export const login = async (req, res, next) => {
     const token=await user.generateJWTToken();
     user.password=undefined;
     res.cookie("token",token,cookieoptions)
-
+// ✅ LOG SUCCESSFUL LOGIN
+    await createLoginLog(user._id, req, 'success');
     res.status(200).json({
         success:true,
         message:`Welcome back! ${user.fullName} 🎉`,

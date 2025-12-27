@@ -127,4 +127,37 @@ router.get(
   asyncWrap(getTrafficPattern)
 );
 
+// Add these imports
+import { 
+  getRetentionMetrics, 
+  getChurnAnalysis, 
+  getUserLifetimeValue 
+} from '../CONTROLLERS/admin.controller.js';
+
+// Add these routes
+router.get(
+  '/retention-metrics',
+  asyncWrap(isLoggedIn),
+  asyncWrap(authorizedRoles('ADMIN')),
+  asyncWrap(getRetentionMetrics)
+);
+
+router.get(
+  '/churn-analysis',
+  asyncWrap(isLoggedIn),
+  asyncWrap(authorizedRoles('ADMIN')),
+  asyncWrap(getChurnAnalysis)
+);
+
+router.get(
+  '/ltv-metrics',
+  asyncWrap(isLoggedIn),
+  asyncWrap(authorizedRoles('ADMIN')),
+  asyncWrap(getUserLifetimeValue)
+);
+
+// Also import and use retention routes
+import retentionRoutes from './retention.routes.js';
+router.use('/retention', retentionRoutes);
+
 export default router;

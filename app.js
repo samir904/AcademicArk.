@@ -20,6 +20,7 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import attendanceRoute from "./ROUTES/attendance.route.js"
  import analyticsRoutes from "./ROUTES/analytics.routes.js"
  import feedbackRoute from './ROUTES/feedback.routes.js'
+ import loginLogRoutes from './ROUTES/loginLog.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -113,6 +114,7 @@ app.use("/api/v1/oauth",authRoute);
 app.use('/api/v1/analytics', analyticsRoutes)
 app.use("/api/v1/attendance", attendanceRoute);
 app.use('/api/v1/feedback',feedbackRoute);
+app.use('/api/v1/login-logs', loginLogRoutes);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes

@@ -87,6 +87,7 @@
 import { Router } from "express";
 import passport from "passport";
 import jwt from "jsonwebtoken";
+import { createLoginLog } from "../services/loginLog.service.js";
 
 const router = Router();
 
@@ -108,7 +109,7 @@ router.get("/google/callback",
         failureRedirect: '/login?error=auth_failed',
         session: false
     }),
-    (req, res) => {
+    async(req, res) => {
         try {
             console.log('✅ Passport authentication successful');
             console.log('👤 User:', req.user.email);
@@ -131,7 +132,8 @@ router.get("/google/callback",
             );
 
             console.log('🔑 JWT token created');
-
+// ✅ LOG SUCCESSFUL GOOGLE LOGIN
+            await createLoginLog(req.user._id, req, 'success');
             // ✅ CRITICAL: Send token in URL (not just cookie)
             const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
             const redirectURL = `${frontendURL}?googleAuth=success&token=${token}`;
