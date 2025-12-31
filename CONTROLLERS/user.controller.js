@@ -604,7 +604,7 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
 
     // ✨ Validation
     if (!semester) {
-        return next(new AppError('Semester is required', 400));
+        return next(new Apperror('Semester is required', 400));
     }
 
     if (![1, 2, 3, 4, 5, 6, 7, 8].includes(semester)) {
@@ -612,12 +612,12 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     }
 
     if (!branch) {
-        return next(new AppError('Branch is required', 400));
+        return next(new Apperror('Branch is required', 400));
     }
 
     const validBranches = ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL", "CHEMICAL", "BIOTECH", "OTHER"];
     if (!validBranches.includes(branch)) {
-        return next(new AppError(`Invalid branch. Must be one of: ${validBranches.join(', ')}`, 400));
+        return next(new Apperror(`Invalid branch. Must be one of: ${validBranches.join(', ')}`, 400));
     }
 
     // ✨ UPDATED: Handle college selection
@@ -628,7 +628,7 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     // Case 1: User selected a predefined college
     if (college && college !== "Other") {
         if (!PREDEFINED_COLLEGES.includes(college)) {
-            return next(new AppError('Invalid college selected', 400));
+            return next(new Apperror('Invalid college selected', 400));
         }
         collegeName = college;
         isPredefined = true;
@@ -637,10 +637,10 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     // Case 2: User selected "Other" and provided custom college name
     else if (college === "Other" && customCollege) {
         if (!customCollege.trim()) {
-            return next(new AppError('Please enter your college name', 400));
+            return next(new Apperror('Please enter your college name', 400));
         }
         if (customCollege.trim().length > 100) {
-            return next(new AppError('College name must be less than 100 characters', 400));
+            return next(new Apperror('College name must be less than 100 characters', 400));
         }
         collegeName = customCollege.trim();
         isPredefined = false;
@@ -648,7 +648,7 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     }
     // Case 3: No valid college provided
     else {
-        return next(new AppError('Please select or enter a college name', 400));
+        return next(new Apperror('Please select or enter a college name', 400));
     }
 
     // ✨ Update user academic profile
@@ -690,7 +690,7 @@ export const getAcademicProfile = asyncWrap(async (req, res, next) => {
     const user = await User.findById(userId).select('academicProfile fullName email');
 
     if (!user) {
-        return next(new AppError('User not found', 404));
+        return next(new Apperror('User not found', 404));
     }
 
     res.status(200).json({
@@ -811,7 +811,7 @@ export const getAcademicAnalytics = asyncWrap(async (req, res, next) => {
             }
         });
     } catch (error) {
-        return next(new AppError('Failed to fetch analytics', 500));
+        return next(new Apperror('Failed to fetch analytics', 500));
     }
 });
 
@@ -820,7 +820,7 @@ export const approveCustomCollege = asyncWrap(async (req, res, next) => {
     const { collegeName } = req.body;
 
     if (!collegeName || !collegeName.trim()) {
-        return next(new AppError('College name is required', 400));
+        return next(new Apperror('College name is required', 400));
     }
 
     // Update all users with this custom college
