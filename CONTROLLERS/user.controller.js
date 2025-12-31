@@ -608,7 +608,7 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     }
 
     if (![1, 2, 3, 4, 5, 6, 7, 8].includes(semester)) {
-        return next(new AppError('Invalid semester. Must be between 1 and 8', 400));
+        return next(new Apperror('Invalid semester. Must be between 1 and 8', 400));
     }
 
     if (!branch) {
