@@ -1,6 +1,6 @@
 import { Router } from "express";
 import asyncWrap from "../UTIL/asyncWrap.js";
-import { authorizedRoles, isLoggedIn } from "../MIDDLEWARES/auth.middleware.js";
+import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getNote, registerNote, updateNote } from "../CONTROLLERS/note.controller.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 import { cacheNotes } from "../MIDDLEWARES/cache.middleware.js";
@@ -19,7 +19,7 @@ router.route("/")
 )
 
 router.route("/:id")
-.get(
+.get(optionalAuth,
     asyncWrap(getNote)
 )
 .put(

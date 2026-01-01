@@ -10,6 +10,7 @@ import sessionTracker from "../UTIL/sessionTracker.js";
 import { PREDEFINED_COLLEGES, isValidCollege } from "../CONSTANTS/colleges.js";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { createLoginLog } from "../services/loginLog.service.js";
+import { logUserActivity } from "../UTIL/activityLogger.js";
 const cookieoptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -67,7 +68,12 @@ export const register = async (req, res, next) => {
     user.password = undefined;
 //✅ LOG SUCCESSFUL LOGIN
     await createLoginLog(user._id, req, 'success');
- 
+    // ✅ LOG REGISTRATION ACTIVITY
+    await logUserActivity(user._id, "REGISTRATION", {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        sessionId: req.sessionID
+    });
     const token = await user.generateJWTToken();
     res.cookie("token", token, cookieoptions);
 
@@ -98,6 +104,12 @@ export const login = async (req, res, next) => {
     res.cookie("token",token,cookieoptions)
 // ✅ LOG SUCCESSFUL LOGIN
     await createLoginLog(user._id, req, 'success');
+    // ✅ LOG LOGIN ACTIVITY
+    await logUserActivity(user._id, "LOGIN", {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        sessionId: req.sessionID
+    });
     res.status(200).json({
         success:true,
         message:`Welcome back! ${user.fullName} 🎉`,
@@ -669,7 +681,23 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
     if (!user) {
         return next(new Apperror('User not found', 404));
     }
-
+try {
+        await logUserActivity(userId, "PROFILE_COMPLETED", {
+            resourceType: "USER_PROFILE",
+            metadata: {
+                semester: semester,
+                college: collegeName,
+                branch: branch,
+                isPredefined: isPredefined,
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
+                sessionId: req.sessionID
+            }
+        });
+    } catch (error) {
+        console.error('Error logging profile completion:', error);
+        // Don't fail the request if logging fails
+    }
     res.status(200).json({
         success: true,
         message: isPredefined 

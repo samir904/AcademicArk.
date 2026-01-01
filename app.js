@@ -22,6 +22,7 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import feedbackRoute from './ROUTES/feedback.routes.js'
  import loginLogRoutes from './ROUTES/loginLog.routes.js'
  import logsRoutes from './ROUTES/logs.routes.js'
+ import retentionRoutes from './ROUTES/user.retention.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -122,6 +123,8 @@ app.use("/api/v1/attendance", attendanceRoute);
 app.use('/api/v1/feedback',feedbackRoute);
 app.use('/api/v1/login-logs', loginLogRoutes);
 app.use('/api/v1/logs', logsRoutes);
+app.use("/api/v1/retention", retentionRoutes);
+
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes

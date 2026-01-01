@@ -7,6 +7,7 @@ import fetch from "node-fetch";
 import redisClient from "../CONFIG/redisClient.js"
 // import redisClient from "../server.js"
 import axios from "axios";
+import { logUserActivity } from "../UTIL/activityLogger.js";
 export const registerNote=async(req,res,next)=>{
     const{title,description,subject,course,semester,university,category}=req.body;
     const userId=req.user.id;
@@ -108,7 +109,8 @@ export const getAllNotes = async (req, res, next) => {
 
 export const getNote = async (req, res, next) => {
     const { id } = req.params;
-    
+    const userId = req.user?.id; // Optional - user may not be logged in
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400));
     }
@@ -126,6 +128,18 @@ export const getNote = async (req, res, next) => {
     if (!note) {
         return next(new Apperror("Note not found please try again", 404));
     }
+    // ✅ LOG ACTIVITY: NOTE VIEWED (only if user is logged in)
+    // ✅ LOG VIEW ACTIVITY (only if user is logged in)
+    if (userId) {
+        await logUserActivity(userId, "NOTE_VIEWED", {
+            resourceId: id,
+            resourceType: "NOTE",
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            sessionId: req.sessionID
+        });
+    }
+
     
     res.status(200).json({
         success: true,
@@ -206,7 +220,17 @@ export const deleteNote=async(req,res,next)=>{
     // After note.save() in registerNote, updateNote, deleteNote:
 await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
 await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
-
+// ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
+        if (userId) {
+            await logUserActivity(userId, "NOTE_DOWNLOADED", {
+                resourceId: id,
+                resourceType: "NOTE",
+                downloadSize: fileResponse.data.length,
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
+                sessionId: req.sessionID
+            });
+        }
     res.status(200).json({
         success:true,
         mesage:'Note deleted'
@@ -255,6 +279,15 @@ export const addRating = async (req, res, next) => {
         }
 
         await note.save();
+ // ✅ LOG RATING ACTIVITY
+        await logUserActivity(userId, "NOTE_RATED", {
+            resourceId: id,
+            resourceType: "NOTE",
+            ratingValue: rating,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            sessionId: req.sessionID
+        });
 
         // Populate the updated note
         const updatedNote = await Note.findById(id)
@@ -297,6 +330,16 @@ export const bookmarkNote = async (req, res, next) => {
     }
 
     await note.save();
+  // ✅ LOG BOOKMARK ACTIVITY (only if newly bookmarked)
+        if (!isBookmarked) {
+            await logUserActivity(userId, "NOTE_BOOKMARKED", {
+                resourceId: id,
+                resourceType: "NOTE",
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
+                sessionId: req.sessionID
+            });
+        }
 
     const updatedNote = await Note.findById(id).populate('uploadedBy', 'fullName avatar');
 
@@ -349,6 +392,7 @@ export const bookmarkNote = async (req, res, next) => {
 
 export const downloadNote = async (req, res, next) => {
     const { id } = req.params;
+ const userId = req.user?.id; // Optional - user may not be logged in
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note id", 400));
@@ -374,7 +418,17 @@ export const downloadNote = async (req, res, next) => {
 
         // Log fetched size to check
         // console.log('Fetched PDF size:', fileResponse.data.length, 'bytes');
-
+// ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
+        if (userId) {
+            await logUserActivity(userId, "NOTE_DOWNLOADED", {
+                resourceId: id,
+                resourceType: "NOTE",
+                downloadSize: fileResponse.data.length,
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
+                sessionId: req.sessionID
+            });
+        }
         // Set headers
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${note.title}.pdf"`);
