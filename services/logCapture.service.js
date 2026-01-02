@@ -124,12 +124,14 @@ export const getConsoleLogs = async (filters = {}, limit = 100, page = 1) => {
 
 /**
  * Get log statistics
+ * 🔥 NOW INCLUDES: slowestRoutes (by avg response time, grouped by method + path)
  */
 export const getLogStats = async (days = 7) => {
   try {
     const dateAgo = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    // Request log stats
+
+    // Request log stats (by status code)
     const requestStats = await RequestLog.aggregate([
       { $match: { timestamp: { $gte: dateAgo } } },
       {
@@ -142,7 +144,8 @@ export const getLogStats = async (days = 7) => {
       { $sort: { count: -1 } }
     ]);
 
-    // Console log stats
+
+    // Console log stats (by level)
     const consoleStats = await ConsoleLog.aggregate([
       { $match: { timestamp: { $gte: dateAgo } } },
       {
@@ -154,7 +157,8 @@ export const getLogStats = async (days = 7) => {
       { $sort: { count: -1 } }
     ]);
 
-    // Top paths
+
+    // Top paths (by hit count)
     const topPaths = await RequestLog.aggregate([
       { $match: { timestamp: { $gte: dateAgo } } },
       {
@@ -168,10 +172,33 @@ export const getLogStats = async (days = 7) => {
       { $limit: 10 }
     ]);
 
+
+    // 🔥 NEW: Slowest routes (method + path) by average response time
+    const slowestRoutes = await RequestLog.aggregate([
+      { $match: { timestamp: { $gte: dateAgo } } },
+      {
+        $group: {
+          _id: { method: '$method', path: '$path' },
+          avgResponseTime: { $avg: '$responseTime' },
+          maxResponseTime: { $max: '$responseTime' },
+          minResponseTime: { $min: '$responseTime' },
+          count: { $sum: 1 }
+        }
+      },
+      // Filter: only routes with at least 5 hits (remove noise/outliers)
+      { $match: { count: { $gte: 5 } } },
+      // Sort by slowest first
+      { $sort: { avgResponseTime: -1 } },
+      // Limit to top 20 slowest
+      { $limit: 20 }
+    ]);
+
+
     return {
       requestStats,
       consoleStats,
-      topPaths
+      topPaths,
+      slowestRoutes
     };
   } catch (error) {
     console.error('[LOG_CAPTURE] Error getting log stats:', error);
