@@ -8,18 +8,18 @@ import redisClient from "../CONFIG/redisClient.js"
 // import redisClient from "../server.js"
 import axios from "axios";
 import { logUserActivity } from "../UTIL/activityLogger.js";
-export const registerNote=async(req,res,next)=>{
-    const{title,description,subject,course,semester,university,category}=req.body;
-    const userId=req.user.id;
-    if(!userId){
+export const registerNote = async (req, res, next) => {
+    const { title, description, subject, course, semester, university, category } = req.body;
+    const userId = req.user.id;
+    if (!userId) {
         return next(new Apperror("Something went wrong please login again"))
     }
-    if(!title||!description||!subject||!course||!semester||!university||!category){
+    if (!title || !description || !subject || !course || !semester || !university || !category) {
         return next(new Apperror("All fields are required "))
     }
 
-    if(!req.file){
-        return next(new Apperror("File is required",400));
+    if (!req.file) {
+        return next(new Apperror("File is required", 400));
     }
     const note = await Note.create({
         title: title.trim(),
@@ -36,44 +36,44 @@ export const registerNote=async(req,res,next)=>{
         }
     });
 
-    if(!note){
+    if (!note) {
         return next(new Apperror("Note not uploaded please try again"))
     }
 
-    if(req.file){
-        try{
-            const result=await cloudinary.v2.uploader.upload(req.file.path,{
-                folder:"AcademicArk",
+    if (req.file) {
+        try {
+            const result = await cloudinary.v2.uploader.upload(req.file.path, {
+                folder: "AcademicArk",
                 resource_type: 'auto', // auto-detect file type
-            access_mode: 'public', // Make sure it's public
-            type: 'upload', // Standard upload type
-            use_filename: true,
-            unique_filename: true,
+                access_mode: 'public', // Make sure it's public
+                type: 'upload', // Standard upload type
+                use_filename: true,
+                unique_filename: true,
             });
-            if(result){
-                note.fileDetails.public_id= result.public_id;
-                note.fileDetails.secure_url=result.secure_url;
+            if (result) {
+                note.fileDetails.public_id = result.public_id;
+                note.fileDetails.secure_url = result.secure_url;
                 await fs.rm(`uploads/${req.file.filename}`)
             }
-        }catch(error){
-            return next(new Apperror(error.mesage||"Failed to upload note please try again!"))
+        } catch (error) {
+            return next(new Apperror(error.mesage || "Failed to upload note please try again!"))
         }
     }
     await note.save();
     await redisClient.del(`notes:${JSON.stringify({})}`)//clear top level cache
     await redisClient.del(`notes:${JSON.stringify(req.query)}`)//clear specific filter
     res.status(201).json({
-        success:true,
-        message:"Note uploaded successfully",
-        data:note
+        success: true,
+        message: "Note uploaded successfully",
+        data: note
     })
 }
 
 export const getAllNotes = async (req, res, next) => {
     console.log('Query params:', req.query);
-    
+
     const filters = {};
-    
+
     // Handle each filter with case-insensitive matching where needed
     if (req.query.subject) {
         filters.subject = { $regex: req.query.subject, $options: 'i' }; // Case insensitive
@@ -106,7 +106,7 @@ export const getAllNotes = async (req, res, next) => {
         data: notes
     });
 
-    
+
 };
 export const getNote = async (req, res, next) => {
     const { id } = req.params;
@@ -120,7 +120,7 @@ export const getNote = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400));
     }
-    
+
     try {
         const note = await Note.findById(id)
             .populate("uploadedBy", "fullName avatar.secure_url")
@@ -131,8 +131,14 @@ export const getNote = async (req, res, next) => {
                     select: "fullName avatar"
                 }
             })
+            // ✅ ADD THIS populate
+            .populate({
+                path: "viewedBy",
+                select: "fullName avatar.secure_url role academicProfile email"
+            })
+
             .select('+views +downloads +viewedBy');  // ✅ ADD viewedBy
-            
+
         if (!note) {
             return next(new Apperror("Note not found please try again", 404));
         }
@@ -147,20 +153,20 @@ export const getNote = async (req, res, next) => {
             // console.log('\n🔄 COMPARING:');
             // console.log('  userId (string):', userId);
             // console.log('  userObjectId:', userObjectId);
-            
+
             const alreadyViewed = note.viewedBy.some(viewerId => {
                 const matches = viewerId.equals(userObjectId);
                 // console.log(`  checking ${viewerId} === ${userObjectId}? ${matches}`);
                 return matches;
             });
-            
+
             // console.log('\n✅ alreadyViewed:', alreadyViewed);
-            
+
             if (!alreadyViewed) {
                 note.views += 1;
                 note.viewedBy.push(userObjectId);
                 const savedNote = await note.save();
-                
+
                 // console.log('\n✅ AFTER SAVE:');
                 // console.log('  new views:', savedNote.views);
                 // console.log('  new viewedBy:', savedNote.viewedBy);
@@ -203,94 +209,94 @@ export const getNote = async (req, res, next) => {
 
 
 
-export const updateNote=async(req,res,next)=>{
-    const {id}=req.params;
-    const userId=req.user;
-    if(!mongoose.Types.ObjectId.isValid(id)){
-        return next(new Apperror("Invalid note Id",400))
+export const updateNote = async (req, res, next) => {
+    const { id } = req.params;
+    const userId = req.user;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return next(new Apperror("Invalid note Id", 400))
     }
-    const note=await Note.findById(id);
-    if(!note){
-        return next(new Apperror("Note not found",404))
+    const note = await Note.findById(id);
+    if (!note) {
+        return next(new Apperror("Note not found", 404))
     }
-    if(note.uploadedBy.toString()!==userId.toString()&&req.user.role!=="ADMIN"){
-        return next(new Apperror("Note authorized to update this",403))
+    if (note.uploadedBy.toString() !== userId.toString() && req.user.role !== "ADMIN") {
+        return next(new Apperror("Note authorized to update this", 403))
     }
-    const updates={
+    const updates = {
         ...req.body
     }
-    if(req.file){
+    if (req.file) {
         await cloudinary.v2.uploader.destroy(note.fileDetails.public_id);
-        try{
-            const result=await cloudinary.v2.uploader.upload(req.file.path,{
-                folder:"AcademicArk",
+        try {
+            const result = await cloudinary.v2.uploader.upload(req.file.path, {
+                folder: "AcademicArk",
                 resource_type: 'auto', // auto-detect file type
-            access_mode: 'public', // Make sure it's public
-            type: 'upload', // Standard upload type
-            use_filename: true,
-            unique_filename: true,
+                access_mode: 'public', // Make sure it's public
+                type: 'upload', // Standard upload type
+                use_filename: true,
+                unique_filename: true,
             });
-            if(result){
-                note.fileDetails.public_id=result.public_id;
-                note.fileDetails.secure_url=result.secure_url;
+            if (result) {
+                note.fileDetails.public_id = result.public_id;
+                note.fileDetails.secure_url = result.secure_url;
                 await fs.rm(`uploads/${req.file.filename}`)
             }
-        }catch(error){
-            return next(new Apperror(error.mesage||"Note not updated successfully"));
+        } catch (error) {
+            return next(new Apperror(error.mesage || "Note not updated successfully"));
         }
     }
-   const newnote=await Note.findByIdAndUpdate(id,updates,{
-        new:true,
-        runValidators:true
+    const newnote = await Note.findByIdAndUpdate(id, updates, {
+        new: true,
+        runValidators: true
     });
     // After note.save() in registerNote, updateNote, deleteNote:
-await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
-await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
+    await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
+    await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
 
 
     res.status(200).json({
-        success:true,
-        mesage:'Note updated successfully',
-        data:newnote
+        success: true,
+        mesage: 'Note updated successfully',
+        data: newnote
     })
 }
 
-export const deleteNote=async(req,res,next)=>{
-    const{id}=req.params;
-    if(!mongoose.Types.ObjectId.isValid(id)){
-        return next(new Apperror("Invalid note Id",400))
+export const deleteNote = async (req, res, next) => {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return next(new Apperror("Invalid note Id", 400))
     }
-    const note=await Note.findById(id);
-    if(!note){
-        return next(new Apperror("Note not found please try again!",404))
+    const note = await Note.findById(id);
+    if (!note) {
+        return next(new Apperror("Note not found please try again!", 404))
     }
-    if(note.uploadedBy.toString()!==req.user.id.toString()&&req.user.role!=="ADMIN"){
-        return next(new Apperror("Not authorized to delete this note",403))
+    if (note.uploadedBy.toString() !== req.user.id.toString() && req.user.role !== "ADMIN") {
+        return next(new Apperror("Not authorized to delete this note", 403))
     }
 
     await cloudinary.v2.uploader.destroy(note.fileDetails.public_id);
 
     await Note.findByIdAndDelete(id);
     // After note.save() in registerNote, updateNote, deleteNote:
-await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
-await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
-// ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
-        if (userId) {
-            await logUserActivity(userId, "NOTE_DOWNLOADED", {
-                resourceId: id,
-                resourceType: "NOTE",
-                downloadSize: fileResponse.data.length,
-                ipAddress: req.ip,
-                userAgent: req.get('user-agent'),
-                sessionId: req.sessionID
-            });
-        }
+    await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
+    await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
+    // ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
+    if (userId) {
+        await logUserActivity(userId, "NOTE_DOWNLOADED", {
+            resourceId: id,
+            resourceType: "NOTE",
+            downloadSize: fileResponse.data.length,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            sessionId: req.sessionID
+        });
+    }
     res.status(200).json({
-        success:true,
-        mesage:'Note deleted'
+        success: true,
+        mesage: 'Note deleted'
     })
-// Note: res.json has been overridden by cacheNotes middleware,
-  // so this response is ALSO stored into Redis automatically.
+    // Note: res.json has been overridden by cacheNotes middleware,
+    // so this response is ALSO stored into Redis automatically.
 }
 
 // Fix your backend addRating controller
@@ -316,7 +322,7 @@ export const addRating = async (req, res, next) => {
 
         // Check if user already rated
         const existingRatingIndex = note.rating.findIndex(r => r.user.toString() === userId);
-        
+
         const newRating = {
             user: userId,
             rating: Number(rating),
@@ -333,7 +339,7 @@ export const addRating = async (req, res, next) => {
         }
 
         await note.save();
- // ✅ LOG RATING ACTIVITY
+        // ✅ LOG RATING ACTIVITY
         await logUserActivity(userId, "NOTE_RATED", {
             resourceId: id,
             resourceType: "NOTE",
@@ -370,13 +376,13 @@ export const bookmarkNote = async (req, res, next) => {
     }
 
     const note = await Note.findById(id).populate('uploadedBy', 'fullName avatar');
-    
+
     if (!note) {
         return next(new Apperror("Note not found", 404));
     }
 
     const isBookmarked = note.bookmarkedBy.includes(userId);
-    
+
     if (isBookmarked) {
         note.bookmarkedBy.pull(userId);
     } else {
@@ -384,16 +390,16 @@ export const bookmarkNote = async (req, res, next) => {
     }
 
     await note.save();
-  // ✅ LOG BOOKMARK ACTIVITY (only if newly bookmarked)
-        if (!isBookmarked) {
-            await logUserActivity(userId, "NOTE_BOOKMARKED", {
-                resourceId: id,
-                resourceType: "NOTE",
-                ipAddress: req.ip,
-                userAgent: req.get('user-agent'),
-                sessionId: req.sessionID
-            });
-        }
+    // ✅ LOG BOOKMARK ACTIVITY (only if newly bookmarked)
+    if (!isBookmarked) {
+        await logUserActivity(userId, "NOTE_BOOKMARKED", {
+            resourceId: id,
+            resourceType: "NOTE",
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+            sessionId: req.sessionID
+        });
+    }
 
     const updatedNote = await Note.findById(id).populate('uploadedBy', 'fullName avatar');
 
@@ -446,7 +452,7 @@ export const bookmarkNote = async (req, res, next) => {
 
 export const downloadNote = async (req, res, next) => {
     const { id } = req.params;
- const userId = req.user?.id; // Optional - user may not be logged in
+    const userId = req.user?.id; // Optional - user may not be logged in
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note id", 400));
@@ -472,7 +478,7 @@ export const downloadNote = async (req, res, next) => {
 
         // Log fetched size to check
         // console.log('Fetched PDF size:', fileResponse.data.length, 'bytes');
-// ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
+        // ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
         if (userId) {
             await logUserActivity(userId, "NOTE_DOWNLOADED", {
                 resourceId: id,
@@ -503,12 +509,12 @@ export const downloadNote = async (req, res, next) => {
 export const getMostViewedNotes = async (req, res, next) => {
     try {
         const timeRange = req.query.timeRange || '7days'; // 7days, 30days, all
-        
+
         let dateFilter = {};
         if (timeRange === '7days') {
-            dateFilter = { createdAt: { $gte: new Date(Date.now() - 7*24*60*60*1000) } };
+            dateFilter = { createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } };
         } else if (timeRange === '30days') {
-            dateFilter = { createdAt: { $gte: new Date(Date.now() - 30*24*60*60*1000) } };
+            dateFilter = { createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } };
         }
 
         const notes = await Note.find(dateFilter)
@@ -532,7 +538,7 @@ export const incrementViewCount = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400));
     }
-    
+
     try {
         const note = await Note.findById(id);
         if (!note) {

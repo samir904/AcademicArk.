@@ -14,12 +14,14 @@ router.route("/")
     upload.single('fileDetails'),
     asyncWrap(registerNote)
 ).get(
+    optionalAuth,
     asyncWrap(cacheNotes),//attempt to serve from cache first 
     asyncWrap(getAllNotes)//if not then hit controller and then cache
 )
 
 router.route("/:id")
-.get(optionalAuth,
+.get(
+    optionalAuth,
     asyncWrap(getNote)
 )
 .put(
