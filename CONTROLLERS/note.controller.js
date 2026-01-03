@@ -112,10 +112,10 @@ export const getNote = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    console.log('\n========== getNote START ==========');
-    console.log('📍 noteId:', id);
-    console.log('👤 userId:', userId);
-    console.log('👤 userId type:', typeof userId);
+    // console.log('\n========== getNote START ==========');
+    // console.log('📍 noteId:', id);
+    // console.log('👤 userId:', userId);
+    // console.log('👤 userId type:', typeof userId);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400));
@@ -137,38 +137,38 @@ export const getNote = async (req, res, next) => {
             return next(new Apperror("Note not found please try again", 404));
         }
 
-        console.log('\n📊 BEFORE INCREMENT:');
-        console.log('  views:', note.views);
-        console.log('  viewedBy array:', note.viewedBy);
-        console.log('  viewedBy length:', note.viewedBy?.length || 0);
+        // console.log('\n📊 BEFORE INCREMENT:');
+        // console.log('  views:', note.views);
+        // console.log('  viewedBy array:', note.viewedBy);
+        // console.log('  viewedBy length:', note.viewedBy?.length || 0);
 
         if (userId) {
             const userObjectId = new mongoose.Types.ObjectId(userId);
-            console.log('\n🔄 COMPARING:');
-            console.log('  userId (string):', userId);
-            console.log('  userObjectId:', userObjectId);
+            // console.log('\n🔄 COMPARING:');
+            // console.log('  userId (string):', userId);
+            // console.log('  userObjectId:', userObjectId);
             
             const alreadyViewed = note.viewedBy.some(viewerId => {
                 const matches = viewerId.equals(userObjectId);
-                console.log(`  checking ${viewerId} === ${userObjectId}? ${matches}`);
+                // console.log(`  checking ${viewerId} === ${userObjectId}? ${matches}`);
                 return matches;
             });
             
-            console.log('\n✅ alreadyViewed:', alreadyViewed);
+            // console.log('\n✅ alreadyViewed:', alreadyViewed);
             
             if (!alreadyViewed) {
                 note.views += 1;
                 note.viewedBy.push(userObjectId);
                 const savedNote = await note.save();
                 
-                console.log('\n✅ AFTER SAVE:');
-                console.log('  new views:', savedNote.views);
-                console.log('  new viewedBy:', savedNote.viewedBy);
+                // console.log('\n✅ AFTER SAVE:');
+                // console.log('  new views:', savedNote.views);
+                // console.log('  new viewedBy:', savedNote.viewedBy);
             } else {
-                console.log('⏭️  Skipping increment - already viewed');
+                // console.log('⏭️  Skipping increment - already viewed');
             }
         } else {
-            console.log('⚠️  No userId - Anonymous user');
+            // console.log('⚠️  No userId - Anonymous user');
         }
 
         res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -185,9 +185,9 @@ export const getNote = async (req, res, next) => {
             });
         }
 
-        console.log('\n📤 SENDING RESPONSE:');
-        console.log('  views in response:', note.views);
-        console.log('========== getNote END ==========\n');
+        // console.log('\n📤 SENDING RESPONSE:');
+        // console.log('  views in response:', note.views);
+        // console.log('========== getNote END ==========\n');
 
         res.status(200).json({
             success: true,
