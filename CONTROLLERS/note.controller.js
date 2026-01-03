@@ -95,7 +95,8 @@ export const getAllNotes = async (req, res, next) => {
 
     const notes = await Note.find(filters)
         .populate("uploadedBy", "fullName avatar.secure_url")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .select('+views +downloads +viewedBy');
 
     console.log('Found notes:', notes.length);
 
@@ -104,49 +105,102 @@ export const getAllNotes = async (req, res, next) => {
         count: notes.length,
         data: notes
     });
+
+    
 };
-
-
 export const getNote = async (req, res, next) => {
     const { id } = req.params;
-    const userId = req.user?.id; // Optional - user may not be logged in
+    const userId = req.user?.id;
+
+    console.log('\n========== getNote START ==========');
+    console.log('📍 noteId:', id);
+    console.log('👤 userId:', userId);
+    console.log('👤 userId type:', typeof userId);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400));
     }
     
-    const note = await Note.findById(id)
-        .populate("uploadedBy", "fullName avatar.secure_url")
-        
-        .populate({
+    try {
+        const note = await Note.findById(id)
+            .populate("uploadedBy", "fullName avatar.secure_url")
+            .populate({
                 path: "rating",
                 populate: {
                     path: "user",
                     select: "fullName avatar"
                 }
-            });        
-    if (!note) {
-        return next(new Apperror("Note not found please try again", 404));
-    }
-    // ✅ LOG ACTIVITY: NOTE VIEWED (only if user is logged in)
-    // ✅ LOG VIEW ACTIVITY (only if user is logged in)
-    if (userId) {
-        await logUserActivity(userId, "NOTE_VIEWED", {
-            resourceId: id,
-            resourceType: "NOTE",
-            ipAddress: req.ip,
-            userAgent: req.get('user-agent'),
-            sessionId: req.sessionID
-        });
-    }
+            })
+            .select('+views +downloads +viewedBy');  // ✅ ADD viewedBy
+            
+        if (!note) {
+            return next(new Apperror("Note not found please try again", 404));
+        }
 
-    
-    res.status(200).json({
-        success: true,
-        message: "note fetched successfully",
-        data: note
-    });
+        console.log('\n📊 BEFORE INCREMENT:');
+        console.log('  views:', note.views);
+        console.log('  viewedBy array:', note.viewedBy);
+        console.log('  viewedBy length:', note.viewedBy?.length || 0);
+
+        if (userId) {
+            const userObjectId = new mongoose.Types.ObjectId(userId);
+            console.log('\n🔄 COMPARING:');
+            console.log('  userId (string):', userId);
+            console.log('  userObjectId:', userObjectId);
+            
+            const alreadyViewed = note.viewedBy.some(viewerId => {
+                const matches = viewerId.equals(userObjectId);
+                console.log(`  checking ${viewerId} === ${userObjectId}? ${matches}`);
+                return matches;
+            });
+            
+            console.log('\n✅ alreadyViewed:', alreadyViewed);
+            
+            if (!alreadyViewed) {
+                note.views += 1;
+                note.viewedBy.push(userObjectId);
+                const savedNote = await note.save();
+                
+                console.log('\n✅ AFTER SAVE:');
+                console.log('  new views:', savedNote.views);
+                console.log('  new viewedBy:', savedNote.viewedBy);
+            } else {
+                console.log('⏭️  Skipping increment - already viewed');
+            }
+        } else {
+            console.log('⚠️  No userId - Anonymous user');
+        }
+
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+
+        if (userId) {
+            await logUserActivity(userId, "NOTE_VIEWED", {
+                resourceId: id,
+                resourceType: "NOTE",
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
+                sessionId: req.sessionID
+            });
+        }
+
+        console.log('\n📤 SENDING RESPONSE:');
+        console.log('  views in response:', note.views);
+        console.log('========== getNote END ==========\n');
+
+        res.status(200).json({
+            success: true,
+            message: "note fetched successfully",
+            data: note
+        });
+
+    } catch (error) {
+        console.error('❌ getNote error:', error);
+        next(new Apperror("Failed to fetch note: " + error.message, 500));
+    }
 };
+
 
 
 export const updateNote=async(req,res,next)=>{
@@ -445,6 +499,66 @@ export const downloadNote = async (req, res, next) => {
 
 
 
+
+export const getMostViewedNotes = async (req, res, next) => {
+    try {
+        const timeRange = req.query.timeRange || '7days'; // 7days, 30days, all
+        
+        let dateFilter = {};
+        if (timeRange === '7days') {
+            dateFilter = { createdAt: { $gte: new Date(Date.now() - 7*24*60*60*1000) } };
+        } else if (timeRange === '30days') {
+            dateFilter = { createdAt: { $gte: new Date(Date.now() - 30*24*60*60*1000) } };
+        }
+
+        const notes = await Note.find(dateFilter)
+            .populate("uploadedBy", "fullName avatar.secure_url")
+            .sort({ views: -1 }) // Sort by views descending
+            .limit(10); // Top 10
+
+        res.status(200).json({
+            success: true,
+            data: notes
+        });
+    } catch (error) {
+        next(new Apperror("Failed to fetch most viewed notes", 500));
+    }
+};
+
+export const incrementViewCount = async (req, res, next) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return next(new Apperror("Invalid note Id", 400));
+    }
+    
+    try {
+        const note = await Note.findById(id);
+        if (!note) {
+            return next(new Apperror("Note not found", 404));
+        }
+
+        // ✅ INCREMENT VIEWS
+        if (userId) {
+            const alreadyViewed = note.viewedBy.includes(userId);
+            if (!alreadyViewed) {
+                note.views += 1;
+                note.viewedBy.push(userId);
+                await note.save();
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "View counted",
+            data: { views: note.views }
+        });
+
+    } catch (error) {
+        next(new Apperror("Failed to increment view", 500));
+    }
+};
 
 
 

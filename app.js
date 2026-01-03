@@ -48,7 +48,7 @@ app.use(morgan("dev"))
      origin: process.env.FRONTEND_URL,
      credentials: true,
      methods: ["GET", "POST", "PUT", "DELETE"],
-     allowedHeaders: ["Content-Type", "Authorization"], //what is the use of authorization her 
+     allowedHeaders: ["Content-Type", "Authorization", "Cache-Control"], //what is the use of authorization her 
    })
  );
 //  import path from "path";a

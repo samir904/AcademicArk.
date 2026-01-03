@@ -68,6 +68,15 @@ const noteSchema=new Schema({
         default:0,
         min:[0,"Downloads cannot be negative"]
     },
+    views: {
+        type: Number,
+        default: 0,
+        min: [0, "Views cannot be negative"]
+    },
+    viewedBy: [{
+        type: Schema.Types.ObjectId,
+        ref: "User"
+    }],
     rating:[{
         user:{
             type:Schema.Types.ObjectId,
