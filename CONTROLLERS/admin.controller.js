@@ -33,7 +33,10 @@ export const getDashboardStats = async (req, res, next) => {
         const totalDownloads = await Note.aggregate([
             { $group: { _id: null, total: { $sum: '$downloads' } } }
         ]);
-
+         // ✅ ADD THIS - Get total views
+        const totalViews = await Note.aggregate([
+            { $group: { _id: null, total: { $sum: '$views' } } }
+        ]);
         // Get user distribution by role
         const usersByRole = await User.aggregate([
             { $group: { _id: '$role', count: { $sum: 1 } } }
@@ -94,6 +97,7 @@ export const getDashboardStats = async (req, res, next) => {
                 totalUsers,
                 totalNotes,
                 totalDownloads: totalDownloads[0]?.total || 0,
+                totalViews: totalViews[0]?.total || 0, // ✅ ADD THIS
                 recentUsers,
                 usersByRole,
                 notesByCategory,
