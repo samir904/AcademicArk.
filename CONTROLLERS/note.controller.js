@@ -95,6 +95,10 @@ export const getAllNotes = async (req, res, next) => {
 
     const notes = await Note.find(filters)
         .populate("uploadedBy", "fullName avatar.secure_url")
+        .populate({
+            path: "viewedBy",
+            select: "fullName avatar.secure_url role academicProfile.semester academicProfile.branch"
+        })
         .sort({ createdAt: -1 })
         .select('+views +downloads +viewedBy');
 
@@ -108,6 +112,7 @@ export const getAllNotes = async (req, res, next) => {
 
 
 };
+
 export const getNote = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user?.id;
