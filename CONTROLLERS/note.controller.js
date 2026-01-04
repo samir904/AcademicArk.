@@ -95,12 +95,12 @@ export const getAllNotes = async (req, res, next) => {
 
     const notes = await Note.find(filters)
         .populate("uploadedBy", "fullName avatar.secure_url")
-        .populate({
-            path: "viewedBy",
-            select: "fullName avatar.secure_url role academicProfile.semester academicProfile.branch"
-        })
+        // .populate({
+        //     path: "viewedBy",
+        //     select: "fullName avatar.secure_url role academicProfile.semester academicProfile.branch"
+        // })
         .sort({ createdAt: -1 })
-        .select('+views +downloads +viewedBy');
+        .select('+views +downloads ');
 
     console.log('Found notes:', notes.length);
 
@@ -137,10 +137,10 @@ export const getNote = async (req, res, next) => {
                 }
             })
             // ✅ ADD THIS populate
-            .populate({
-                path: "viewedBy",
-                select: "fullName avatar.secure_url role academicProfile email"
-            })
+            // .populate({
+            //     path: "viewedBy",
+            //     select: "fullName avatar.secure_url role academicProfile email"
+            // })
 
             .select('+views +downloads +viewedBy');  // ✅ ADD viewedBy
 
