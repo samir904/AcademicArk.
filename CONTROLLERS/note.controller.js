@@ -68,50 +68,136 @@ export const registerNote = async (req, res, next) => {
         data: note
     })
 }
-
 export const getAllNotes = async (req, res, next) => {
-    console.log('Query params:', req.query);
+    try {
+        console.log('Query params:', req.query);
+        console.log('Full URL:', req.originalUrl);
 
-    const filters = {};
+        const filters = {};
 
-    // Handle each filter with case-insensitive matching where needed
-    if (req.query.subject) {
-        filters.subject = { $regex: req.query.subject, $options: 'i' }; // Case insensitive
+        // ✅ FIX 1: Build filters ONLY if they are provided and not empty
+        if (req.query.subject && req.query.subject.trim()) {
+            filters.subject = { $regex: req.query.subject, $options: 'i' };
+            // console.log('✅ Filter: subject =', req.query.subject);
+        }
+        if (req.query.semester) {
+            const sem = parseInt(req.query.semester);
+            if (!isNaN(sem)) {
+                filters.semester = sem;
+                // console.log('✅ Filter: semester =', sem);
+            }
+        }
+        if (req.query.university && req.query.university.trim()) {
+            filters.university = { $regex: req.query.university, $options: 'i' };
+            // console.log('✅ Filter: university =', req.query.university);
+        }
+        if (req.query.course && req.query.course.trim()) {
+            filters.course = { $regex: req.query.course, $options: 'i' };
+            // console.log('✅ Filter: course =', req.query.course);
+        }
+        if (req.query.category && req.query.category.trim()) {
+            filters.category = { $regex: req.query.category, $options: 'i' };
+            // console.log('✅ Filter: category =', req.query.category);
+        }
+
+        // console.log('📋 MongoDB filters:', JSON.stringify(filters));
+
+        // ✅ FIX 2: Get sortBy parameter (ALWAYS default to downloads)
+        const sortBy = (req.query.sortBy && req.query.sortBy.trim()) ? req.query.sortBy : 'downloads';
+        // console.log('📊 Sorting by:', sortBy);
+
+        // ✅ FIX 3: Define sort order BEFORE using it
+        let sortOrder = { downloads: -1, createdAt: -1 }; // Default
+
+        switch(sortBy.toLowerCase()) {
+            case 'downloads':
+                sortOrder = { downloads: -1, createdAt: -1 };
+                // console.log('🔽 Sort: Downloads descending');
+                break;
+            
+            case 'views':
+                sortOrder = { views: -1, createdAt: -1 };
+                // console.log('👁️ Sort: Views descending');
+                break;
+            
+            case 'latest':
+                sortOrder = { createdAt: -1 };
+                // console.log('🆕 Sort: Latest first');
+                break;
+            
+            case 'rating':
+            case 'upvotes':
+                sortOrder = { 'ratings.average': -1, downloads: -1 };
+                // console.log('⭐ Sort: Rating descending');
+                break;
+            
+            case 'trending':
+                sortOrder = { views: -1, downloads: -1, createdAt: -1 };
+                // console.log('🔥 Sort: Trending (views + downloads)');
+                break;
+            
+            case 'popular':
+                sortOrder = { downloads: -1, views: -1, createdAt: -1 };
+                // console.log('👍 Sort: Popular (downloads + views)');
+                break;
+            
+            default:
+                sortOrder = { downloads: -1, createdAt: -1 };
+                // console.log('📊 Sort: Default (downloads)');
+        }
+
+        // console.log('Sort object:', sortOrder);
+
+        // ✅ FIX 4: Query with sorting applied
+        let query = Note.find(filters);
+        
+        const filterCount = Object.keys(filters).length;
+        // console.log(`🔍 Applying ${filterCount} filter(s)`);
+
+        const notes = await query
+            .populate("uploadedBy", "fullName avatar.secure_url")
+            .sort(sortOrder)  // ✅ CRITICAL: Apply sort here
+            .select('+views +downloads +viewedBy')
+            .lean();  // ✅ Optimize: return plain objects
+
+        // console.log('✅ Found notes:', notes.length);
+
+        // ✅ Map to return viewerCount
+        const notesWithStats = notes.map(note => ({
+            ...note,
+            viewerCount: note.viewedBy?.length || 0,
+            viewedBy: undefined
+        }));
+
+        // ✅ Verify sorting worked
+        if (notesWithStats.length > 1) {
+            const first = notesWithStats;
+            const second = notesWithStats;
+            // console.log(`✅ Verification: First note downloads=${first.downloads}, Second downloads=${second.downloads}`);
+            if (sortBy === 'downloads' && first.downloads < second.downloads) {
+                console.warn('⚠️ WARNING: Downloads NOT in descending order!');
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            count: notesWithStats.length,
+            sortedBy: sortBy,
+            filtersApplied: filterCount,
+            data: notesWithStats
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching notes:', error);
+        console.error('❌ Error stack:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch notes',
+            error: error.message
+        });
     }
-    if (req.query.semester) {
-        filters.semester = parseInt(req.query.semester); // Ensure number type
-    }
-    if (req.query.university) {
-        filters.university = { $regex: req.query.university, $options: 'i' };
-    }
-    if (req.query.course) {
-        filters.course = { $regex: req.query.course, $options: 'i' };
-    }
-    if (req.query.category) {
-        filters.category = { $regex: req.query.category, $options: 'i' };
-    }
-
-    console.log('MongoDB filters:', filters);
-
-    const notes = await Note.find(filters)
-        .populate("uploadedBy", "fullName avatar.secure_url")
-        // .populate({
-        //     path: "viewedBy",
-        //     select: "fullName avatar.secure_url role academicProfile.semester academicProfile.branch"
-        // })
-        .sort({ createdAt: -1 })
-        .select('+views +downloads ');
-
-    console.log('Found notes:', notes.length);
-
-    res.status(200).json({
-        success: true,
-        count: notes.length,
-        data: notes
-    });
-
-
 };
+
 
 export const getNote = async (req, res, next) => {
     const { id } = req.params;
@@ -212,6 +298,106 @@ export const getNote = async (req, res, next) => {
     }
 };
 
+// ✅ OPTIMIZED: Get all notes without viewer data
+
+
+// export const getAllNotes = async (req, res, next) => {
+//     try {
+//         console.log('Query params:', req.query);
+
+//         const filters = {};
+
+//         // Handle each filter with case-insensitive matching where needed
+//         if (req.query.subject) {
+//             filters.subject = { $regex: req.query.subject, $options: 'i' };
+//         }
+//         if (req.query.semester) {
+//             filters.semester = parseInt(req.query.semester);
+//         }
+//         if (req.query.university) {
+//             filters.university = { $regex: req.query.university, $options: 'i' };
+//         }
+//         if (req.query.course) {
+//             filters.course = { $regex: req.query.course, $options: 'i' };
+//         }
+//         if (req.query.category) {
+//             filters.category = { $regex: req.query.category, $options: 'i' };
+//         }
+
+//         console.log('MongoDB filters:', filters);
+
+//         // ✅ REMOVED: .populate("viewedBy", ...) - Don't fetch viewer data here
+//         const notes = await Note.find(filters)
+//             .populate("uploadedBy", "fullName avatar.secure_url")
+//             .sort({ createdAt: -1 })
+//             .select('+views +downloads +viewedBy'); // Include viewedBy count but don't populate
+
+//         console.log('Found notes:', notes.length);
+
+//         // ✅ Map to return only viewer count, not full data
+//         const notesWithViewerCount = notes.map(note => ({
+//             ...note.toObject(),
+//             viewerCount: note.viewedBy?.length || 0,
+//             viewedBy: undefined // Remove the full viewedBy array
+//         }));
+
+//         res.status(200).json({
+//             success: true,
+//             count: notes.length,
+//             data: notesWithViewerCount
+//         });
+
+//     } catch (error) {
+//         console.error('Error fetching notes:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Failed to fetch notes',
+//             error: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// };
+
+// ✅ OPTIMIZED: Get single note (for detail page)
+// export const getNote = async (req, res, next) => {
+//     try {
+//         const { id } = req.params;
+
+//         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: 'Invalid note ID'
+//             });
+//         }
+
+//         const note = await Note.findById(id)
+//             .populate("uploadedBy", "fullName avatar.secure_url email")
+//             .select('+views +downloads +viewedBy +ratings');
+
+//         if (!note) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: 'Note not found'
+//             });
+//         }
+
+//         res.status(200).json({
+//             success: true,
+//             data: {
+//                 ...note.toObject(),
+//                 viewerCount: note.viewedBy?.length || 0,
+//                 viewedBy: undefined // Remove full viewer list from here
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error fetching note:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Failed to fetch note',
+//             error: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// };
 
 
 export const updateNote = async (req, res, next) => {
@@ -571,6 +757,78 @@ export const incrementViewCount = async (req, res, next) => {
     }
 };
 
+// ✅ COPY THIS ENTIRE FUNCTION
+export const getNoteViewers = async (req, res, next) => {
+    try {
+        // ✅ IMPORTANT: Use 'id' not 'noteId' because route is /:id
+        const { id: noteId } = req.params;
+        
+        console.log('🔍 getNoteViewers called with noteId:', noteId);
+        
+        // Validate noteId
+        if (!noteId || !mongoose.Types.ObjectId.isValid(noteId)) {
+            console.log('❌ Invalid noteId:', noteId);
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid note ID'
+            });
+        }
 
+        // Get pagination params
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
+        console.log('📄 Pagination - Page:', page, 'Limit:', limit, 'Skip:', skip);
+
+        // Find note and get total viewer count
+        const note = await Note.findById(noteId).select('viewedBy');
+        if (!note) {
+            console.log('❌ Note not found:', noteId);
+            return res.status(404).json({
+                success: false,
+                message: 'Note not found'
+            });
+        }
+
+        const totalViewers = note.viewedBy?.length || 0;
+        console.log('👥 Total viewers found:', totalViewers);
+
+        // Fetch paginated viewers with user details
+        const viewers = await Note.findById(noteId)
+            .select('viewedBy')
+            .populate({
+                path: 'viewedBy',
+                select: 'fullName avatar email role academicProfile.semester academicProfile.branch',
+                options: {
+                    skip: skip,
+                    limit: limit
+                }
+            });
+
+        const viewersList = viewers.viewedBy || [];
+        console.log('✅ Returned viewers count:', viewersList.length);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                viewers: viewersList,
+                pagination: {
+                    current_page: page,
+                    total_pages: Math.ceil(totalViewers / limit),
+                    total_viewers: totalViewers,
+                    viewers_per_page: limit
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error in getNoteViewers:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch viewers',
+            error: error.message
+        });
+    }
+};
 
