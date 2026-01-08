@@ -23,6 +23,8 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import loginLogRoutes from './ROUTES/loginLog.routes.js'
  import logsRoutes from './ROUTES/logs.routes.js'
  import retentionRoutes from './ROUTES/user.retention.routes.js'
+ import mongoDbHealthRoutes from './ROUTES/mongoDbHealth.routes.js'
+ import redisHealthRoutes from './ROUTES/redisHealth.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -32,6 +34,8 @@ import serverMetrics from "./UTIL/serverMetrics.js";
 import { initSessionCronJobs } from "./UTIL/sessionCronJobs.js";
 import initConsoleLogger from "./UTIL/consoleLogger.js";
 import requestLoggerMiddleware from "./MIDDLEWARES/requestLogger.middleware.js";
+import queryTrackerMiddleware from "./MIDDLEWARES/queryTracker.middleware.js";
+import queryMetricsRoutes from './ROUTES/queryMetrics.routes.js'
 // import session from "express-session";
 // import passport from "passport";
 
@@ -111,7 +115,7 @@ app.use(responseTime((req,res,time)=>{
 //error tracking middleware (add)
 // ✅ ADD THIS - Request logger middleware (AFTER morgan, BEFORE routes)
 app.use(requestLoggerMiddleware);
-
+app.use(queryTrackerMiddleware);
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
 app.use('/api/v1/public', publicRoutes);
@@ -124,7 +128,9 @@ app.use('/api/v1/feedback',feedbackRoute);
 app.use('/api/v1/login-logs', loginLogRoutes);
 app.use('/api/v1/logs', logsRoutes);
 app.use("/api/v1/retention", retentionRoutes);
-
+app.use('/api/v1/query-metrics', queryMetricsRoutes); 
+app.use('/api/v1/db', mongoDbHealthRoutes);
+app.use('/api/v1/cache', redisHealthRoutes);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes

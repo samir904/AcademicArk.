@@ -35,6 +35,13 @@ const SKIP_PATHS = [
   '/ltv-metrics',
   '/churn-analysis',
   '/retention-metrics',
+  '/health',
+  '/performance',
+  '/hits',
+  '/keys',
+  '/memory',
+  '/connection'
+  
   
 ];
 
