@@ -118,7 +118,7 @@ class MongoDBQueryTracker {
 
         // Debug logging (optional)
         if (duration > 50) {
-            console.log(`📊 Query [${queryType}] on [${collection}] took ${duration}ms at [${route}]`);
+            // console.log(`📊 Query [${queryType}] on [${collection}] took ${duration}ms at [${route}]`);
         }
     }
 
