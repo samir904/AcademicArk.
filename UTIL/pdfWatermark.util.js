@@ -27,10 +27,10 @@ export const addWatermarkToPDF = async (
       page.drawText(watermarkText, {
         x: width / 2 - 45,
         y: 30,
-        size: 12,
+        size: 18,
         font,
-        color: rgb(0.5, 0.5, 0.5),
-        opacity: 0.6,
+        color: rgb(0.3, 0.3, 0.3),
+        opacity: 9.5,
       });
 
       /* =====================
