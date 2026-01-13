@@ -40,7 +40,8 @@ export const addDownloadWatermarkToPDF = async (pdfBuffer, userDetails) => {
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const pages = pdfDoc.getPages();
     
-   const footerText = `Downloaded by ${fullName} • ${maskedEmail} • AcademicArk • ${formattedDate}`;
+  //  const footerText = `Downloaded by ${fullName} • ${maskedEmail} • AcademicArk • ${formattedDate}`;
+   const footerText = `Downloaded by ${fullName} • AcademicArk • ${formattedDate}`;
     
     // Add watermark to every page
     pages.forEach((page) => {
