@@ -40,6 +40,7 @@
     "os-utils": "^0.0.14",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "pdf-lib": "^1.17.1",
     "redis": "^5.8.0",
     "response-time": "^2.3.4",
     "useragent": "^2.3.0"

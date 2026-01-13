@@ -3,11 +3,14 @@ import Note from "../MODELS/note.model.js";
 import Apperror from "../UTIL/error.util.js";
 import cloudinary from "cloudinary";
 import fs from "fs/promises"
-import fetch from "node-fetch";
+// import fetch from "nodea-fetch";
 import redisClient from "../CONFIG/redisClient.js"
 // import redisClient from "../server.js"
 import axios from "axios";
 import { logUserActivity } from "../UTIL/activityLogger.js";
+import { addWatermarkToPDF } from "../UTIL/pdfWatermark.util.js";
+import User from "../MODELS/user.model.js";
+import { addDownloadWatermarkToPDF } from "../UTIL/downloadWatermark.util.js";
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
     const userId = req.user.id;
@@ -42,6 +45,11 @@ export const registerNote = async (req, res, next) => {
 
     if (req.file) {
         try {
+             // ✨ ADD WATERMARK BEFORE UPLOADING TO CLOUDINARY
+            if (req.file.mimetype === 'application/pdf') {
+                await addWatermarkToPDF(req.file.path, 'AcademicArk');
+                console.log('✅ Watermark added to PDF');
+            }
             const result = await cloudinary.v2.uploader.upload(req.file.path, {
                 folder: "AcademicArk",
                 resource_type: 'auto', // auto-detect file type
@@ -667,10 +675,33 @@ export const downloadNote = async (req, res, next) => {
             responseType: 'arraybuffer' // Binary data
         });
 
+         // ✅ STEP 4: Convert to buffer
+        let pdfBuffer = Buffer.from(fileResponse.data);
+
         // Log fetched size to check
         // console.log('Fetched PDF size:', fileResponse.data.length, 'bytes');
         // ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
         if (userId) {
+            const user = await User.findById(userId).select('fullName email');
+      
+      if (user) {
+        try {
+          console.log('✨ Adding download watermark...');
+          
+          // Add watermark with user info
+          pdfBuffer = await addDownloadWatermarkToPDF(pdfBuffer, {
+            fullName: user.fullName,
+            email: user.email,
+            downloadDate: new Date(),
+          });
+          
+          console.log('✅ Download watermark added successfully');
+          console.log(`📧 User: ${user.fullName} (${user.email})`);
+        } catch (watermarkError) {
+          console.error('⚠️ Watermark error (continuing anyway):', watermarkError.message);
+          // Don't fail - continue with original PDF if watermark fails
+        }
+      }
             await logUserActivity(userId, "NOTE_DOWNLOADED", {
                 resourceId: id,
                 resourceType: "NOTE",
@@ -685,8 +716,10 @@ export const downloadNote = async (req, res, next) => {
         res.setHeader('Content-Disposition', `attachment; filename="${note.title}.pdf"`);
         res.setHeader('Content-Length', fileResponse.data.length);
 
-        // Send binary
-        res.status(200).send(fileResponse.data);
+        // ✅ STEP 8: SEND PDF
+    console.log('📤 Sending PDF to client...');
+    res.status(200).send(pdfBuffer);
+    console.log('✅ Download completed successfully');
 
     } catch (error) {
         console.error('Download error:', error.message);

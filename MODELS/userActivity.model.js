@@ -23,7 +23,10 @@ const userActivitySchema = new Schema({
             "NOTE_BOOKMARKED",   // Bookmarked a note
             "NOTE_SHARED",       // Shared a note
             "SEARCH_PERFORMED",  // Performed search
-            "LOGOUT"             // User logged out
+            "LOGOUT",             // User logged out
+            "REMOVED_VIDEO_BOOKMARK",
+            "ADDED_VIDEO_BOOKMARK",
+            "VIDEO_VIEWED"
         ],
         required: true,
         index: true
@@ -38,7 +41,7 @@ const userActivitySchema = new Schema({
     
     resourceType: {
         type: String,
-        enum: ["NOTE", "PYQ", "QUESTION", "HANDWRITTEN", "USER_PROFILE"],
+        enum: ["NOTE", "PYQ", "QUESTION", "HANDWRITTEN", "USER_PROFILE","VIDEO"],
         default: null
     },
 
