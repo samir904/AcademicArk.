@@ -22,7 +22,7 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import feedbackRoute from './ROUTES/feedback.routes.js'
  import loginLogRoutes from './ROUTES/loginLog.routes.js'
  import logsRoutes from './ROUTES/logs.routes.js'
- import retentionRoutes from './ROUTES/user.retention.routes.js'
+import retentionRoutes from './ROUTES/user.retention.routes.js'
  import mongoDbHealthRoutes from './ROUTES/mongoDbHealth.routes.js'
  import redisHealthRoutes from './ROUTES/redisHealth.routes.js'
  import leaderboardRoutes from './ROUTES/leaderboard.routes.js'
