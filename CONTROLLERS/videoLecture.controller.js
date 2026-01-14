@@ -2,7 +2,6 @@ import VideoLecture from "../MODELS/videoLecture.model.js";
 import Apperror from "../UTIL/error.util.js";
 import { extractYouTubeId, buildYouTubeEmbedUrl, buildYouTubeThumbnailUrl } from "../UTIL/video.util.js";
 import mongoose from "mongoose";
-import { logUserActivity } from "../UTIL/activityLogger.js";
 
 export const registerVideoLecture = async (req, res, next) => {
   const {
