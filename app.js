@@ -22,10 +22,11 @@ import searchRoutes from "./ROUTES/search.routes.js"
  import feedbackRoute from './ROUTES/feedback.routes.js'
  import loginLogRoutes from './ROUTES/loginLog.routes.js'
  import logsRoutes from './ROUTES/logs.routes.js'
- import retentionRoutes from './ROUTES/user.retention.routes.js'
+ import retentionRocutes from './ROUTES/user.retention.routes.js'
  import mongoDbHealthRoutes from './ROUTES/mongoDbHealth.routes.js'
  import redisHealthRoutes from './ROUTES/redisHealth.routes.js'
-//  import videoLectureRoute from './ROUTES/videoLecture.route.js'
+ import leaderboardRoutes from './ROUTES/leaderboard.routes.js'
+ import videoLectureRoute from './ROUTES/videoLecture.route.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -132,7 +133,8 @@ app.use("/api/v1/retention", retentionRoutes);
 app.use('/api/v1/query-metrics', queryMetricsRoutes); 
 app.use('/api/v1/db', mongoDbHealthRoutes);
 app.use('/api/v1/cache', redisHealthRoutes);
-// app.use("/api/v1/videos", videoLectureRoute);
+app.use('/api/v1/leaderboards', leaderboardRoutes);
+ app.use("/api/v1/videos", videoLectureRoute);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes

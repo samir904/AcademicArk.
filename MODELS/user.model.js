@@ -170,7 +170,11 @@ const userSchema = new Schema({
         type: String,
         default: 'email'
     },
-    
+    excludeFromLeaderboard: {
+    type: Boolean,
+    default: false,  // By default, all users are included
+    index: true      // For fast filtering
+  },
 
 
 }, {
