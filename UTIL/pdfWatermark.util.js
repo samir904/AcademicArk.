@@ -30,7 +30,7 @@ export const addWatermarkToPDF = async (
         size: 18,
         font,
         color: rgb(0.3, 0.3, 0.3),
-        opacity: 9.5,
+        opacity: 0.95,
       });
 
       /* =====================
