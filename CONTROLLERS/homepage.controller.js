@@ -97,7 +97,11 @@ export const getPersonalizedHomepage = async (req, res) => {
  * 🎯 SECTION 1: PERSONALIZED GREETING
  */
 function buildGreeting(user) {
-    const hour = new Date().getHours();
+    const hour = new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        hour12: false
+    });
     let timeOfDay = 'Good morning';
     
     if (hour >= 12 && hour < 17) timeOfDay = 'Good afternoon';
