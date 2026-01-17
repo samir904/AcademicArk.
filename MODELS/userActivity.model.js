@@ -26,7 +26,8 @@ const userActivitySchema = new Schema({
             "LOGOUT",             // User logged out
             "REMOVED_VIDEO_BOOKMARK",
             "ADDED_VIDEO_BOOKMARK",
-            "VIDEO_VIEWED"
+            "VIDEO_VIEWED",
+            "HOMEPAGE_VIEWED"
         ],
         required: true,
         index: true
@@ -42,6 +43,17 @@ const userActivitySchema = new Schema({
     resourceType: {
         type: String,
         enum: ["NOTE", "PYQ", "QUESTION", "HANDWRITTEN", "USER_PROFILE","VIDEO"],
+        default: null
+    },
+    // ✨ NEW: Track subject for personalization
+    subject: {
+        type: String,
+        default: null
+    },
+
+    // ✨ NEW: Track unit/chapter
+    unit: {
+        type: String,
         default: null
     },
 

@@ -27,6 +27,7 @@ import retentionRoutes from './ROUTES/user.retention.routes.js'
  import redisHealthRoutes from './ROUTES/redisHealth.routes.js'
  import leaderboardRoutes from './ROUTES/leaderboard.routes.js'
  import videoLectureRoute from './ROUTES/videoLecture.route.js'
+ import homepageRoutes from './ROUTES/homepage.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -120,6 +121,7 @@ app.use(requestLoggerMiddleware);
 app.use(queryTrackerMiddleware);
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
+app.use('/api/v1/home',homepageRoutes)
 app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/search', searchRoutes);

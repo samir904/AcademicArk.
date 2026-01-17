@@ -175,7 +175,27 @@ const userSchema = new Schema({
     default: false,  // By default, all users are included
     index: true      // For fast filtering
   },
+// ✨ NEW: Track last homepage visit
+lastHomepageVisit: {
+    type: Date,
+    default: null
+},
 
+// ✨ NEW: Track personalization preferences
+personalizationSettings: {
+    showContinueWhere: {
+        type: Boolean,
+        default: true
+    },
+    showRecommended: {
+        type: Boolean,
+        default: true
+    },
+    showTrending: {
+        type: Boolean,
+        default: true
+    }
+}
 
 }, {
     timestamps: true

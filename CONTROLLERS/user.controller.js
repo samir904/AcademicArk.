@@ -11,6 +11,7 @@ import { PREDEFINED_COLLEGES, isValidCollege } from "../CONSTANTS/colleges.js";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { createLoginLog } from "../services/loginLog.service.js";
 import { logUserActivity } from "../UTIL/activityLogger.js";
+import { invalidateHomepageCache } from "./homepage.controller.js";
 const cookieoptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -677,10 +678,11 @@ export const updateAcademicProfile = asyncWrap(async (req, res, next) => {
         },
         { new: true, runValidators: true }
     );
-
     if (!user) {
         return next(new Apperror('User not found', 404));
     }
+     // ✨ Invalidate homepage cache
+        await invalidateHomepageCache(userId);
 try {
         await logUserActivity(userId, "PROFILE_COMPLETED", {
             resourceType: "USER_PROFILE",
