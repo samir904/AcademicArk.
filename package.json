@@ -43,6 +43,8 @@
     "pdf-lib": "^1.17.1",
     "redis": "^5.8.0",
     "response-time": "^2.3.4",
-    "useragent": "^2.3.0"
+    "ua-parser-js": "^2.0.8",
+    "useragent": "^2.3.0",
+    "uuid": "^13.0.0"
   }
 }

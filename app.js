@@ -28,6 +28,8 @@ import retentionRoutes from './ROUTES/user.retention.routes.js'
  import leaderboardRoutes from './ROUTES/leaderboard.routes.js'
  import videoLectureRoute from './ROUTES/videoLecture.route.js'
  import homepageRoutes from './ROUTES/homepage.routes.js'
+ import sessionRoutes from './ROUTES/session.routes.js'
+ import adminAnalyticsRoutes from './ROUTES/admin.analytics.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -39,6 +41,7 @@ import initConsoleLogger from "./UTIL/consoleLogger.js";
 import requestLoggerMiddleware from "./MIDDLEWARES/requestLogger.middleware.js";
 import queryTrackerMiddleware from "./MIDDLEWARES/queryTracker.middleware.js";
 import queryMetricsRoutes from './ROUTES/queryMetrics.routes.js'
+import sessionTrackerMiddleware from "./MIDDLEWARES/sessionTracker.middleware.js";
 // import session from "express-session";
 // import passport from "passport";
 
@@ -109,6 +112,8 @@ app.get("/health",(req,res)=>{
 //   console.log('🌐 Origin:', req.get('Origin'));
 //   next();
 // });
+// ✨ ADD THIS SESSION TRACKER MIDDLEWARE
+app.use(sessionTrackerMiddleware);
 
 app.use(responseTime((req,res,time)=>{
   serverMetrics.incrementRequest();
@@ -137,6 +142,9 @@ app.use('/api/v1/db', mongoDbHealthRoutes);
 app.use('/api/v1/cache', redisHealthRoutes);
 app.use('/api/v1/leaderboards', leaderboardRoutes);
  app.use("/api/v1/videos", videoLectureRoute);
+ // ✨ ADD THIS NEW SESSIONS ROUTE
+app.use("/api/v1/session", sessionRoutes);
+app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes
