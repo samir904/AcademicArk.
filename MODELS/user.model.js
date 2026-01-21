@@ -230,7 +230,8 @@ userSchema.methods = {
             {
                 id: this._id,
                 email: this.email,
-                role: this.role
+                role: this.role,
+                semester: this.academicProfile?.semester || null  // ⭐ ADD THIS
             },
             process.env.JWT_SECRET, {
             expiresIn: process.env.JWT_EXPIRY

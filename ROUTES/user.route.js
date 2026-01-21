@@ -8,7 +8,8 @@ import { changePassword,
     // ✨ new
     getCollegeList,
     approveCustomCollege,
-    getAcademicAnalytics, forgotPassword, getMyAnalytics, getMyBookmarks, getMyNotes, getProfile, getPublicProfile, login, logout, register, resetPassword, toggleProfileVisibility, updateProfile, updateSocialLinks } from "../CONTROLLERS/user.controller.js";
+    getAcademicAnalytics, forgotPassword, getMyAnalytics, getMyBookmarks, getMyNotes, getProfile, getPublicProfile, login, logout, register, resetPassword, toggleProfileVisibility, updateProfile, updateSocialLinks, 
+    incrementSemesterOnce} from "../CONTROLLERS/user.controller.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 
@@ -82,5 +83,14 @@ router.post('/colleges/approve',
     asyncWrap(authorizedRoles('ADMIN')),
     asyncWrap(approveCustomCollege)
 );
+
+// 🚨 ADMIN ONLY — ONE TIME SEMESTER INCREMENT
+router.post(
+  "/academic-profile/increment-semester",
+  asyncWrap(isLoggedIn),
+  asyncWrap(authorizedRoles("ADMIN")),
+  asyncWrap(incrementSemesterOnce)
+);
+
 
 export default router;

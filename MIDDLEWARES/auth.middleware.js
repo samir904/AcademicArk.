@@ -31,6 +31,7 @@ export const optionalAuth = async (req, res, next) => {
       req.user = {
         id: userDetails.id,
         email: userDetails.email,
+        semester: userDetails.semester,  // ⭐ ADD THIS
         ...userDetails
       };
       // console.log('✅ optionalAuth verified:', userDetails.email);

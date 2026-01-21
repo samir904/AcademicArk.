@@ -873,3 +873,68 @@ export const approveCustomCollege = asyncWrap(async (req, res, next) => {
         }
     });
 });
+
+import SystemFlag from "../MODELS/systemFlag.model.js";
+
+// ✅ ADMIN ONLY — INCREMENT SEMESTER ONCE
+export const incrementSemesterOnce = asyncWrap(async (req, res, next) => {
+  const FLAG_KEY = "SEMESTER_INCREMENT_2026";
+
+  // 🔒 1. Check if already executed
+  const flag = await SystemFlag.findOne({ key: FLAG_KEY });
+
+  if (flag?.value === true) {
+    return next(
+      new Apperror(
+        "Semester increment has already been executed. This action is locked.",
+        409
+      )
+    );
+  }
+
+  // 🧠 2. Find eligible users
+  const users = await User.find({
+    "academicProfile.isCompleted": true,
+    "academicProfile.semester": { $gte: 1, $lte: 7 }
+  }).select("_id academicProfile.semester");
+
+  if (users.length === 0) {
+    return next(new Apperror("No eligible users found", 400));
+  }
+
+  // 🔁 3. Increment semester safely
+  const bulkOps = users.map((user) => ({
+    updateOne: {
+      filter: { _id: user._id },
+      update: {
+        $inc: { "academicProfile.semester": 1 },
+        $set: { "academicProfile.lastUpdated": new Date() }
+      }
+    }
+  }));
+
+  const result = await User.bulkWrite(bulkOps);
+
+  // 🔐 4. Lock execution forever
+  await SystemFlag.findOneAndUpdate(
+    { key: FLAG_KEY },
+    { value: true, updatedAt: new Date() },
+    { upsert: true }
+  );
+
+  // 🔄 5. Invalidate homepage cache (VERY IMPORTANT)
+  const userIds = users.map(u => u._id.toString());
+  for (const id of userIds) {
+    await invalidateHomepageCache(id);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Semester incremented successfully for eligible users",
+    data: {
+      affectedUsers: users.length,
+      modifiedCount: result.modifiedCount
+    }
+  });
+});
+
