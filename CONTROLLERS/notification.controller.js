@@ -37,14 +37,14 @@ export const createBanner = async (req, res, next) => {
 
 export const getActiveBanner = async (req, res, next) => {
   try {
-    console.log('🔍 getActiveBanner called');
-    console.log('req.user:', req.user);
+    // console.log('🔍 getActiveBanner called');
+    // console.log('req.user:', req.user);
     
     const userSemester = req.user?.semester || null;
     const userRole = req.user?.role || 'GUEST';
     const now = new Date();
     
-    console.log(`📊 Filtering: semester=${userSemester}, role=${userRole}`);
+    // console.log(`📊 Filtering: semester=${userSemester}, role=${userRole}`);
     
     // ⭐ FIXED QUERY - Separate $or operators properly
     const banner = await NotificationBanner.findOne({
@@ -93,7 +93,7 @@ export const getActiveBanner = async (req, res, next) => {
       ]
     }).sort({ createdAt: -1 });
 
-    console.log('📍 Found banner:', banner ? banner.title : 'None');
+    // console.log('📍 Found banner:', banner ? banner.title : 'None');
 
     if (!banner) {
       console.log('⚠️ No banner found, returning null');
