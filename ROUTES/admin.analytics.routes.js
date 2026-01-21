@@ -98,4 +98,9 @@ router.get('/os/breakdown',
     asyncWrap(adminAnalyticsController.getOSBreakdown)
 );
 
+// TAB 8: ACQUISITION / TRAFFIC SOURCES
+router.get('/acquisition/sources', asyncWrap(adminAnalyticsController.getTrafficSources));
+router.get('/acquisition/entry-pages', asyncWrap(adminAnalyticsController.getEntryPagesBySource));
+router.get('/acquisition/referrers', asyncWrap(adminAnalyticsController.getTopReferrers));
+
 export default router;

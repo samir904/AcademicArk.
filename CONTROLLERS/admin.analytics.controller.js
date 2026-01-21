@@ -1239,6 +1239,116 @@ class AdminAnalyticsController {
             });
         }
     }
+    async getTrafficSources(req, res) {
+  const { range = 7 } = req.query;
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - range);
+
+  const sources = await UserSession.aggregate([
+    { $match: { startTime: { $gte: startDate } } },
+    {
+      $group: {
+        _id: '$referrer.source',
+        sessions: { $sum: 1 },
+        avgDuration: { $avg: '$duration' },
+        avgPageViews: { $avg: '$engagement.pageViews' },
+        bounces: {
+          $sum: { $cond: ['$bounceInfo.isBounce', 1, 0] }
+        },
+        downloads: { $sum: '$engagement.noteInteractions.downloaded' }
+      }
+    },
+    {
+      $project: {
+        source: '$_id',
+        sessions: 1,
+        avgDuration: { $round: ['$avgDuration', 0] },
+        avgPageViews: { $round: ['$avgPageViews', 2] },
+        bounceRate: {
+          $cond: [
+            { $eq: ['$sessions', 0] },
+            0,
+            { $round: [{ $multiply: [{ $divide: ['$bounces', '$sessions'] }, 100] }, 2] }
+          ]
+        },
+        downloads: 1,
+        _id: 0
+      }
+    }
+  ]);
+
+  res.json({ success: true, data: sources });
+}
+async getEntryPagesBySource(req, res) {
+  const { range = 7 } = req.query;
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - range);
+
+  const data = await UserSession.aggregate([
+    { $match: { startTime: { $gte: startDate } } },
+    {
+      $group: {
+        _id: {
+          entryPage: '$entryPage',
+          source: '$referrer.source'
+        },
+        sessions: { $sum: 1 },
+        bounces: {
+          $sum: { $cond: ['$bounceInfo.isBounce', 1, 0] }
+        }
+      }
+    },
+    {
+      $project: {
+        entryPage: '$_id.entryPage',
+        source: '$_id.source',
+        sessions: 1,
+        bounceRate: {
+          $round: [{ $multiply: [{ $divide: ['$bounces', '$sessions'] }, 100] }, 2]
+        },
+        _id: 0
+      }
+    }
+  ]);
+
+  res.json({ success: true, data });
+}
+
+async getTopReferrers(req, res) {
+  const { range = 7 } = req.query;
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - range);
+
+  const refs = await UserSession.aggregate([
+    {
+      $match: {
+        startTime: { $gte: startDate },
+        'referrer.refUrl': { $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: '$referrer.refUrl',
+        source: { $first: '$referrer.source' },
+        sessions: { $sum: 1 }
+      }
+    },
+    { $sort: { sessions: -1 } },
+    { $limit: 10 },
+    {
+      $project: {
+        refUrl: '$_id',
+        source: 1,
+        sessions: 1,
+        _id: 0
+      }
+    }
+  ]);
+
+  res.json({ success: true, data: refs });
+}
+
+
 }
 
 export default new AdminAnalyticsController();
