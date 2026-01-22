@@ -3,6 +3,9 @@ import asyncWrap from "../UTIL/asyncWrap.js";
 import User from "../MODELS/user.model.js";
 import Note from "../MODELS/note.model.js";
 import UserActivity from "../MODELS/userActivity.model.js";
+import Attendance from "../MODELS/attendance.model.js";
+import Leaderboard from "../MODELS/leaderboard.model.js";
+
 import redis from "../CONFIG/redisClient.js";
 
 /**
@@ -18,7 +21,7 @@ export const getPersonalizedHomepage = async (req, res) => {
         // ✅ STEP 1: Check Redis cache first (5 min TTL)
         const cacheKey = `homepage:${userId}`;
         const cachedData = await redis.get(cacheKey);
-        
+
         if (cachedData) {
             return res.status(200).json({
                 success: true,
@@ -47,6 +50,10 @@ export const getPersonalizedHomepage = async (req, res) => {
             recommended: await getRecommendedNotes(userId, user),
             trending: await getTrendingInSemester(userId, user),
             examAlert: await getExamAlert(userId, user),
+            // ⭐ ADD THESE
+            attendance: await getAttendanceSnapshot(userId, user),
+            leaderboard: await getLeaderboardPreview(userId),
+            downloads: await getDownloadsSnapshot(userId),
             metadata: {
                 timestamp: new Date(),
                 profileComplete: user.academicProfile?.isCompleted || false,
@@ -103,7 +110,7 @@ function buildGreeting(user) {
         hour12: false
     });
     let timeOfDay = 'Good morning';
-    
+
     if (hour >= 12 && hour < 17) timeOfDay = 'Good afternoon';
     if (hour >= 17) timeOfDay = 'Good evening';
 
@@ -135,8 +142,8 @@ async function getContinueWhere(userId, user) {
             activityType: "NOTE_VIEWED",
             createdAt: { $gte: sevenDaysAgo }
         })
-        .sort({ createdAt: -1 })
-        .select('resourceId subject unit');
+            .sort({ createdAt: -1 })
+            .select('resourceId subject unit');
 
         if (lastViewed && lastViewed.resourceId) {
             const note = await Note.findById(lastViewed.resourceId).select(
@@ -165,8 +172,8 @@ async function getContinueWhere(userId, user) {
             activityType: "NOTE_DOWNLOADED",
             createdAt: { $gte: sevenDaysAgo }
         })
-        .sort({ createdAt: -1 })
-        .select('resourceId subject');
+            .sort({ createdAt: -1 })
+            .select('resourceId subject');
 
         if (lastDownloaded && lastDownloaded.resourceId) {
             const note = await Note.findById(lastDownloaded.resourceId).select(
@@ -396,6 +403,129 @@ async function getTrendingInSemester(userId, user) {
     }
 }
 
+
+async function getAttendanceSnapshot(userId, user) {
+    try {
+        if (!user.academicProfile?.semester) return null;
+        const semester = String(user.academicProfile.semester)
+        const attendance = await Attendance.findOne({
+            user: userId,
+            semester
+        });
+        console.log('semester',semester);
+        console.log("attendance",attendance);
+
+        if (!attendance || attendance.subjects.length === 0) {
+            return {
+                hasData: false,
+                message: "Start tracking your attendance"
+            };
+        }
+
+        let totalPresent = 0;
+        let totalClasses = 0;
+        let belowTarget = 0;
+
+        attendance.subjects.forEach(subject => {
+            const present =
+                subject.initialPresentClasses +
+                subject.records.filter(r => r.status === "present").length;
+
+            const total =
+                subject.initialTotalClasses +
+                subject.records.length;
+
+            const percentage = total > 0 ? (present / total) * 100 : 0;
+
+            totalPresent += present;
+            totalClasses += total;
+
+            if (percentage < subject.targetPercentage) belowTarget++;
+        });
+
+        const overallPercentage =
+            totalClasses > 0
+                ? parseFloat(((totalPresent / totalClasses) * 100).toFixed(2))
+                : 0;
+
+        return {
+            hasData: true,
+            overallPercentage,
+            totalSubjects: attendance.subjects.length,
+            subjectsBelow75: belowTarget,
+            status: overallPercentage >= 75 ? "SAFE" : "RISK",
+            primaryMessage:
+                overallPercentage >= 75
+                    ? "You are in the safe zone 👍"
+                    : "Attendance needs attention ⚠️"
+        };
+
+    } catch (err) {
+        console.error("Attendance snapshot error:", err);
+        return null;
+    }
+}
+
+
+async function getLeaderboardPreview(userId) {
+    try {
+        const leaderboard = await Leaderboard.findOne({
+            leaderboardType: "TOP_STUDENTS",
+            snapshotType: "DAILY"
+        })
+            .sort({ generatedAt: -1 })
+            .lean();
+
+        if (!leaderboard) return null;
+
+        return {
+            hasData: true,
+            generatedAt: leaderboard.generatedAt,
+            topEntries: leaderboard.entries.slice(0, 5).map(e => ({
+                rank: e.rank,
+                name: e.userName,
+                score: e.metrics.engagement
+            }))
+        };
+    } catch (err) {
+        console.error("Leaderboard preview error:", err);
+        return null;
+    }
+}
+
+async function getDownloadsSnapshot(userId) {
+    try {
+        const totalDownloads = await UserActivity.countDocuments({
+            userId,
+            activityType: "NOTE_DOWNLOADED"
+        });
+
+        const lastDownloaded = await UserActivity.findOne({
+            userId,
+            activityType: "NOTE_DOWNLOADED"
+        })
+            .sort({ createdAt: -1 })
+            .populate("resourceId", "title subject");
+
+        return {
+            hasData: totalDownloads > 0,
+            totalDownloads,
+            lastDownloadedNote: lastDownloaded
+                ? {
+                    title: lastDownloaded.resourceId?.title,
+                    subject: lastDownloaded.resourceId?.subject
+                }
+                : null
+        };
+
+    } catch (err) {
+        console.error("Downloads snapshot error:", err);
+        return null;
+    }
+}
+
+
+
 /**
  * ⚠️ EXAM ALERT
  * 
@@ -406,7 +536,7 @@ async function getExamAlert(userId, user) {
     try {
         // TODO: Implement exam calendar model/schema
         // For now, return mock data
-        
+
         return {
             hasExamSoon: false,
             daysUntilExam: null,
@@ -453,7 +583,7 @@ export const invalidateHomepageCache = async (userId) => {
 export const clearUserCache = async (userId) => {
     const pattern = `homepage:${userId}*`;
     const keys = await redis.keys(pattern);
-    
+
     if (keys.length > 0) {
         await redis.del(...keys);
     }
