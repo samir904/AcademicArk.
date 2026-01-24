@@ -12,6 +12,8 @@ import { addWatermarkToPDF } from "../UTIL/pdfWatermark.util.js";
 import User from "../MODELS/user.model.js";
 import { addDownloadWatermarkToPDF } from "../UTIL/downloadWatermark.util.js";
 import { markStudyActivity } from "../UTIL/updateStudyActivity.js";
+import { extractUnitFromTitle } from "../UTIL/unitExtractor.js";
+
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
     const userId = req.user.id;
@@ -25,6 +27,8 @@ export const registerNote = async (req, res, next) => {
     if (!req.file) {
         return next(new Apperror("File is required", 400));
     }
+    // ✅ AUTO-EXTRACT UNIT FROM TITLE
+        const extractedUnit = extractUnitFromTitle(title);
     const note = await Note.create({
         title: title.trim(),
         description: description.trim(),
@@ -33,6 +37,7 @@ export const registerNote = async (req, res, next) => {
         semester: parseInt(semester),          // Ensure number
         university: university.toUpperCase().trim(),
         category: category.trim(),
+        unit: extractedUnit,  // ✅ AUTO-FILLED
         uploadedBy: userId,
         fileDetails: {
             public_id: title,
@@ -46,7 +51,7 @@ export const registerNote = async (req, res, next) => {
 
     if (req.file) {
         try {
-             // ✨ ADD WATERMARK BEFORE UPLOADING TO CLOUDINARY
+            // ✨ ADD WATERMARK BEFORE UPLOADING TO CLOUDINARY
             if (req.file.mimetype === 'application/pdf') {
                 await addWatermarkToPDF(req.file.path, 'AcademicArk');
                 console.log('✅ Watermark added to PDF');
@@ -77,6 +82,7 @@ export const registerNote = async (req, res, next) => {
         data: note
     })
 }
+
 export const getAllNotes = async (req, res, next) => {
     try {
         console.log('Query params:', req.query);
@@ -94,6 +100,13 @@ export const getAllNotes = async (req, res, next) => {
             if (!isNaN(sem)) {
                 filters.semester = sem;
                 // console.log('✅ Filter: semester =', sem);
+            }
+        }
+        // ✅ ADD THIS:
+        if (req.query.unit) {
+            const unit = parseInt(req.query.unit);
+            if (!isNaN(unit) && unit > 0 && unit <= 20) {
+                filters.unit = unit;
             }
         }
         if (req.query.university && req.query.university.trim()) {
@@ -118,48 +131,48 @@ export const getAllNotes = async (req, res, next) => {
         // ✅ FIX 3: Define sort order BEFORE using it
         let sortOrder = { downloads: -1, createdAt: -1 }; // Default
 
-        switch(sortBy.toLowerCase()) {
+        switch (sortBy.toLowerCase()) {
             case 'downloads':
                 sortOrder = { downloads: -1, createdAt: -1 };
                 // console.log('🔽 Sort: Downloads descending');
                 break;
-            
+
             case 'views':
                 sortOrder = { views: -1, createdAt: -1 };
                 // console.log('👁️ Sort: Views descending');
                 break;
-            
+
             case 'latest':
                 sortOrder = { createdAt: -1 };
                 // console.log('🆕 Sort: Latest first');
                 break;
-            
+
             case 'rating':
             case 'upvotes':
                 sortOrder = { 'ratings.average': -1, downloads: -1 };
                 // console.log('⭐ Sort: Rating descending');
                 break;
-            
+
             case 'trending':
                 sortOrder = { views: -1, downloads: -1, createdAt: -1 };
                 // console.log('🔥 Sort: Trending (views + downloads)');
                 break;
-            
+
             case 'popular':
                 sortOrder = { downloads: -1, views: -1, createdAt: -1 };
                 // console.log('👍 Sort: Popular (downloads + views)');
                 break;
-            
+
             default:
                 sortOrder = { downloads: -1, createdAt: -1 };
-                // console.log('📊 Sort: Default (downloads)');
+            // console.log('📊 Sort: Default (downloads)');
         }
 
         // console.log('Sort object:', sortOrder);
 
         // ✅ FIX 4: Query with sorting applied
         let query = Note.find(filters);
-        
+
         const filterCount = Object.keys(filters).length;
         // console.log(`🔍 Applying ${filterCount} filter(s)`);
 
@@ -676,7 +689,7 @@ export const downloadNote = async (req, res, next) => {
             responseType: 'arraybuffer' // Binary data
         });
 
-         // ✅ STEP 4: Convert to buffer
+        // ✅ STEP 4: Convert to buffer
         let pdfBuffer = Buffer.from(fileResponse.data);
 
         // Log fetched size to check
@@ -684,25 +697,25 @@ export const downloadNote = async (req, res, next) => {
         // ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
         if (userId) {
             const user = await User.findById(userId).select('fullName email');
-      
-      if (user) {
-        try {
-          console.log('✨ Adding download watermark...');
-          
-          // Add watermark with user info
-          pdfBuffer = await addDownloadWatermarkToPDF(pdfBuffer, {
-            fullName: user.fullName,
-            email: user.email,
-            downloadDate: new Date(),
-          });
-          
-          console.log('✅ Download watermark added successfully');
-          console.log(`📧 User: ${user.fullName} (${user.email})`);
-        } catch (watermarkError) {
-          console.error('⚠️ Watermark error (continuing anyway):', watermarkError.message);
-          // Don't fail - continue with original PDF if watermark fails
-        }
-      }
+
+            if (user) {
+                try {
+                    console.log('✨ Adding download watermark...');
+
+                    // Add watermark with user info
+                    pdfBuffer = await addDownloadWatermarkToPDF(pdfBuffer, {
+                        fullName: user.fullName,
+                        email: user.email,
+                        downloadDate: new Date(),
+                    });
+
+                    console.log('✅ Download watermark added successfully');
+                    console.log(`📧 User: ${user.fullName} (${user.email})`);
+                } catch (watermarkError) {
+                    console.error('⚠️ Watermark error (continuing anyway):', watermarkError.message);
+                    // Don't fail - continue with original PDF if watermark fails
+                }
+            }
             await logUserActivity(userId, "NOTE_DOWNLOADED", {
                 resourceId: id,
                 resourceType: "NOTE",
@@ -718,9 +731,9 @@ export const downloadNote = async (req, res, next) => {
         res.setHeader('Content-Length', fileResponse.data.length);
 
         // ✅ STEP 8: SEND PDF
-    console.log('📤 Sending PDF to client...');
-    res.status(200).send(pdfBuffer);
-    console.log('✅ Download completed successfully');
+        console.log('📤 Sending PDF to client...');
+        res.status(200).send(pdfBuffer);
+        console.log('✅ Download completed successfully');
         await markStudyActivity(userId);
     } catch (error) {
         console.error('Download error:', error.message);
@@ -796,9 +809,9 @@ export const getNoteViewers = async (req, res, next) => {
     try {
         // ✅ IMPORTANT: Use 'id' not 'noteId' because route is /:id
         const { id: noteId } = req.params;
-        
+
         console.log('🔍 getNoteViewers called with noteId:', noteId);
-        
+
         // Validate noteId
         if (!noteId || !mongoose.Types.ObjectId.isValid(noteId)) {
             console.log('❌ Invalid noteId:', noteId);

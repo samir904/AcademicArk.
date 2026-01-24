@@ -22,6 +22,14 @@ const noteSchema = new Schema({
         trim: true,
         maxlength: [50, "Subject name must be less than 50 character long "]
     },
+    unit: {
+        type: Number,
+        min: 1,
+        max: 20,
+        index: true,  // 🔥 IMPORTANT: Makes filtering fast
+        sparse: true   // Allows null values
+    },
+
     course: {
         type: String,
         required: true,
