@@ -1,5 +1,6 @@
 import UserActivity from "../MODELS/userActivity.model.js";
 import UserRetentionMilestone from "../MODELS/userRetentionMilestone.model.js";
+import { updateProgressFromActivity } from "../services/studyProgressUpdater.service.js";
 
 // Log user activity
 export const logUserActivity = async (userId, activityType, metadata = {}) => {
@@ -7,7 +8,7 @@ export const logUserActivity = async (userId, activityType, metadata = {}) => {
         // Extract device type from user agent
         const userAgent = metadata.userAgent || "";
         let deviceType = "DESKTOP";
-        
+
         if (/mobile/i.test(userAgent)) deviceType = "MOBILE";
         else if (/tablet/i.test(userAgent)) deviceType = "TABLET";
 
@@ -27,6 +28,15 @@ export const logUserActivity = async (userId, activityType, metadata = {}) => {
             },
             sessionId: metadata.sessionId,
             location: metadata.location || {}
+        });
+        // 🔥 AUTO SYNC LEARNING STATE
+        await updateProgressFromActivity({
+            userId,
+            activityType,
+            resourceId: metadata.resourceId,
+            subject: metadata.subject,
+            unit: metadata.unit,
+            metadata
         });
 
         // Update retention milestone metrics
@@ -65,7 +75,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
         switch (activityType) {
             case "LOGIN":
                 retentionMilestone.metrics.totalLogins += 1;
-                
+
                 // Mark first login
                 if (!retentionMilestone.milestones.firstLogin?.completed) {
                     retentionMilestone.milestones.firstLogin = {
@@ -78,7 +88,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
 
             case "NOTE_VIEWED":
                 retentionMilestone.metrics.totalNoteViews += 1;
-                
+
                 // Mark first note view
                 if (!retentionMilestone.milestones.firstNoteView?.completed) {
                     retentionMilestone.milestones.firstNoteView = {
@@ -91,7 +101,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
 
             case "NOTE_DOWNLOADED":
                 retentionMilestone.metrics.totalNoteDownloads += 1;
-                
+
                 // Mark first download
                 if (!retentionMilestone.milestones.firstNoteDownload?.completed) {
                     retentionMilestone.milestones.firstNoteDownload = {
@@ -100,7 +110,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
                         daysSinceRegistration
                     };
                 }
-                
+
                 // Check for multiple downloads
                 if (retentionMilestone.metrics.totalNoteDownloads >= 5 &&
                     !retentionMilestone.milestones.multipleDownloads?.completed) {
@@ -115,7 +125,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
 
             case "NOTE_RATED":
                 retentionMilestone.metrics.totalRatings += 1;
-                
+
                 if (!retentionMilestone.milestones.firstInteraction?.completed) {
                     retentionMilestone.milestones.firstInteraction = {
                         completed: true,
@@ -128,7 +138,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
 
             case "NOTE_REVIEWED":
                 retentionMilestone.metrics.totalReviews += 1;
-                
+
                 if (!retentionMilestone.milestones.firstInteraction?.completed) {
                     retentionMilestone.milestones.firstInteraction = {
                         completed: true,
@@ -141,7 +151,7 @@ export const updateRetentionMetrics = async (userId, activityType) => {
 
             case "NOTE_BOOKMARKED":
                 retentionMilestone.metrics.totalBookmarks += 1;
-                
+
                 if (!retentionMilestone.milestones.firstInteraction?.completed) {
                     retentionMilestone.milestones.firstInteraction = {
                         completed: true,
@@ -215,7 +225,7 @@ export const calculateEngagementScore = (metrics) => {
 // Determine retention status
 export const determineRetentionStatus = (lastActivityAt) => {
     if (!lastActivityAt) return "CHURNED";
-    
+
     const daysSinceLastActivity = Math.floor(
         (new Date() - lastActivityAt) / (1000 * 60 * 60 * 24)
     );
@@ -231,23 +241,23 @@ export const calculateChurnProbability = (milestone) => {
     const daysSinceRegistration = Math.floor(
         (new Date() - milestone.registrationDate) / (1000 * 60 * 60 * 24)
     );
-    
+
     const daysSinceLastActivity = milestone.metrics.lastActivityAt
         ? Math.floor((new Date() - milestone.metrics.lastActivityAt) / (1000 * 60 * 60 * 24))
         : daysSinceRegistration;
 
     // Factors that increase churn probability
     let churnScore = 0;
-    
+
     // Days inactive
     churnScore += Math.min(daysSinceLastActivity / 30, 0.4);  // 40% weight for inactivity
-    
+
     // Low engagement score
     churnScore += (1 - milestone.metrics.engagementScore / 100) * 0.3;  // 30% weight
-    
+
     // Didn't complete profile
     churnScore += !milestone.milestones.profileCompleted?.completed ? 0.2 : 0;  // 20% weight
-    
+
     // Didn't interact with notes
     churnScore += !milestone.milestones.firstNoteDownload?.completed ? 0.1 : 0;  // 10% weight
 
@@ -293,3 +303,4 @@ export const getUserActivityStats = async (userId, daysBack = 30) => {
         return null;
     }
 };
+

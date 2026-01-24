@@ -4,6 +4,7 @@ import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.m
 import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getNote, getNoteViewers, incrementViewCount, registerNote, updateNote } from "../CONTROLLERS/note.controller.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 import { cacheNotes } from "../MIDDLEWARES/cache.middleware.js";
+import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
 
 const router= Router();
 
@@ -61,6 +62,28 @@ router.get("/:id/download",
     asyncWrap(isLoggedIn),
     asyncWrap(downloadNote)
 )
+
+// // 🚨 ONE-TIME MIGRATION ROUTE
+// router.post(
+//   "/first-year/common-subjects",
+//   asyncWrap(isLoggedIn),
+//   asyncWrap(authorizedRoles("ADMIN")),
+//   asyncWrap(migrateFirstYearCommonSubjects)
+// );
+
+// router.post(
+//   "/cleanupInvalidSemesterTwo",
+//   asyncWrap(isLoggedIn),
+//   asyncWrap(authorizedRoles("ADMIN")),
+//   asyncWrap(cleanupInvalidSemesterTwo)
+// );
+
+router.post(
+  "/normalizesemester",
+  asyncWrap(isLoggedIn),
+  asyncWrap(authorizedRoles("ADMIN")),
+  asyncWrap(addSem4ToThirdSemCommonSubjects)
+);
 
 
 export default router;

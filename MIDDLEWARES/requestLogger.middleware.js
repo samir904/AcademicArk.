@@ -40,8 +40,13 @@ const SKIP_PATHS = [
   '/hits',
   '/keys',
   '/memory',
-  '/connection'
-  
+  '/connection',
+  '/track/page-view',
+  '/start',
+  '/cache/invalidate',
+  '/ping',
+  '/track/page-exit',
+  '/personalized'
   
 ];
 

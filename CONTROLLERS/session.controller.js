@@ -6,6 +6,7 @@ import UserSession from "../MODELS/userSession.model.js";
 import { UAParser } from "ua-parser-js";
 import { v4 as uuidv4 } from "uuid";
 import mongoose from "mongoose";
+import { updateProgressFromReaderExit } from "../services/studyProgressUpdater.service.js";
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
 class SessionController {
@@ -191,28 +192,43 @@ class SessionController {
 
 
     async trackPageExit(req, res) {
-        const { sessionId, pageName, timeSpent } = req.body;
+  const { sessionId, pageName, timeSpent, resourceId, resourceType } = req.body;
 
-        const session = await UserSession.findOne({ sessionId });
-        if (!session) {
-            return res.status(404).json({ success: false });
-        }
+  const session = await UserSession.findOne({ sessionId });
+  if (!session) return res.status(404).json({ success: false });
 
-        session.pages.push({
-  pageName,
-  timeSpent,
-  scrollDepth: session.engagement.maxScrollDepth,
-  clickCount: session.engagement.totalClicks,
-  isExitPage: true,
-  visitTime: new Date()
-});
+  session.pages.push({
+    pageName,
+    timeSpent,
+    resourceId,
+    resourceType,
+    scrollDepth: session.engagement.maxScrollDepth,
+    clickCount: session.engagement.totalClicks,
+    isExitPage: true,
+    visitTime: new Date()
+  });
 
+  session.lastActivityTime = new Date();
+  await session.save();
+  console.log('resources_type',resourceType);
+  console.log('resource-id',resourceId);
+   // 🔥 ONLY HERE we update study time
+  if (
+    pageName === "NOTE_READER" &&
+    resourceType === "NOTE" &&
+    resourceId &&
+    timeSpent > 0
+  ) {
+    await updateProgressFromReaderExit({
+      userId: session.userId,
+      noteId: resourceId,
+      timeSpentSeconds: timeSpent
+    });
+  }
 
-        session.lastActivityTime = new Date();
-        await session.save();
-
-        res.json({ success: true });
-    }
+  console.log('session after exit saved sesion ',session,'with session id ',sessionId,'last activity',session.lastActivityTime);
+  res.json({ success: true });
+}
 
 
     // ✅ TRACK NOTE INTERACTION

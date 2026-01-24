@@ -11,6 +11,7 @@ import { logUserActivity } from "../UTIL/activityLogger.js";
 import { addWatermarkToPDF } from "../UTIL/pdfWatermark.util.js";
 import User from "../MODELS/user.model.js";
 import { addDownloadWatermarkToPDF } from "../UTIL/downloadWatermark.util.js";
+import { markStudyActivity } from "../UTIL/updateStudyActivity.js";
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
     const userId = req.user.id;
@@ -293,7 +294,7 @@ export const getNote = async (req, res, next) => {
         // console.log('\n📤 SENDING RESPONSE:');
         // console.log('  views in response:', note.views);
         // console.log('========== getNote END ==========\n');
-
+        await markStudyActivity(userId);
         res.status(200).json({
             success: true,
             message: "note fetched successfully",
@@ -552,7 +553,7 @@ export const addRating = async (req, res, next) => {
         const updatedNote = await Note.findById(id)
             .populate('uploadedBy', 'fullName avatar')
             .populate('rating.user', 'fullName');
-
+        await markStudyActivity(userId);
         res.status(200).json({
             success: true,
             message: existingRatingIndex !== -1 ? "Rating updated successfully" : "Rating added successfully",
@@ -601,7 +602,7 @@ export const bookmarkNote = async (req, res, next) => {
     }
 
     const updatedNote = await Note.findById(id).populate('uploadedBy', 'fullName avatar');
-
+    await markStudyActivity(userId);
     res.status(200).json({
         success: true,
         message: isBookmarked ? 'Note removed from bookmarks' : 'Note bookmarked successfully',
@@ -720,7 +721,7 @@ export const downloadNote = async (req, res, next) => {
     console.log('📤 Sending PDF to client...');
     res.status(200).send(pdfBuffer);
     console.log('✅ Download completed successfully');
-
+        await markStudyActivity(userId);
     } catch (error) {
         console.error('Download error:', error.message);
         return next(new Apperror("Failed to download note: " + error.message, 500));
@@ -864,4 +865,5 @@ export const getNoteViewers = async (req, res, next) => {
         });
     }
 };
+
 

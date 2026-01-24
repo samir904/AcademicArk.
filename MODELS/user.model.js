@@ -40,6 +40,35 @@ const userSchema = new Schema({
         enum: ["USER", "TEACHER", "ADMIN"],
         default: "USER"
     },
+    // ✨ NEW: Planner-related fields
+    studyPreference: {
+        type: Schema.Types.ObjectId,
+        ref: "StudyPreference",
+        default: null
+    },
+
+    totalStudyTimeMinutes: {
+        type: Number,
+        default: 0
+    },
+
+    studyStreak: {
+        type: Number,
+        default: 0
+    },
+
+    lastStudyDate: {
+        type: Date,
+        default: null
+    },
+
+    plannerSetup: {
+        isCompleted: {
+            type: Boolean,
+            default: false
+        },
+        completedAt: Date
+    },
     // NEW: Bio and social links
     bio: {
         type: String,
@@ -59,19 +88,19 @@ const userSchema = new Schema({
             }
         },
         linkedin: {
-    type: String,
-    default: "",
-    validate: {
-        validator: function(v) {
-            if (!v) return true;
-            // Just verify it's a valid linkedin.com URL
-            return /^https?:\/\/([a-z0-9-]+\.)*linkedin\.com\/.+$/i.test(v);
-        },
-        message: "Invalid LinkedIn URL"
-    }
-}
+            type: String,
+            default: "",
+            validate: {
+                validator: function (v) {
+                    if (!v) return true;
+                    // Just verify it's a valid linkedin.com URL
+                    return /^https?:\/\/([a-z0-9-]+\.)*linkedin\.com\/.+$/i.test(v);
+                },
+                message: "Invalid LinkedIn URL"
+            }
+        }
 
-,
+        ,
         twitter: {
             type: String,
             default: "",
@@ -101,15 +130,15 @@ const userSchema = new Schema({
             type: Boolean,
             default: false
         },
-        
+
         // ✅ Semester (1-8)
         semester: {
             type: Number,
             enum: [1, 2, 3, 4, 5, 6, 7, 8],
             default: null
         },
-        
-         // ✨ UPDATED: College with predefined list + custom
+
+        // ✨ UPDATED: College with predefined list + custom
         college: {
             // College name - either predefined or custom
             name: {
@@ -118,20 +147,20 @@ const userSchema = new Schema({
                 trim: true,
                 maxlength: [100, "College name must be less than 100 characters"]
             },
-            
+
             // ✨ NEW: Is it a predefined college or custom?
             isPredefined: {
                 type: Boolean,
                 default: true
             },
-            
+
             // ✨ NEW: If custom, approval status
             isApproved: {
                 type: Boolean,
                 default: false  // Needs admin approval
             }
         },
-        
+
         // ✅ Branch/Stream
         branch: {
             type: String,
@@ -171,31 +200,31 @@ const userSchema = new Schema({
         default: 'email'
     },
     excludeFromLeaderboard: {
-    type: Boolean,
-    default: false,  // By default, all users are included
-    index: true      // For fast filtering
-  },
-// ✨ NEW: Track last homepage visit
-lastHomepageVisit: {
-    type: Date,
-    default: null
-},
+        type: Boolean,
+        default: false,  // By default, all users are included
+        index: true      // For fast filtering
+    },
+    // ✨ NEW: Track last homepage visit
+    lastHomepageVisit: {
+        type: Date,
+        default: null
+    },
 
-// ✨ NEW: Track personalization preferences
-personalizationSettings: {
-    showContinueWhere: {
-        type: Boolean,
-        default: true
-    },
-    showRecommended: {
-        type: Boolean,
-        default: true
-    },
-    showTrending: {
-        type: Boolean,
-        default: true
+    // ✨ NEW: Track personalization preferences
+    personalizationSettings: {
+        showContinueWhere: {
+            type: Boolean,
+            default: true
+        },
+        showRecommended: {
+            type: Boolean,
+            default: true
+        },
+        showTrending: {
+            type: Boolean,
+            default: true
+        }
     }
-}
 
 }, {
     timestamps: true

@@ -30,6 +30,7 @@ import retentionRoutes from './ROUTES/user.retention.routes.js'
  import homepageRoutes from './ROUTES/homepage.routes.js'
  import sessionRoutes from './ROUTES/session.routes.js'
  import adminAnalyticsRoutes from './ROUTES/admin.analytics.routes.js'
+ import plannerRoutes from './ROUTES/planner.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -57,7 +58,7 @@ app.use(morgan("dev"))
    cors({
      origin: process.env.FRONTEND_URL,
      credentials: true,
-     methods: ["GET", "POST", "PUT", "DELETE"],
+     methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
      allowedHeaders: ["Content-Type", "Authorization", "Cache-Control"], //what is the use of authorization her 
    })
  );
@@ -142,6 +143,7 @@ app.use('/api/v1/db', mongoDbHealthRoutes);
 app.use('/api/v1/cache', redisHealthRoutes);
 app.use('/api/v1/leaderboards', leaderboardRoutes);
  app.use("/api/v1/videos", videoLectureRoute);
+ app.use("/api/v1/planner", plannerRoutes);
  // ✨ ADD THIS NEW SESSIONS ROUTE
 app.use("/api/v1/session", sessionRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);

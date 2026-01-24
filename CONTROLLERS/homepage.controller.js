@@ -412,8 +412,8 @@ async function getAttendanceSnapshot(userId, user) {
             user: userId,
             semester
         });
-        console.log('semester',semester);
-        console.log("attendance",attendance);
+        // console.log('semester',semester);
+        // console.log("attendance",attendance);
 
         if (!attendance || attendance.subjects.length === 0) {
             return {
