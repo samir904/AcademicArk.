@@ -20,21 +20,27 @@ export const registerNote = async (req, res, next) => {
     if (!userId) {
         return next(new Apperror("Something went wrong please login again"))
     }
-    if (!title || !description || !subject || !course || !semester || !university || !category) {
+    if (!title || !description || !subject || !course || !university || !category) {
         return next(new Apperror("All fields are required "))
     }
-
+    if (!semester || (Array.isArray(semester) && semester.length === 0)) {
+        return next(new Apperror("At least one semester is required"));
+    }
     if (!req.file) {
         return next(new Apperror("File is required", 400));
     }
     // ✅ AUTO-EXTRACT UNIT FROM TITLE
-        const extractedUnit = extractUnitFromTitle(title);
+    const extractedUnit = extractUnitFromTitle(title);
+    const semesterArray = Array.isArray(semester)
+        ? semester.map(s => parseInt(s))
+        : [parseInt(semester)];
+
     const note = await Note.create({
         title: title.trim(),
         description: description.trim(),
         subject: subject.toLowerCase().trim(), // Normalize to lowercase
         course: course.toUpperCase().trim(),   // Normalize to uppercase
-        semester: parseInt(semester),          // Ensure number
+        semester: semesterArray,          // Ensure Array
         university: university.toUpperCase().trim(),
         category: category.trim(),
         unit: extractedUnit,  // ✅ AUTO-FILLED
@@ -83,142 +89,175 @@ export const registerNote = async (req, res, next) => {
     })
 }
 
-export const getAllNotes = async (req, res, next) => {
+export const getAllNotes = async (req, res) => {
     try {
-        console.log('Query params:', req.query);
-        console.log('Full URL:', req.originalUrl);
+        console.log("Query params:", req.query);
 
+        /* ----------------------------------
+           1️⃣ BUILD FILTERS
+        ---------------------------------- */
         const filters = {};
 
-        // ✅ FIX 1: Build filters ONLY if they are provided and not empty
-        if (req.query.subject && req.query.subject.trim()) {
-            filters.subject = { $regex: req.query.subject, $options: 'i' };
-            // console.log('✅ Filter: subject =', req.query.subject);
+        if (req.query.subject?.trim()) {
+            filters.subject = { $regex: req.query.subject, $options: "i" };
         }
+
         if (req.query.semester) {
             const sem = parseInt(req.query.semester);
-            if (!isNaN(sem)) {
-                filters.semester = sem;
-                // console.log('✅ Filter: semester =', sem);
-            }
+            if (!isNaN(sem)) filters.semester = sem;
         }
-        // ✅ ADD THIS:
+
         if (req.query.unit) {
             const unit = parseInt(req.query.unit);
-            if (!isNaN(unit) && unit > 0 && unit <= 20) {
+            if (!isNaN(unit) && unit >= 1 && unit <= 20) {
                 filters.unit = unit;
             }
         }
-        if (req.query.university && req.query.university.trim()) {
-            filters.university = { $regex: req.query.university, $options: 'i' };
-            // console.log('✅ Filter: university =', req.query.university);
-        }
-        if (req.query.course && req.query.course.trim()) {
-            filters.course = { $regex: req.query.course, $options: 'i' };
-            // console.log('✅ Filter: course =', req.query.course);
-        }
-        if (req.query.category && req.query.category.trim()) {
-            filters.category = { $regex: req.query.category, $options: 'i' };
-            // console.log('✅ Filter: category =', req.query.category);
+
+        if (req.query.university?.trim()) {
+            filters.university = { $regex: req.query.university, $options: "i" };
         }
 
-        // console.log('📋 MongoDB filters:', JSON.stringify(filters));
-
-        // ✅ FIX 2: Get sortBy parameter (ALWAYS default to downloads)
-        const sortBy = (req.query.sortBy && req.query.sortBy.trim()) ? req.query.sortBy : 'downloads';
-        // console.log('📊 Sorting by:', sortBy);
-
-        // ✅ FIX 3: Define sort order BEFORE using it
-        let sortOrder = { downloads: -1, createdAt: -1 }; // Default
-
-        switch (sortBy.toLowerCase()) {
-            case 'downloads':
-                sortOrder = { downloads: -1, createdAt: -1 };
-                // console.log('🔽 Sort: Downloads descending');
-                break;
-
-            case 'views':
-                sortOrder = { views: -1, createdAt: -1 };
-                // console.log('👁️ Sort: Views descending');
-                break;
-
-            case 'latest':
-                sortOrder = { createdAt: -1 };
-                // console.log('🆕 Sort: Latest first');
-                break;
-
-            case 'rating':
-            case 'upvotes':
-                sortOrder = { 'ratings.average': -1, downloads: -1 };
-                // console.log('⭐ Sort: Rating descending');
-                break;
-
-            case 'trending':
-                sortOrder = { views: -1, downloads: -1, createdAt: -1 };
-                // console.log('🔥 Sort: Trending (views + downloads)');
-                break;
-
-            case 'popular':
-                sortOrder = { downloads: -1, views: -1, createdAt: -1 };
-                // console.log('👍 Sort: Popular (downloads + views)');
-                break;
-
-            default:
-                sortOrder = { downloads: -1, createdAt: -1 };
-            // console.log('📊 Sort: Default (downloads)');
+        if (req.query.course?.trim()) {
+            filters.course = { $regex: req.query.course, $options: "i" };
         }
 
-        // console.log('Sort object:', sortOrder);
-
-        // ✅ FIX 4: Query with sorting applied
-        let query = Note.find(filters);
+        if (req.query.category?.trim()) {
+            filters.category = { $regex: req.query.category, $options: "i" };
+        }
 
         const filterCount = Object.keys(filters).length;
-        // console.log(`🔍 Applying ${filterCount} filter(s)`);
 
-        const notes = await query
-            .populate("uploadedBy", "fullName avatar.secure_url")
-            .sort(sortOrder)  // ✅ CRITICAL: Apply sort here
-            .select('+views +downloads +viewedBy')
-            .lean();  // ✅ Optimize: return plain objects
+        /* ----------------------------------
+           2️⃣ FACET PIPELINE
+        ---------------------------------- */
+        const pipeline = [
+            { $match: filters },
 
-        // console.log('✅ Found notes:', notes.length);
+            {
+                $facet: {
+                    /* ================================
+                       🔥 RECOMMENDED NOTES PIPE
+                    ================================= */
+                    recommendedNotes: [
+                        { $match: { recommended: true } },
 
-        // ✅ Map to return viewerCount
-        const notesWithStats = notes.map(note => ({
-            ...note,
-            viewerCount: note.viewedBy?.length || 0,
-            viewedBy: undefined
-        }));
+                        {
+                            $addFields: {
+                                subjectValue: { $toLower: "$subject" },
+                                categoryValue: {
+                                    $switch: {
+                                        branches: [
+                                            { case: { $eq: ["$category", "Notes"] }, then: 0 },
+                                            { case: { $eq: ["$category", "Handwritten Notes"] }, then: 1 },
+                                            { case: { $eq: ["$category", "Important Question"] }, then: 2 },
+                                            { case: { $eq: ["$category", "PYQ"] }, then: 3 }
+                                        ],
+                                        default: 99
+                                    }
+                                }
+                            }
+                        },
 
-        // ✅ Verify sorting worked
-        if (notesWithStats.length > 1) {
-            const first = notesWithStats;
-            const second = notesWithStats;
-            // console.log(`✅ Verification: First note downloads=${first.downloads}, Second downloads=${second.downloads}`);
-            if (sortBy === 'downloads' && first.downloads < second.downloads) {
-                console.warn('⚠️ WARNING: Downloads NOT in descending order!');
+                        {
+                            $sort: {
+                                subjectValue: 1,
+                                categoryValue: 1,
+                                unit: 1,
+                                recommendedRank: 1,
+                                downloads: -1,
+                                views: -1,
+                                createdAt: -1
+                            }
+                        }
+                    ],
+
+                    /* ================================
+                       🔥 NON-RECOMMENDED NOTES PIPE
+                    ================================= */
+                    normalNotes: [
+                        { $match: { $or: [{ recommended: false }, { recommended: { $exists: false } }] } },
+
+                        {
+                            $sort: {
+                                downloads: -1,
+                                views: -1,
+                                createdAt: -1
+                            }
+                        }
+                    ]
+                }
+            },
+
+            /* ----------------------------------
+               3️⃣ MERGE BOTH ARRAYS
+            ---------------------------------- */
+            {
+                $project: {
+                    allNotes: { $concatArrays: ["$recommendedNotes", "$normalNotes"] }
+                }
+            },
+            { $unwind: "$allNotes" },
+            { $replaceRoot: { newRoot: "$allNotes" } },
+
+            /* ----------------------------------
+               4️⃣ POPULATE uploadedBy
+            ---------------------------------- */
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "uploadedBy",
+                    foreignField: "_id",
+                    as: "uploadedBy"
+                }
+            },
+            { $unwind: "$uploadedBy" },
+
+            /* ----------------------------------
+               5️⃣ VIEWER COUNT
+            ---------------------------------- */
+            {
+                $addFields: {
+                    viewerCount: {
+                        $size: { $ifNull: ["$viewedBy", []] }
+                    }
+                }
+            },
+
+            /* ----------------------------------
+               6️⃣ CLEAN RESPONSE
+            ---------------------------------- */
+            {
+                $project: {
+                    viewedBy: 0,
+                    subjectValue: 0,
+                    categoryValue: 0
+                }
             }
-        }
+        ];
+
+        /* ----------------------------------
+           7️⃣ EXECUTE
+        ---------------------------------- */
+        const notes = await Note.aggregate(pipeline);
 
         res.status(200).json({
             success: true,
-            count: notesWithStats.length,
-            sortedBy: sortBy,
+            count: notes.length,
             filtersApplied: filterCount,
-            data: notesWithStats
+            data: notes
         });
 
     } catch (error) {
-        console.error('❌ Error fetching notes:', error);
-        console.error('❌ Error stack:', error.stack);
+        console.error("❌ Error fetching notes:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch notes',
+            message: "Failed to fetch notes",
             error: error.message
         });
     }
 };
+
 
 
 export const getNote = async (req, res, next) => {
@@ -879,4 +918,70 @@ export const getNoteViewers = async (req, res, next) => {
     }
 };
 
+// Toggle note as recommended
+export const toggleRecommendNote = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { recommended, rank } = req.body;
 
+        // Validate input
+        if (typeof recommended !== 'boolean') {
+            return next(new Apperror("Recommended must be boolean", 400));
+        }
+
+        if (recommended && (!rank || rank < 1)) {
+            return next(new Apperror("Rank must be positive number for recommended notes", 400));
+        }
+
+        // Update note
+        const note = await Note.findByIdAndUpdate(
+            id,
+            {
+                recommended,
+                recommendedRank: recommended ? rank : 0
+            },
+            { new: true }
+        ).populate("uploadedBy", "fullName avatar.secure_url");
+
+        if (!note) {
+            return next(new Apperror("Note not found", 404));
+        }
+
+        // Clear cache
+        await redisClient.del(`notes:${JSON.stringify({})}`);
+
+        res.status(200).json({
+            success: true,
+            message: `Note ${recommended ? 'marked' : 'unmarked'} as recommended`,
+            data: note
+        });
+
+    } catch (error) {
+        console.error("Error toggling recommendation:", error);
+        return next(new Apperror(error.message || "Failed to toggle recommendation", 500));
+    }
+};
+
+// Get all recommended notes (for admin dashboard)
+export const getRecommendedNotes = async (req, res, next) => {
+    try {
+        const recommendedNotes = await Note.find({ recommended: true })
+            .sort({
+                recommendedRank: 1,
+                downloads: -1
+            })
+            .select('title subject category recommendedRank downloads views uploadedBy')
+            .populate("uploadedBy", "fullName avatar.secure_url")
+            .lean();
+
+        res.status(200).json({
+            success: true,
+            count: recommendedNotes.length,
+            data: recommendedNotes
+        });
+
+    } catch (error) {
+        console.error("Error fetching recommended notes:", error);
+        return next(new Apperror(error.message || "Failed to fetch recommended notes", 500));
+    }
+};

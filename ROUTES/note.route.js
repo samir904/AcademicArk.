@@ -1,7 +1,7 @@
 import { Router } from "express";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
-import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getNote, getNoteViewers, incrementViewCount, registerNote, updateNote } from "../CONTROLLERS/note.controller.js";
+import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getNote, getNoteViewers, getRecommendedNotes, incrementViewCount, registerNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 import { cacheNotes } from "../MIDDLEWARES/cache.middleware.js";
 import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
@@ -62,6 +62,29 @@ router.get("/:id/download",
     asyncWrap(isLoggedIn),
     asyncWrap(downloadNote)
 )
+
+// Admin routes (add these to your existing routes)
+router.route("/admin/recommend/:id")
+  .patch(
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles("ADMIN")),
+    asyncWrap(toggleRecommendNote)
+  );
+
+router.route("/admin/recommendations")
+  .get(
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles("ADMIN")),
+    asyncWrap(getRecommendedNotes)
+  );
+
+// Optional: Get all notes for admin dashboard
+// router.route("/admin/all")
+//   .get(
+//     asyncWrap(isLoggedIn),
+//     asyncWrap(authorizedRoles("ADMIN")),
+//     asyncWrap(getAllNotesForAdmin)
+//   );
 
 // // 🚨 ONE-TIME MIGRATION ROUTE
 // router.post(

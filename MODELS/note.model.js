@@ -71,6 +71,18 @@ const noteSchema = new Schema({
         enum: ["Notes", "Important Question", "PYQ", "Handwritten Notes"],
         default: "Notes"
     },
+    // 🔥 NEW: Admin Recommendations
+    recommended: {
+        type: Boolean,
+        default: false,
+        index: true  // Fast filtering
+    },
+
+    recommendedRank: {
+        type: Number,
+        default: 0,
+        index: true  // For ordering
+    },
     downloads: {
         type: Number,
         default: 0,
@@ -111,6 +123,14 @@ const noteSchema = new Schema({
     timestamps: true
 })
 
+// Compound Index for optimized recommended notes sorting
+noteSchema.index({
+  recommended: -1,
+  recommendedRank: 1,
+  downloads: -1,
+  views: -1,
+  createdAt: -1
+});
 // Indexes for performance
 noteSchema.index({ subject: 1, semester: 1 });
 noteSchema.index({ university: 1, course: 1 });
