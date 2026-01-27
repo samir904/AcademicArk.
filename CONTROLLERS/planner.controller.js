@@ -12,12 +12,12 @@ import { markStudyActivity } from "../UTIL/updateStudyActivity.js";
  */
 export async function saveStudyPreferences(req, res) {
   try {
-    const  userId  = req.user.id; // From auth middleware
+    const userId = req.user.id; // From auth middleware
     const { dailyStudyMinutes, examDates, preferredStudyTime, subjectsToFocus } =
       req.body;
 
     // Validation
-    if (!dailyStudyMinutes || ![30, 45, 60, 90, 120,240,360,480,600].includes(dailyStudyMinutes)) {
+    if (!dailyStudyMinutes || ![30, 45, 60, 90, 120, 240, 360, 480, 600].includes(dailyStudyMinutes)) {
       return res.status(400).json({
         success: false,
         message: "Invalid dailyStudyMinutes. Must be one of: 30, 45, 60, 90, 120,240,360,480,600"
@@ -103,7 +103,7 @@ export async function saveStudyPreferences(req, res) {
  */
 export async function getTodayPlan(req, res) {
   try {
-    const  userId  = req.user.id;
+    const userId = req.user.id;
 
     const plan = await plannerService.generateTodayPlan(userId);
 
@@ -134,7 +134,7 @@ export async function getTodayPlan(req, res) {
  */
 export async function getStudyStats(req, res) {
   try {
-    const  userId  = req.user.id;
+    const userId = req.user.id;
 
     const stats = await plannerService.getStudyStats(userId);
 
@@ -158,7 +158,7 @@ export async function getStudyStats(req, res) {
  */
 export async function updateProgress(req, res) {
   try {
-    const  userId  = req.user.id;
+    const userId = req.user.id;
     const { subject, unit, status } = req.body;
 
     // Validation
@@ -248,7 +248,7 @@ export async function updateProgress(req, res) {
  */
 export async function getPreferences(req, res) {
   try {
-   const  userId  = req.user.id;
+    const userId = req.user.id;
 
     const preferences = await StudyPreference.findOne({ userId });
 
@@ -279,7 +279,7 @@ export async function getPreferences(req, res) {
  */
 export async function getAllProgress(req, res) {
   try {
-    const  userId  = req.user.id;
+    const userId = req.user.id;
     const { subject, status } = req.query;
     console.log(userId);
     let query = { userId };
@@ -324,8 +324,8 @@ export async function updateStudyPreferences(req, res) {
 
     // Partial updates
     if (dailyStudyMinutes) {
-      if (![30,45,60,90,120,240,360,480,600].includes(dailyStudyMinutes)) {
-        return res.status(400).json({ success:false, message:"Invalid dailyStudyMinutes"});
+      if (![30, 45, 60, 90, 120, 240, 360, 480, 600].includes(dailyStudyMinutes)) {
+        return res.status(400).json({ success: false, message: "Invalid dailyStudyMinutes" });
       }
       preference.dailyStudyMinutes = dailyStudyMinutes;
     }
@@ -353,8 +353,8 @@ export async function updateStudyPreferences(req, res) {
   } catch (error) {
     console.error("Error updating preferences:", error);
     res.status(500).json({
-      success:false,
-      message:"Error updating study preferences"
+      success: false,
+      message: "Error updating study preferences"
     });
   }
 }
@@ -372,10 +372,15 @@ export const getPlannerNotes = async (req, res) => {
       });
     }
 
-    // 1️⃣ Fetch all notes of this subject
     const notes = await Note.find(
       { subject },
-      { title: 1, category: 1 }
+      {
+        title: 1,
+        category: 1,
+        recommended: 1,
+        downloads: 1,
+        views: 1
+      }
     ).lean();
 
     const unitNotes = [];
@@ -408,6 +413,21 @@ export const getPlannerNotes = async (req, res) => {
         }
       }
     }
+
+    const sortByPriority = (a, b) => {
+      if (a.recommended !== b.recommended) {
+        return b.recommended - a.recommended;
+      }
+      if ((b.downloads || 0) !== (a.downloads || 0)) {
+        return (b.downloads || 0) - (a.downloads || 0);
+      }
+      return (b.views || 0) - (a.views || 0);
+    };
+
+    unitNotes.sort(sortByPriority);
+    handwritten.sort(sortByPriority);
+    important.sort(sortByPriority);
+    pyqs.sort(sortByPriority);
 
     return res.json({
       success: true,

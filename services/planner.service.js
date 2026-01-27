@@ -10,139 +10,193 @@ class PlannerService {
    * @param {string} userId
    * @returns {object} { tasks, totalMinutes, message }
    */
- /**
- * Generate today's study plan (FIXED VERSION)
- */
-async generateTodayPlan(userId) {
-  try {
-    const pref = await StudyPreference.findOne({ userId })
-      .populate("userId", "academicProfile");
+  /**
+  * Generate today's study plan (FIXED VERSION)
+  */
+  async generateTodayPlan(userId) {
+    try {
+      const pref = await StudyPreference.findOne({ userId })
+        .populate("userId", "academicProfile");
 
-    if (!pref) return null;
+      if (!pref) return null;
 
-    const { semester, dailyStudyMinutes, subjectsToFocus } = pref;
+      const { semester, dailyStudyMinutes, subjectsToFocus } = pref;
+      // ✅ 2. Fetch progress ONCE
+      const progressList = await StudyProgress.find({ userId }).lean();
 
-    // ✅ 1. Decide subjects SOURCE
-    let subjects = subjectsToFocus;
+      // ✅ 1. Decide subjects SOURCE
+      // 1️⃣ Subjects with existing progress (resume first)
+      const progressSubjects = [
+        ...new Set(progressList.map(p => p.subject))
+      ];
 
-    // Safety fallback (old users)
-    if (!subjects || subjects.length === 0) {
-      subjects = await Note.distinct("subject", { semester });
-    }
+      // 2️⃣ Subjects user explicitly selected
+      const focusedSubjects = subjectsToFocus || [];
 
-    if (!subjects || subjects.length === 0) {
-      return {
-        tasks: [],
-        totalMinutes: 0,
-        message: "No subjects available"
-      };
-    }
+      // 3️⃣ Merge with priority
+      let subjects = [...progressSubjects];
 
-    // ✅ 2. Fetch progress ONCE
-    const progressList = await StudyProgress.find({ userId }).lean();
-
-    const progressMap = {};
-    for (const p of progressList) {
-      progressMap[`${p.subject}-${p.unit}`] = p;
-    }
-
-    const tasks = [];
-
-    // ✅ 3. Build tasks SUBJECT-WISE
-    for (const subject of subjects) {
-      const nextUnit = await this._findNextUnitForSubject(
-        userId,
-        subject,
-        progressMap
-      );
-
-      if (!nextUnit) continue;
-
-      const progress = progressMap[`${subject}-${nextUnit}`];
-
-      // ❌ SKIP COMPLETED UNITS COMPLETELY
-      if (progress?.status === "COMPLETED") continue;
-
-      let priority = 0;
-
-      // ✅ PRIORITY RULES (VERY IMPORTANT)
-      if (progress?.status === "IN_PROGRESS") {
-        priority = 1000; // always on top
-      } else if (progress?.status === "REVIEW") {
-        priority = 500;
-      } else {
-        priority = 100; // NOT_STARTED
+      // Add focused subjects if not already included
+      for (const s of focusedSubjects) {
+        if (!subjects.includes(s)) {
+          subjects.push(s);
+        }
       }
 
-      tasks.push({
-        subject,
-        unit: nextUnit,
-        status: progress?.status || "NOT_STARTED",
-        priority,
-        timeAllocated: 30
+      // 4️⃣ Absolute fallback (old users)
+      if (subjects.length === 0) {
+        subjects = await Note.distinct("subject", { semester });
+      }
+
+      // Safety fallback (old users)
+      if (!subjects || subjects.length === 0) {
+        subjects = await Note.distinct("subject", { semester });
+      }
+
+      if (!subjects || subjects.length === 0) {
+        return {
+          tasks: [],
+          totalMinutes: 0,
+          message: "No subjects available"
+        };
+      }
+
+
+      const progressMap = {};
+      for (const p of progressList) {
+        progressMap[`${p.subject}-${p.unit}`] = p;
+      }
+      console.log("SUBJECTS FROM PREF / NOTES:", subjects);
+      console.log("PROGRESS SUBJECTS:", progressList.map(p => p.subject));
+
+      const tasks = [];
+
+      // ✅ 3. Build tasks SUBJECT-WISE
+      for (const subject of subjects) {
+        const nextUnit = await this._findNextUnitForSubject(
+          userId,
+          subject,
+          progressMap
+        );
+
+        if (!nextUnit) continue;
+
+        const progress = progressMap[`${subject}-${nextUnit}`];
+
+        // ❌ SKIP COMPLETED UNITS COMPLETELY
+        if (progress?.status === "COMPLETED") continue;
+
+        let priority = 0;
+
+        // ✅ PRIORITY RULES (VERY IMPORTANT)
+        if (progress?.status === "IN_PROGRESS") {
+          priority = 1000; // always on top
+        } else if (progress?.status === "REVIEW") {
+          priority = 500;
+        } else {
+          priority = 100; // NOT_STARTED
+        }
+
+        tasks.push({
+          subject,
+          unit: nextUnit,
+          status: progress?.status || "NOT_STARTED",
+          priority,
+          lastStudiedAt: progress?.lastStudiedAt || null,
+          timeAllocated: 30
+        });
+      }
+
+      // ✅ 4. SORT (IN_PROGRESS FIRST)
+      tasks.sort((a, b) => {
+        // 1️⃣ Priority first
+        if (b.priority !== a.priority) {
+          return b.priority - a.priority;
+        }
+
+        // 2️⃣ Most recently studied first
+        const aTime = a.lastStudiedAt ? new Date(a.lastStudiedAt).getTime() : 0;
+        const bTime = b.lastStudiedAt ? new Date(b.lastStudiedAt).getTime() : 0;
+
+        return bTime - aTime;
       });
-    }
 
-    // ✅ 4. SORT (IN_PROGRESS FIRST)
-    tasks.sort((a, b) => b.priority - a.priority);
+      // ✅ 5. Limit by daily time
+      const maxTasks = Math.ceil(dailyStudyMinutes / 30);
+      const finalTasks = tasks.slice(0, maxTasks);
 
-    // ✅ 5. Limit by daily time
-    const maxTasks = Math.ceil(dailyStudyMinutes / 30);
-    const finalTasks = tasks.slice(0, maxTasks);
+      return {
+        tasks: finalTasks.map(({ priority, ...rest }) => rest),
+        totalMinutes: finalTasks.length * 30,
+        message: `Study ${finalTasks.length} unit(s) today`
+      };
 
-    return {
-      tasks: finalTasks.map(({ priority, ...rest }) => rest),
-      totalMinutes: finalTasks.length * 30,
-      message: `Study ${finalTasks.length} unit(s) today`
-    };
-
-  } catch (error) {
-    console.error("Error generating plan:", error);
-    throw error;
-  }
-}
-
-  /**
-   * Find next unit to study for a subject
-   */
-async _findNextUnitForSubject(userId, subject, progressMap) {
-  // 1️⃣ Get all note titles for this subject
-  const notes = await Note.find(
-  {
-    subject,
-    category: { $in: ["Notes", "Handwritten Notes"] }
-  },
-  { title: 1 }
-).lean();
-
-  if (!notes || notes.length === 0) return null;
-
-  // 2️⃣ Extract units from titles
-  const units = new Set();
-
-  for (const note of notes) {
-    const unit = extractUnitFromTitle(note.title);
-    if (unit) units.add(unit);
-  }
-
-  if (units.size === 0) return null;
-
-  const sortedUnits = [...units].sort((a, b) => a - b);
-
-  // 3️⃣ Find first incomplete unit
-  for (const unit of sortedUnits) {
-    const key = `${subject}-${unit}`;
-    const p = progressMap[key];
-
-    if (!p || p.status === "NOT_STARTED" || p.status === "IN_PROGRESS") {
-      return unit;
+    } catch (error) {
+      console.error("Error generating plan:", error);
+      throw error;
     }
   }
 
-  // 4️⃣ All completed → suggest review of last unit
-  return sortedUnits[sortedUnits.length - 1];
-}
+  async _findNextUnitForSubject(userId, subject, progressMap) {
+    // 1️⃣ Get all units for this subject
+    const units = await Note.distinct("unit", { subject });
 
+    if (!units || units.length === 0) return null;
+
+    const sortedUnits = units
+      .filter(u => typeof u === "number")
+      .sort((a, b) => a - b);
+
+    // 🔥 2️⃣ MOST RECENT IN_PROGRESS (KEY FIX)
+    let recentInProgress = null;
+
+    for (const unit of sortedUnits) {
+      const p = progressMap[`${subject}-${unit}`];
+
+      if (p?.status === "IN_PROGRESS") {
+        if (
+          !recentInProgress ||
+          new Date(p.lastStudiedAt) > new Date(recentInProgress.lastStudiedAt)
+        ) {
+          recentInProgress = { unit, lastStudiedAt: p.lastStudiedAt };
+        }
+      }
+    }
+
+    if (recentInProgress) {
+      return recentInProgress.unit;
+    }
+
+    // 3️⃣ First NOT_STARTED
+    for (const unit of sortedUnits) {
+      const p = progressMap[`${subject}-${unit}`];
+      if (!p) {
+        return unit;
+      }
+    }
+
+    // 4️⃣ REVIEW (least recently studied first)
+    let reviewCandidate = null;
+
+    for (const unit of sortedUnits) {
+      const p = progressMap[`${subject}-${unit}`];
+      if (p?.status === "REVIEW") {
+        if (
+          !reviewCandidate ||
+          new Date(p.lastStudiedAt) < new Date(reviewCandidate.lastStudiedAt)
+        ) {
+          reviewCandidate = { unit, lastStudiedAt: p.lastStudiedAt };
+        }
+      }
+    }
+
+    if (reviewCandidate) {
+      return reviewCandidate.unit;
+    }
+
+    // 5️⃣ Everything completed
+    return null;
+  }
   /**
    * Calculate priority score for a task
    * Higher score = higher priority
@@ -198,62 +252,62 @@ async _findNextUnitForSubject(userId, subject, progressMap) {
   /**
    * Get study statistics
    */
-async getStudyStats(userId) {
-  // 1️⃣ Fetch progress + user in parallel (efficient)
-  const [progress, user] = await Promise.all([
-    StudyProgress.find({ userId }).lean(),
-    User.findById(userId).select(
-      "studyStreak lastStudyDate totalStudyTimeMinutes"
-    )
-  ]);
+  async getStudyStats(userId) {
+    // 1️⃣ Fetch progress + user in parallel (efficient)
+    const [progress, user] = await Promise.all([
+      StudyProgress.find({ userId }).lean(),
+      User.findById(userId).select(
+        "studyStreak lastStudyDate totalStudyTimeMinutes"
+      )
+    ]);
 
-  // 2️⃣ Existing stats (UNCHANGED)
-  const stats = {
-    totalUnitsStarted: progress.filter(
-      (p) => p.status !== "NOT_STARTED"
-    ).length,
+    // 2️⃣ Existing stats (UNCHANGED)
+    const stats = {
+      totalUnitsStarted: progress.filter(
+        (p) => p.status !== "NOT_STARTED"
+      ).length,
 
-    totalUnitsCompleted: progress.filter(
-      (p) => p.status === "COMPLETED"
-    ).length,
+      totalUnitsCompleted: progress.filter(
+        (p) => p.status === "COMPLETED"
+      ).length,
 
-    totalTimeSpent: progress.reduce(
-      (sum, p) => sum + (p.totalTimeSpent || 0),
-      0
-    ),
+      totalTimeSpent: progress.reduce(
+        (sum, p) => sum + (p.totalTimeSpent || 0),
+        0
+      ),
 
-    subjectProgress: {}
-  };
+      subjectProgress: {}
+    };
 
-  // 3️⃣ Group by subject (UNCHANGED)
-  progress.forEach((p) => {
-    if (!stats.subjectProgress[p.subject]) {
-      stats.subjectProgress[p.subject] = {
-        completed: 0,
-        total: 0
-      };
-    }
+    // 3️⃣ Group by subject (UNCHANGED)
+    progress.forEach((p) => {
+      if (!stats.subjectProgress[p.subject]) {
+        stats.subjectProgress[p.subject] = {
+          completed: 0,
+          total: 0
+        };
+      }
 
-    stats.subjectProgress[p.subject].total++;
-    if (p.status === "COMPLETED") {
-      stats.subjectProgress[p.subject].completed++;
-    }
-  });
+      stats.subjectProgress[p.subject].total++;
+      if (p.status === "COMPLETED") {
+        stats.subjectProgress[p.subject].completed++;
+      }
+    });
 
-  // 4️⃣ 🔥 ADD STREAK (THIS IS THE ONLY NEW PART)
-  return {
-    ...stats,
+    // 4️⃣ 🔥 ADD STREAK (THIS IS THE ONLY NEW PART)
+    return {
+      ...stats,
 
-    streak: {
-      current: user?.studyStreak || 0,
-      lastStudyDate: user?.lastStudyDate || null
-    },
+      streak: {
+        current: user?.studyStreak || 0,
+        lastStudyDate: user?.lastStudyDate || null
+      },
 
-    lifetime: {
-      totalStudyTimeMinutes: user?.totalStudyTimeMinutes || 0
-    }
-  };
-}
+      lifetime: {
+        totalStudyTimeMinutes: user?.totalStudyTimeMinutes || 0
+      }
+    };
+  }
 }
 
 export default new PlannerService();
