@@ -282,3 +282,44 @@ export const addSem4ToThirdSemCommonSubjects = async (req, res) => {
     });
   }
 };
+
+export const addSem6ToFifthSemCommonSubjects = async (req, res) => {
+  try {
+    const FIFTH_SEM_COMMON_SUBJECTS = [
+      "cloud computing",
+      "machine learning techniques"
+    ];
+
+    const result = await Note.updateMany(
+      {
+        // ✅ Subject must be one of the two
+        subject: { $in: FIFTH_SEM_COMMON_SUBJECTS },
+
+        // ✅ Must already contain semester 5
+        semester: 5,
+
+        // ✅ Ensure semester 6 is NOT already present
+        semester: { $ne: 6 }
+      },
+      {
+        // ✅ Add semester 6 safely (no duplicates)
+        $addToSet: { semester: 6 }
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Semester 6 added to Cloud Computing & Machine Learning Techniques notes (from Semester 5 only)",
+      matched: result.matchedCount,
+      modified: result.modifiedCount
+    });
+  } catch (error) {
+    console.error("❌ addSem6ToFifthSemCommonSubjects error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+

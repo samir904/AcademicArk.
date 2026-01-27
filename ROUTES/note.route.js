@@ -1,10 +1,11 @@
 import { Router } from "express";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
-import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getNote, getNoteViewers, getRecommendedNotes, incrementViewCount, registerNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
+import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getAllNoteStats, getNote, getNotesController, getNoteViewers, getRecommendedNotes, getSemesterPreviewNotes, incrementViewCount, registerNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
-import { cacheNotes } from "../MIDDLEWARES/cache.middleware.js";
-import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
+import { cacheNotes, cacheSemesterPreview } from "../MIDDLEWARES/cache.middleware.js";
+import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, addSem6ToFifthSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
+import { decideNotesMode } from "../MIDDLEWARES/decideNotesMode.js";
 
 const router= Router();
 
@@ -16,9 +17,24 @@ router.route("/")
     asyncWrap(registerNote)
 ).get(
     optionalAuth,
+    decideNotesMode,          // 🧠 decide first
     asyncWrap(cacheNotes),//attempt to serve from cache first 
     asyncWrap(getAllNotes)//if not then hit controller and then cache
 )
+
+router.get(
+  "/preview",
+  optionalAuth,
+  cacheSemesterPreview,
+  asyncWrap(getSemesterPreviewNotes)
+);
+// 📊 STATS ROUTE (MUST BE ABOVE /:id)
+router.get(
+  "/stats",
+  optionalAuth,
+  asyncWrap(getAllNoteStats)
+);
+
 // ============================================
 // ✅ NEW: GET NOTE VIEWERS (Separate Endpoint)
 // ============================================
@@ -105,7 +121,7 @@ router.post(
   "/normalizesemester",
   asyncWrap(isLoggedIn),
   asyncWrap(authorizedRoles("ADMIN")),
-  asyncWrap(addSem4ToThirdSemCommonSubjects)
+  asyncWrap(addSem6ToFifthSemCommonSubjects)
 );
 
 

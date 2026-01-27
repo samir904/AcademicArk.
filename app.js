@@ -47,6 +47,9 @@ import sessionTrackerMiddleware from "./MIDDLEWARES/sessionTracker.middleware.js
 // import passport from "passport";
 
 const app=express();
+// 🔥 ADD THIS LINE
+app.disable("etag");
+
 // config();
 // ✅ ADD THIS - Initialize console logger (EARLY, before other code)
 initConsoleLogger();
@@ -54,6 +57,14 @@ app.use(express.urlencoded({extended:true}));
 app.use(express.json())
 app.use(cookieParser())
 app.use(morgan("dev"))
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+});
+
  app.use(
    cors({
      origin: process.env.FRONTEND_URL,

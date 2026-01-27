@@ -46,7 +46,8 @@ const SKIP_PATHS = [
   '/cache/invalidate',
   '/ping',
   '/track/page-exit',
-  '/personalized'
+  '/personalized',
+  '/track/click'
   
 ];
 

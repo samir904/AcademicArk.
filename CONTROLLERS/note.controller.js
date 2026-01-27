@@ -13,6 +13,7 @@ import User from "../MODELS/user.model.js";
 import { addDownloadWatermarkToPDF } from "../UTIL/downloadWatermark.util.js";
 import { markStudyActivity } from "../UTIL/updateStudyActivity.js";
 import { extractUnitFromTitle } from "../UTIL/unitExtractor.js";
+import VideoLecture from "../MODELS/videoLecture.model.js";
 
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
@@ -88,121 +89,132 @@ export const registerNote = async (req, res, next) => {
         data: note
     })
 }
+export const getNotesController = async (req, res, next) => {
+  if (req._notesMode === "SEMESTER_PREVIEW") {
+    return getSemesterPreviewNotes(req, res, next);
+  }
 
+  return getAllNotes(req, res, next);
+};
 export const getAllNotes = async (req, res) => {
     try {
-        console.log("Query params:", req.query);
-
-        /* ----------------------------------
-           1️⃣ BUILD FILTERS
-        ---------------------------------- */
-        const filters = {};
-
-        if (req.query.subject?.trim()) {
-            filters.subject = { $regex: req.query.subject, $options: "i" };
+        if (!req.query.semester) {
+            return res.status(400).json({
+                success: false,
+                message: "Semester is required"
+            });
         }
 
-        if (req.query.semester) {
-            const sem = parseInt(req.query.semester);
-            if (!isNaN(sem)) filters.semester = sem;
-        }
+        const limit = 21;
+        const cursor = req.query.cursor
+            ? JSON.parse(decodeURIComponent(req.query.cursor))
+            : null;
 
-        if (req.query.unit) {
-            const unit = parseInt(req.query.unit);
-            if (!isNaN(unit) && unit >= 1 && unit <= 20) {
-                filters.unit = unit;
-            }
-        }
+        const isFirstPage = !cursor;
 
-        if (req.query.university?.trim()) {
-            filters.university = { $regex: req.query.university, $options: "i" };
-        }
+        const escapeRegex = (text = "") =>
+            text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-        if (req.query.course?.trim()) {
-            filters.course = { $regex: req.query.course, $options: "i" };
-        }
+        const semesterNumber = Number(req.query.semester);
 
-        if (req.query.category?.trim()) {
-            filters.category = { $regex: req.query.category, $options: "i" };
-        }
+        const filters = {
+            semester: { $in: [semesterNumber] } // ✅ WORKS FOR [5] & [5,6]
+        };
 
-        const filterCount = Object.keys(filters).length;
+        if (req.query.subject)
+            filters.subject = new RegExp(escapeRegex(req.query.subject), "i");
 
-        /* ----------------------------------
-           2️⃣ FACET PIPELINE
-        ---------------------------------- */
+        if (req.query.unit)
+            filters.unit = Number(req.query.unit);
+
+        if (req.query.university)
+            filters.university = new RegExp(escapeRegex(req.query.university), "i");
+
+        if (req.query.course)
+            filters.course = new RegExp(escapeRegex(req.query.course), "i");
+
+        if (req.query.category)
+            filters.category = new RegExp(escapeRegex(req.query.category), "i");
+
+        // if (cursor) {
+        //     filters.createdAt = { $lt: new Date(cursor) };
+        // }
+
         const pipeline = [
             { $match: filters },
 
-            {
-                $facet: {
-                    /* ================================
-                       🔥 RECOMMENDED NOTES PIPE
-                    ================================= */
-                    recommendedNotes: [
-                        { $match: { recommended: true } },
-
-                        {
-                            $addFields: {
-                                subjectValue: { $toLower: "$subject" },
-                                categoryValue: {
-                                    $switch: {
-                                        branches: [
-                                            { case: { $eq: ["$category", "Notes"] }, then: 0 },
-                                            { case: { $eq: ["$category", "Handwritten Notes"] }, then: 1 },
-                                            { case: { $eq: ["$category", "Important Question"] }, then: 2 },
-                                            { case: { $eq: ["$category", "PYQ"] }, then: 3 }
-                                        ],
-                                        default: 99
+            ...(isFirstPage
+                ? [
+                    {
+                        $facet: {
+                            recommended: [
+                                { $match: { recommended: true } },
+                                {
+                                    $addFields: {
+                                        subjectValue: { $toLower: "$subject" },
+                                        categoryValue: {
+                                            $switch: {
+                                                branches: [
+                                                    { case: { $eq: ["$category", "Notes"] }, then: 0 },
+                                                    { case: { $eq: ["$category", "Handwritten Notes"] }, then: 1 },
+                                                    { case: { $eq: ["$category", "Important Question"] }, then: 2 },
+                                                    { case: { $eq: ["$category", "PYQ"] }, then: 3 }
+                                                ],
+                                                default: 99
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    $sort: {
+                                        subjectValue: 1,
+                                        categoryValue: 1,
+                                        unit: 1,
+                                        recommendedRank: 1,
+                                        downloads: -1,
+                                        views: -1,
+                                        createdAt: -1
                                     }
                                 }
-                            }
-                        },
-
-                        {
-                            $sort: {
-                                subjectValue: 1,
-                                categoryValue: 1,
-                                unit: 1,
-                                recommendedRank: 1,
-                                downloads: -1,
-                                views: -1,
-                                createdAt: -1
-                            }
+                            ],
+                            normal: [
+                                { $match: { recommended: { $ne: true } } },
+                                {
+                                    $sort: {
+                                        downloads: -1,
+                                        views: -1,
+                                        createdAt: -1
+                                    }
+                                }
+                            ]
                         }
-                    ],
-
-                    /* ================================
-                       🔥 NON-RECOMMENDED NOTES PIPE
-                    ================================= */
-                    normalNotes: [
-                        { $match: { $or: [{ recommended: false }, { recommended: { $exists: false } }] } },
-
-                        {
-                            $sort: {
-                                downloads: -1,
-                                views: -1,
-                                createdAt: -1
-                            }
+                    },
+                    {
+                        $project: {
+                            notes: { $concatArrays: ["$recommended", "$normal"] }
                         }
-                    ]
-                }
-            },
+                    },
+                    { $unwind: "$notes" },
+                    { $replaceRoot: { newRoot: "$notes" } }
+                ]
+                : [
+                    { $match: { recommended: { $ne: true } } },
+                    {
+                        $match: {
+                            $or: [
+                                { createdAt: { $lt: new Date(cursor.createdAt) } },
+                                {
+                                    createdAt: new Date(cursor.createdAt),
+                                    _id: { $lt: new mongoose.Types.ObjectId(cursor._id) }
+                                }
+                            ]
+                        }
+                    },
+                    { $sort: { createdAt: -1, _id: -1 } }
+                ]),
 
-            /* ----------------------------------
-               3️⃣ MERGE BOTH ARRAYS
-            ---------------------------------- */
-            {
-                $project: {
-                    allNotes: { $concatArrays: ["$recommendedNotes", "$normalNotes"] }
-                }
-            },
-            { $unwind: "$allNotes" },
-            { $replaceRoot: { newRoot: "$allNotes" } },
+            { $limit: limit + 1 },
 
-            /* ----------------------------------
-               4️⃣ POPULATE uploadedBy
-            ---------------------------------- */
             {
                 $lookup: {
                     from: "users",
@@ -211,53 +223,231 @@ export const getAllNotes = async (req, res) => {
                     as: "uploadedBy"
                 }
             },
-            { $unwind: "$uploadedBy" },
-
-            /* ----------------------------------
-               5️⃣ VIEWER COUNT
-            ---------------------------------- */
-            {
-                $addFields: {
-                    viewerCount: {
-                        $size: { $ifNull: ["$viewedBy", []] }
-                    }
-                }
-            },
-
-            /* ----------------------------------
-               6️⃣ CLEAN RESPONSE
-            ---------------------------------- */
-            {
-                $project: {
-                    viewedBy: 0,
-                    subjectValue: 0,
-                    categoryValue: 0
-                }
-            }
+            { $unwind: "$uploadedBy" }
         ];
 
-        /* ----------------------------------
-           7️⃣ EXECUTE
-        ---------------------------------- */
-        const notes = await Note.aggregate(pipeline);
+        const result = await Note.aggregate(pipeline);
+
+        const hasMore = result.length > limit;
+        const notes = hasMore ? result.slice(0, limit) : result;
+        // 🔐 Cursor must always come from NORMAL stream ordering
+        const normalNotesInPage = notes.filter(n => !n.recommended);
+
+        const last = normalNotesInPage[normalNotesInPage.length - 1];
+
+
+        const nextCursor = last
+            ? encodeURIComponent(JSON.stringify({
+                createdAt: last.createdAt,
+                _id: last._id
+            }))
+            : null;
+
+        console.log({
+            semester: semesterNumber,
+            matchedCount: await Note.countDocuments(filters),
+            cursor
+        });
+        res.setHeader("Cache-Control", "no-store");
 
         res.status(200).json({
             success: true,
-            count: notes.length,
-            filtersApplied: filterCount,
-            data: notes
+            data: { notes, nextCursor, hasMore }
         });
-
-    } catch (error) {
-        console.error("❌ Error fetching notes:", error);
+    } catch (err) {
+        console.error("❌ getAllNotes error:", err);
         res.status(500).json({
             success: false,
-            message: "Failed to fetch notes",
-            error: error.message
+            message: "Failed to fetch notes"
         });
     }
 };
 
+export const getSemesterPreviewNotes = async (req, res) => {
+  try {
+    const semester = Number(req.query.semester);
+    if (!semester) {
+      return res.status(400).json({
+        success: false,
+        message: "Semester is required"
+      });
+    }
+
+    const limit = 30;
+    const cursor = req.query.cursor
+      ? JSON.parse(decodeURIComponent(req.query.cursor))
+      : null;
+
+    const filters = {
+      semester: { $in: [semester] }
+    };
+
+    if (cursor) {
+      filters.$or = [
+        { createdAt: { $lt: new Date(cursor.createdAt) } },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: new mongoose.Types.ObjectId(cursor._id) }
+        }
+      ];
+    }
+
+    const notes = await Note.find(filters)
+      .sort({
+        recommended: -1,
+        recommendedRank: 1,
+        downloads: -1,
+        views: -1,
+        createdAt: -1,
+        _id: -1
+      })
+      .limit(limit + 1)
+      .populate("uploadedBy", "fullName avatar");
+
+    const hasMore = notes.length > limit;
+    const sliced = hasMore ? notes.slice(0, limit) : notes;
+
+    const last = sliced[sliced.length - 1];
+
+    const nextCursor = last
+      ? encodeURIComponent(
+          JSON.stringify({
+            createdAt: last.createdAt,
+            _id: last._id
+          })
+        )
+      : null;
+
+    res.status(200).json({
+      success: true,
+      mode: "SEMESTER_PREVIEW",
+      data:{
+        notes:sliced,
+        nextCursor,
+        hasMore
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ getSemesterPreviewNotes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch semester preview"
+    });
+  }
+};
+
+
+export const getAllNoteStats = async (req, res) => {
+    try {
+        if (!req.query.semester) {
+            return res.status(400).json({
+                success: false,
+                message: "Semester is required"
+            });
+        }
+
+        const escapeRegex = (text = "") =>
+            text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+        /** --------------------
+         * NOTES FILTERS
+         * -------------------- */
+        const noteFilters = {
+            semester: Number(req.query.semester)
+        };
+
+        if (req.query.subject)
+            noteFilters.subject = new RegExp(escapeRegex(req.query.subject), "i");
+
+        if (req.query.unit)
+            noteFilters.unit = Number(req.query.unit);
+
+        if (req.query.university)
+            noteFilters.university = new RegExp(escapeRegex(req.query.university), "i");
+
+        if (req.query.course)
+            noteFilters.course = new RegExp(escapeRegex(req.query.course), "i");
+
+        if (req.query.category)
+            noteFilters.category = new RegExp(escapeRegex(req.query.category), "i");
+
+        if (
+            req.query.uploadedBy &&
+            mongoose.Types.ObjectId.isValid(req.query.uploadedBy)
+        ) {
+            noteFilters.uploadedBy = new mongoose.Types.ObjectId(req.query.uploadedBy);
+        }
+
+        /** --------------------
+         * NOTES AGGREGATION
+         * -------------------- */
+        const noteStats = await Note.aggregate([
+            { $match: noteFilters },
+            {
+                $facet: {
+                    total: [{ $count: "count" }],
+                    categoryStats: [
+                        {
+                            $group: {
+                                _id: "$category",
+                                count: { $sum: 1 }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]);
+
+        const totalNotes = noteStats[0]?.total[0]?.count || 0;
+
+        const categoryStats = {};
+        noteStats[0]?.categoryStats.forEach(item => {
+            categoryStats[item._id] = item.count;
+        });
+
+        /** --------------------
+         * VIDEO STATS
+         * -------------------- */
+        const videoFilters = {
+            semester: Number(req.query.semester)
+        };
+
+        if (req.query.subject)
+            videoFilters.subject = new RegExp(escapeRegex(req.query.subject), "i");
+
+        if (
+            req.query.uploadedBy &&
+            mongoose.Types.ObjectId.isValid(req.query.uploadedBy)
+        ) {
+            videoFilters.uploadedBy = new mongoose.Types.ObjectId(req.query.uploadedBy);
+        }
+
+        const totalVideos = await VideoLecture.countDocuments(videoFilters);
+
+        /** --------------------
+         * MERGE RESULT
+         * -------------------- */
+        if (totalVideos > 0) {
+            categoryStats["Video"] = totalVideos;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                total: totalNotes + totalVideos,
+                categories: categoryStats
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ getAllNoteStats error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch stats"
+        });
+    }
+};
 
 
 export const getNote = async (req, res, next) => {
