@@ -6,7 +6,7 @@ import {
   setDefaultSavedFilter,
   incrementPresetUsage
 } from "../CONTROLLERS/savedFilter.controller.js";
-import { isLoggedIn } from "../middlewares/auth.middleware.js";
+import { isLoggedIn } from "../MIDDLEWARES/auth.middleware.js";
 import asyncWrap from '../UTIL/asyncWrap.js'
 
 const router = Router();
