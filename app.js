@@ -31,6 +31,7 @@ import retentionRoutes from './ROUTES/user.retention.routes.js'
  import sessionRoutes from './ROUTES/session.routes.js'
  import adminAnalyticsRoutes from './ROUTES/admin.analytics.routes.js'
  import plannerRoutes from './ROUTES/planner.routes.js'
+ import savedFilterRoutes from './ROUTES/savedFilter.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -155,6 +156,7 @@ app.use('/api/v1/cache', redisHealthRoutes);
 app.use('/api/v1/leaderboards', leaderboardRoutes);
  app.use("/api/v1/videos", videoLectureRoute);
  app.use("/api/v1/planner", plannerRoutes);
+app.use("/api/v1/saved-filters", savedFilterRoutes);
  // ✨ ADD THIS NEW SESSIONS ROUTE
 app.use("/api/v1/session", sessionRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);

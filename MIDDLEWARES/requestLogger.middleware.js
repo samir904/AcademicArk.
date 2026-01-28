@@ -47,7 +47,8 @@ const SKIP_PATHS = [
   '/ping',
   '/track/page-exit',
   '/personalized',
-  '/track/click'
+  '/track/click',
+  "/"
   
 ];
 
