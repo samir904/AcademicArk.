@@ -48,7 +48,6 @@ const SKIP_PATHS = [
   '/track/page-exit',
   '/personalized',
   '/track/click',
-  "/"
   
 ];
 
