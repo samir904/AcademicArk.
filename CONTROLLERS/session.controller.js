@@ -210,8 +210,8 @@ class SessionController {
 
   session.lastActivityTime = new Date();
   await session.save();
-  console.log('resources_type',resourceType);
-  console.log('resource-id',resourceId);
+//   console.log('resources_type',resourceType);
+//   console.log('resource-id',resourceId);
    // 🔥 ONLY HERE we update study time
   if (
     pageName === "NOTE_READER" &&
@@ -226,7 +226,7 @@ class SessionController {
     });
   }
 
-  console.log('session after exit saved sesion ',session,'with session id ',sessionId,'last activity',session.lastActivityTime);
+//   console.log('session after exit saved sesion ',session,'with session id ',sessionId,'last activity',session.lastActivityTime);
   res.json({ success: true });
 }
 

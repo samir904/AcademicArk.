@@ -32,6 +32,11 @@ import retentionRoutes from './ROUTES/user.retention.routes.js'
  import adminAnalyticsRoutes from './ROUTES/admin.analytics.routes.js'
  import plannerRoutes from './ROUTES/planner.routes.js'
  import savedFilterRoutes from './ROUTES/savedFilter.routes.js'
+ import searchAnalyticsRoutes from "./ROUTES/searchAnalytics.routes.js";
+import searchSuggestionRoutes from "./ROUTES/searchSuggestion.routes.js";
+import searchAdminAnalyticsRoutes from "./ROUTES/searchAdminAnalytics.routes.js";
+import failedSearchRoutes from './ROUTES/failedSearchAction.routes.js'
+import searchAdminManageRoutes from './ROUTES/searchAdminManage.routes.js'
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -157,6 +162,12 @@ app.use('/api/v1/leaderboards', leaderboardRoutes);
  app.use("/api/v1/videos", videoLectureRoute);
  app.use("/api/v1/planner", plannerRoutes);
 app.use("/api/v1/saved-filters", savedFilterRoutes);
+app.use("/api/v1/search/analytics", searchAnalyticsRoutes);
+app.use("/api/v1/search/suggestions", searchSuggestionRoutes);
+app.use("/api/v1/search/admin", searchAdminAnalyticsRoutes);
+app.use('/api/v1/search/failed',failedSearchRoutes);
+app.use("/api/v1/search/admin/manage", searchAdminManageRoutes);
+
  // ✨ ADD THIS NEW SESSIONS ROUTE
 app.use("/api/v1/session", sessionRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
