@@ -3,158 +3,145 @@ import Note from '../MODELS/note.model.js';
 import User from '../MODELS/user.model.js';
 import Apperror from "../UTIL/error.util.js";
 // Advanced Search Controller
-export const searchNotes = async (req, res, next) => {
-    try {
-        const { 
-            query = '', 
-            subject = '', 
-            semester = '', 
-            category = '', 
-            university = 'AKTU', 
-            course = 'BTECH',
-            sortBy = 'relevance',
-            page = 1,
-            limit = 12,
-            minRating = 0,
-            minDownloads = 0
-        } = req.query;
-
-        // Build search query
-        const searchConditions = [];
-
-        // Text search
-        if (query.trim()) {
-            searchConditions.push({
-                $or: [
-                    { title: { $regex: query, $options: 'i' } },
-                    { description: { $regex: query, $options: 'i' } },
-                    { subject: { $regex: query, $options: 'i' } }
-                ]
-            });
-        }
-
-        // Filter conditions
-        if (subject) searchConditions.push({ subject: { $regex: subject, $options: 'i' } });
-        if (semester) searchConditions.push({ semester: parseInt(semester) });
-        if (category) searchConditions.push({ category });
-        if (university) searchConditions.push({ university });
-        if (course) searchConditions.push({ course });
-        if (minDownloads > 0) searchConditions.push({ downloads: { $gte: parseInt(minDownloads) } });
-
-        const searchQuery = searchConditions.length > 0 ? { $and: searchConditions } : {};
-
-        // Sort options
-        let sortOptions = {};
-        switch (sortBy) {
-            case 'newest':
-                sortOptions = { createdAt: -1 };
-                break;
-            case 'oldest':
-                sortOptions = { createdAt: 1 };
-                break;
-            case 'popular':
-                sortOptions = { downloads: -1 };
-                break;
-            case 'rating':
-                // Sort by average rating (calculated in aggregation)
-                break;
-            case 'alphabetical':
-                sortOptions = { title: 1 };
-                break;
-            default:
-                sortOptions = { createdAt: -1 };
-        }
-
-        let notesQuery;
-
-        if (sortBy === 'rating' || minRating > 0) {
-            // Use aggregation for rating-based queries
-            const aggregationPipeline = [
-                { $match: searchQuery },
-                {
-                    $addFields: {
-                        avgRating: {
-                            $cond: [
-                                { $gt: [{ $size: '$rating' }, 0] },
-                                { $avg: '$rating.rating' },
-                                0
-                            ]
-                        },
-                        ratingCount: { $size: '$rating' }
-                    }
-                }
-            ];
-
-            if (minRating > 0) {
-                aggregationPipeline.push({ $match: { avgRating: { $gte: parseFloat(minRating) } } });
-            }
-
-            if (sortBy === 'rating') {
-                aggregationPipeline.push({ $sort: { avgRating: -1, ratingCount: -1 } });
-            } else {
-                aggregationPipeline.push({ $sort: sortOptions });
-            }
-
-            aggregationPipeline.push(
-                { $skip: (parseInt(page) - 1) * parseInt(limit) },
-                { $limit: parseInt(limit) },
-                {
-                    $lookup: {
-                        from: 'users',
-                        localField: 'uploadedBy',
-                        foreignField: '_id',
-                        as: 'uploadedBy'
-                    }
-                },
-                { $unwind: '$uploadedBy' }
-            );
-
-            notesQuery = Note.aggregate(aggregationPipeline);
-        } else {
-            // Regular query for other sort options
-            notesQuery = Note.find(searchQuery)
-                .populate('uploadedBy', 'fullName avatar')
-                .sort(sortOptions)
-                .skip((parseInt(page) - 1) * parseInt(limit))
-                .limit(parseInt(limit));
-        }
-
-        const notes = await notesQuery;
-        const totalNotes = await Note.countDocuments(searchQuery);
-
-        // Get search suggestions (popular subjects)
-        const popularSubjects = await Note.aggregate([
-            { $group: { _id: '$subject', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 10 }
-        ]);
-
-        res.status(200).json({
-            success: true,
-            message: 'Search results retrieved successfully',
-            data: {
-                notes,
-                pagination: {
-                    currentPage: parseInt(page),
-                    totalPages: Math.ceil(totalNotes / parseInt(limit)),
-                    totalNotes,
-                    hasNext: parseInt(page) < Math.ceil(totalNotes / parseInt(limit)),
-                    hasPrev: parseInt(page) > 1
-                },
-                filters: { 
-                    query, subject, semester, category, university, course, 
-                    sortBy, minRating: parseFloat(minRating), minDownloads: parseInt(minDownloads) 
-                },
-                suggestions: {
-                    popularSubjects: popularSubjects.map(s => s._id)
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Search error:', error);
-        return next(new Apperror('Failed to search notes', 500));
-    }
+// controllers/search.controller.js
+const ALIAS_MAP = {
+  ds: ["data structure", "data structures"],
+  dsa: ["data structure", "data structures"],
+  dbm: ["dbms"],
+  dbms: ["database", "database management"],
+  coa: ["computer organization"],
+  cn: ["computer network", "computer networks"],
+  os: ["operating system", "operating systems"]
 };
+
+export const searchNotes = async (req, res, next) => {
+  try {
+    const { query = "", semester, page = 1, limit = 50 } = req.query;
+
+    /* ---------------- NORMALIZE QUERY ---------------- */
+    const normalized = query.toLowerCase().trim().replace(/\s+/g, " ");
+    const tokens = normalized.split(" ");
+
+    let detectedUnit = null;
+    let detectedCategory = null;
+
+    let isNotesIntent = false;
+    let isHandwrittenIntent = false;
+
+    /* ---------------- CATEGORY MAP (STRICT ONLY) ---------------- */
+    const CATEGORY_MAP = {
+      pyq: "PYQ",
+      pyqs: "PYQ",
+      important: "Important Question",
+      imp: "Important Question",
+      video: "Video"
+    };
+
+    /* ---------------- TOKEN PARSING ---------------- */
+    tokens.forEach(t => {
+      const unitMatch = t.match(/^unit[-\s]?(\d+)$/);
+      if (unitMatch) detectedUnit = Number(unitMatch[1]);
+
+      if (CATEGORY_MAP[t]) detectedCategory = CATEGORY_MAP[t];
+
+      if (t === "notes") isNotesIntent = true;
+      if (t === "handwritten") isHandwrittenIntent = true;
+    });
+
+    /* ---------------- SUBJECT TOKENS ---------------- */
+    let subjectTokens = tokens.filter(
+  t =>
+    !t.startsWith("unit") &&
+    !CATEGORY_MAP[t] &&
+    t !== "notes" &&
+    t !== "handwritten"
+);
+
+// 🔥 Expand aliases (ds → data structure)
+subjectTokens = subjectTokens.flatMap(t => {
+  if (ALIAS_MAP[t]) return [t, ...ALIAS_MAP[t]];
+  return [t];
+});
+
+    /* ---------------- BASE FILTERS ---------------- */
+    const filters = {
+      university: "AKTU",
+      course: "BTECH"
+    };
+
+    if (semester) {
+      filters.semester = { $in: [Number(semester)] };
+    }
+
+    if (detectedUnit !== null) {
+      filters.unit = detectedUnit;
+    }
+
+    /* ---------------- CATEGORY FILTER (STRICT ONLY) ---------------- */
+    if (
+      detectedCategory &&
+      ["PYQ", "Important Question", "Video"].includes(detectedCategory)
+    ) {
+      filters.category = detectedCategory;
+    }
+    // ❗ Notes & Handwritten never filtered here
+
+    /* ---------------- SAFE SUBJECT SEARCH (🔥 FIX) ---------------- */
+    if (subjectTokens.length) {
+  filters.$and = subjectTokens.map(t => {
+    const safeToken = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // 🔥 Typo-tolerant regex (substring match)
+    const looseRegex = new RegExp(safeToken.slice(0, 4), "i");
+
+    return {
+      $or: [
+        { subject: looseRegex },
+        { title: looseRegex }
+      ]
+    };
+  });
+}
+
+
+    /* ---------------- QUERY DB ---------------- */
+    const notes = await Note.find(filters)
+      .populate("uploadedBy", "fullName avatar")
+      .sort({
+        recommended: -1,
+        recommendedRank: 1,
+        downloads: -1,
+        views: -1,
+        createdAt: -1
+      })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    const totalNotes = await Note.countDocuments(filters);
+
+    /* ---------------- RESPONSE ---------------- */
+    res.status(200).json({
+      success: true,
+      data: {
+        notes,
+        pagination: {
+          currentPage: Number(page),
+          totalPages: Math.ceil(totalNotes / limit),
+          totalNotes
+        },
+        intent: {
+          isNotesIntent,
+          isHandwrittenIntent,
+          detectedCategory
+        }
+      }
+    });
+  } catch (err) {
+    console.error("❌ searchNotes error:", err);
+    next(err);
+  }
+};
+
 
 // Trending Notes
 export const getTrendingNotes = async (req, res, next) => {
