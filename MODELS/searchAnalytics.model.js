@@ -69,6 +69,7 @@ searchAnalyticsSchema.index({ rawQuery: 1 });
 searchAnalyticsSchema.index({ normalizedQuery: 1 });
 searchAnalyticsSchema.index({ isFailedSearch: 1 });
 searchAnalyticsSchema.index({ createdAt: -1 });
+searchAnalyticsSchema.index({ userId: 1, createdAt: -1 });
 
 export default model("SearchAnalytics", searchAnalyticsSchema);
 

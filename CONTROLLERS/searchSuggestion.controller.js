@@ -11,82 +11,57 @@ export const getSearchSuggestions = async (req, res) => {
   try {
     const rawQuery = (req.query.q || "").toLowerCase().trim();
 
-    // 🛑 Guard: too short / empty
-    if (!rawQuery || rawQuery.length < 2) {
-      return res.status(200).json({
-        success: true,
-        suggestions: []
-      });
+    if (!rawQuery || rawQuery.length < 1) {
+      return res.json({ success: true, suggestions: [] });
     }
 
     const suggestionsSet = new Set();
 
-    /* -------------------------------------------------
-       1️⃣ TYPO / CORRECTION MATCH
-       ------------------------------------------------- */
-
-    const correction = await SearchCorrection.findOne({
-      wrongQuery: rawQuery,
+    /* 1️⃣ CORRECTIONS (PARTIAL) */
+    const corrections = await SearchCorrection.find({
+      wrongQuery: { $regex: `^${rawQuery}`, $options: "i" },
       isActive: true
     }).lean();
 
-    if (correction) {
-      suggestionsSet.add(correction.correctQuery);
-    }
+    corrections.forEach(c =>
+      suggestionsSet.add(c.correctQuery)
+    );
 
-    /* -------------------------------------------------
-       2️⃣ SYNONYM EXPANSION
-       ------------------------------------------------- */
-
-    const synonym = await SearchSynonym.findOne({
-      keyword: rawQuery,
+    /* 2️⃣ SYNONYMS (PARTIAL) */
+    const synonyms = await SearchSynonym.find({
+      keyword: { $regex: `^${rawQuery}`, $options: "i" },
       isActive: true
     }).lean();
 
-    if (synonym?.expandsTo?.length) {
-      synonym.expandsTo.forEach(q => suggestionsSet.add(q));
-    }
+    synonyms.forEach(s =>
+      s.expandsTo.forEach(e => suggestionsSet.add(e))
+    );
 
-    /* -------------------------------------------------
-       3️⃣ PARTIAL / TOKEN-LEVEL HELP (lightweight)
-       ------------------------------------------------- */
-
+    /* 3️⃣ TOKEN LEVEL */
     const tokens = rawQuery.split(" ");
+    const lastToken = tokens[tokens.length - 1];
 
-    if (tokens.length > 1) {
-      const lastToken = tokens[tokens.length - 1];
-
-      // Try synonym on last token (e.g. "ds notes")
-      const tokenSynonym = await SearchSynonym.findOne({
-        keyword: lastToken,
+    if (lastToken.length > 1) {
+      const tokenSynonyms = await SearchSynonym.find({
+        keyword: { $regex: `^${lastToken}`, $options: "i" },
         isActive: true
       }).lean();
 
-      if (tokenSynonym?.expandsTo?.length) {
-        tokenSynonym.expandsTo.forEach(expanded => {
+      tokenSynonyms.forEach(s =>
+        s.expandsTo.forEach(expanded => {
           const rebuilt = [...tokens.slice(0, -1), expanded].join(" ");
           suggestionsSet.add(rebuilt);
-        });
-      }
+        })
+      );
     }
 
-    /* -------------------------------------------------
-       4️⃣ FINAL RESPONSE
-       ------------------------------------------------- */
-
-    const suggestions = Array.from(suggestionsSet).slice(0, 5);
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      suggestions
+      suggestions: Array.from(suggestionsSet).slice(0, 5)
     });
-  } catch (error) {
-    console.error("❌ search suggestions error:", error.message);
-
-    // Fail silently (UX > analytics)
-    return res.status(200).json({
-      success: true,
-      suggestions: []
-    });
+  } catch (err) {
+    console.error(err);
+    return res.json({ success: true, suggestions: [] });
   }
 };
+
