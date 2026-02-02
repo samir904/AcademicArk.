@@ -37,6 +37,9 @@ import searchSuggestionRoutes from "./ROUTES/searchSuggestion.routes.js";
 import searchAdminAnalyticsRoutes from "./ROUTES/searchAdminAnalytics.routes.js";
 import failedSearchRoutes from './ROUTES/failedSearchAction.routes.js'
 import searchAdminManageRoutes from './ROUTES/searchAdminManage.routes.js'
+import planRoutes from "./ROUTES/plan.routes.js";
+import paymentRoutes from "./ROUTES/payment.routes.js";
+
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
 
@@ -159,14 +162,19 @@ app.use('/api/v1/query-metrics', queryMetricsRoutes);
 app.use('/api/v1/db', mongoDbHealthRoutes);
 app.use('/api/v1/cache', redisHealthRoutes);
 app.use('/api/v1/leaderboards', leaderboardRoutes);
- app.use("/api/v1/videos", videoLectureRoute);
- app.use("/api/v1/planner", plannerRoutes);
+app.use("/api/v1/videos", videoLectureRoute);
+app.use("/api/v1/planner", plannerRoutes);
 app.use("/api/v1/saved-filters", savedFilterRoutes);
 app.use("/api/v1/search/analytics", searchAnalyticsRoutes);
 app.use("/api/v1/search/suggestions", searchSuggestionRoutes);
 app.use("/api/v1/search/admin", searchAdminAnalyticsRoutes);
 app.use('/api/v1/search/failed',failedSearchRoutes);
 app.use("/api/v1/search/admin/manage", searchAdminManageRoutes);
+
+// 💳 Plans & Payments (Soft Paywall)
+app.use("/api/v1/plans", planRoutes);
+app.use("/api/v1/payments", paymentRoutes);
+
 
  // ✨ ADD THIS NEW SESSIONS ROUTE
 app.use("/api/v1/session", sessionRoutes);

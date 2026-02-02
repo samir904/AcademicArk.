@@ -9,7 +9,8 @@ import { changePassword,
     getCollegeList,
     approveCustomCollege,
     getAcademicAnalytics, forgotPassword, getMyAnalytics, getMyBookmarks, getMyNotes, getProfile, getPublicProfile, login, logout, register, resetPassword, toggleProfileVisibility, updateProfile, updateSocialLinks, 
-    incrementSemesterOnce} from "../CONTROLLERS/user.controller.js";
+    incrementSemesterOnce,
+    getDownloadQuota} from "../CONTROLLERS/user.controller.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 
@@ -91,6 +92,12 @@ router.post(
   asyncWrap(authorizedRoles("ADMIN")),
   asyncWrap(incrementSemesterOnce)
 );
+
+router.get(
+    "/download-quota",
+    optionalAuth,
+    asyncWrap(getDownloadQuota)
+)
 
 
 export default router;

@@ -224,7 +224,51 @@ const userSchema = new Schema({
             type: Boolean,
             default: true
         }
+    },
+    // ✨ ACCESS CONTROL (Soft Paywall + Daily Limit)
+
+    access: {
+        plan: {
+            type: Schema.Types.ObjectId,
+            ref: "Plan",
+            default: null
+        },
+
+        startsAt: {
+            type: Date,
+            default: null
+        },
+
+        expiresAt: {
+            type: Date,
+            default: null
+        },
+
+        paymentId: {
+            type: Schema.Types.ObjectId,
+            ref: "Payment",
+            default: null
+        },
+
+        // 🟡 Soft daily download limit
+        dailyDownloadLimit: {
+            type: Number,
+            default: 3
+        },
+
+        downloadsToday: {
+            type: Number,
+            default: 0
+        },
+
+        lastDownloadDate: {
+            type: Date,
+            default: null
+        }
     }
+
+
+
 
 }, {
     timestamps: true

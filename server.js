@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import Note from './MODELS/note.model.js';  // ✅ ADD THIS IMPORT
 
 dotenv.config({ path: ['.env.local', '.env'] });
-
+import "./CONFIG/cashfree.js";
 import './CONFIG/passport.js';
 import app from "./app.js";
 import dbConnection from "./CONFIG/db.config.js";

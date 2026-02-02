@@ -949,6 +949,7 @@ export const downloadNote = async (req, res, next) => {
                 resourceId: id,
                 resourceType: "NOTE",
                 downloadSize: fileResponse.data.length,
+                planType: req.user?.access?.plan || "FREE",
                 ipAddress: req.ip,
                 userAgent: req.get('user-agent'),
                 sessionId: req.sessionID

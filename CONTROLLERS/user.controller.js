@@ -938,3 +938,37 @@ export const incrementSemesterOnce = asyncWrap(async (req, res, next) => {
   });
 });
 
+export const getDownloadQuota = async (req, res) => {
+  const user = await User.findById(req.user.id);
+
+  if (!user || !user.access) {
+    return res.json({
+      success: true,
+      dailyLimit: 3,
+      downloadsToday: 0,
+      remaining: 3
+    });
+  }
+
+  const now = new Date();
+  const access = user.access;
+
+  // reset logic
+  if (
+    !access.lastDownloadDate ||
+    new Date(access.lastDownloadDate).toDateString() !== now.toDateString()
+  ) {
+    access.downloadsToday = 0;
+  }
+
+  return res.json({
+    success: true,
+    dailyLimit: access.dailyDownloadLimit,
+    downloadsToday: access.downloadsToday,
+    remaining: Math.max(
+      access.dailyDownloadLimit - access.downloadsToday,
+      0
+    ),
+    resetAt: access.resetAt || null
+  });
+};

@@ -39,10 +39,10 @@ const userActivitySchema = new Schema({
         ref: "Note",
         default: null
     },
-    
+
     resourceType: {
         type: String,
-        enum: ["NOTE", "PYQ", "QUESTION", "HANDWRITTEN", "USER_PROFILE","VIDEO"],
+        enum: ["NOTE", "PYQ", "QUESTION", "HANDWRITTEN", "USER_PROFILE", "VIDEO"],
         default: null
     },
     // ✨ NEW: Track subject for personalization
@@ -67,11 +67,16 @@ const userActivitySchema = new Schema({
             enum: ["MOBILE", "TABLET", "DESKTOP"],
             default: "DESKTOP"
         },
-        
+        planType: {
+            type: String,
+            enum: ["SEMESTER_SUPPORT", "EXAM_BOOST", "FREE"],
+            default: "FREE"
+        },
+
         // For view/download activities
         viewDuration: Number,      // seconds spent
         downloadSize: Number,      // bytes
-        
+
         // For rating/review activities
         ratingValue: {
             type: Number,

@@ -6,6 +6,7 @@ import upload from "../MIDDLEWARES/multer.middleware.js";
 import { cacheNotes, cacheSemesterPreview } from "../MIDDLEWARES/cache.middleware.js";
 import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, addSem6ToFifthSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
 import { decideNotesMode } from "../MIDDLEWARES/decideNotesMode.js";
+import { canUserDownload } from "../MIDDLEWARES/canUserDownload.js";
 
 const router= Router();
 
@@ -76,6 +77,7 @@ router.route("/:id/bookmark")
 )
 router.get("/:id/download",
     asyncWrap(isLoggedIn),
+    // asyncWrap(canUserDownload),
     asyncWrap(downloadNote)
 )
 
