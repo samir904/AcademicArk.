@@ -67,15 +67,15 @@ export const createCashfreeOrder = async (req, res) => {
 export const cashfreeWebhook = async (req, res) => {
   try {
     console.log("🔥 CASHFREE WEBHOOK HIT");
-    console.log(JSON.stringify(req.body, null, 2));
+    // console.log(JSON.stringify(req.body, null, 2));
 
     const payload = req.body;
     const eventType = payload.type;
-console.log("📨 EVENT TYPE:", eventType);
+// console.log("📨 EVENT TYPE:", eventType);
 
     // ✅ Ignore test webhooks safely
     if (!payload?.data?.order || !payload?.data?.payment) {
-      console.log("ℹ️ Test webhook received, skipping");
+    //   console.log("ℹ️ Test webhook received, skipping");
       return res.sendStatus(200);
     }
 

@@ -77,7 +77,7 @@ router.route("/:id/bookmark")
 )
 router.get("/:id/download",
     asyncWrap(isLoggedIn),
-    // asyncWrap(canUserDownload),
+     asyncWrap(canUserDownload),
     asyncWrap(downloadNote)
 )
 
