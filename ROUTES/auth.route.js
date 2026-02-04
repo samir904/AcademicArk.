@@ -129,7 +129,7 @@ router.get("/google/callback",
                     fullName: req.user.fullName
                 },
                 process.env.JWT_SECRET,
-                { expiresIn: '7d' }
+                { expiresIn: '30d' }
             );
 
             // console.log('🔑 JWT token created');
