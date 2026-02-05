@@ -14,6 +14,8 @@ import { addDownloadWatermarkToPDF } from "../UTIL/downloadWatermark.util.js";
 import { markStudyActivity } from "../UTIL/updateStudyActivity.js";
 import { extractUnitFromTitle } from "../UTIL/unitExtractor.js";
 import VideoLecture from "../MODELS/videoLecture.model.js";
+import { generatePreviewFromUrl } from "../UTIL/generatePreviewFromUrl.js";
+import { uploadPdfBuffer } from "../UTIL/uploadPdfBuffer.js";
 
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
@@ -90,11 +92,11 @@ export const registerNote = async (req, res, next) => {
     })
 }
 export const getNotesController = async (req, res, next) => {
-  if (req._notesMode === "SEMESTER_PREVIEW") {
-    return getSemesterPreviewNotes(req, res, next);
-  }
+    if (req._notesMode === "SEMESTER_PREVIEW") {
+        return getSemesterPreviewNotes(req, res, next);
+    }
 
-  return getAllNotes(req, res, next);
+    return getAllNotes(req, res, next);
 };
 export const getAllNotes = async (req, res) => {
     try {
@@ -264,77 +266,77 @@ export const getAllNotes = async (req, res) => {
 };
 
 export const getSemesterPreviewNotes = async (req, res) => {
-  try {
-    const semester = Number(req.query.semester);
-    if (!semester) {
-      return res.status(400).json({
-        success: false,
-        message: "Semester is required"
-      });
-    }
-
-    const limit = 30;
-    const cursor = req.query.cursor
-      ? JSON.parse(decodeURIComponent(req.query.cursor))
-      : null;
-
-    const filters = {
-      semester: { $in: [semester] }
-    };
-
-    if (cursor) {
-      filters.$or = [
-        { createdAt: { $lt: new Date(cursor.createdAt) } },
-        {
-          createdAt: new Date(cursor.createdAt),
-          _id: { $lt: new mongoose.Types.ObjectId(cursor._id) }
+    try {
+        const semester = Number(req.query.semester);
+        if (!semester) {
+            return res.status(400).json({
+                success: false,
+                message: "Semester is required"
+            });
         }
-      ];
+
+        const limit = 30;
+        const cursor = req.query.cursor
+            ? JSON.parse(decodeURIComponent(req.query.cursor))
+            : null;
+
+        const filters = {
+            semester: { $in: [semester] }
+        };
+
+        if (cursor) {
+            filters.$or = [
+                { createdAt: { $lt: new Date(cursor.createdAt) } },
+                {
+                    createdAt: new Date(cursor.createdAt),
+                    _id: { $lt: new mongoose.Types.ObjectId(cursor._id) }
+                }
+            ];
+        }
+
+        const notes = await Note.find(filters)
+            .sort({
+                recommended: -1,
+                recommendedRank: 1,
+                downloads: -1,
+                views: -1,
+                createdAt: -1,
+                _id: -1
+            })
+            .limit(limit + 1)
+            .populate("uploadedBy", "fullName avatar");
+
+        const hasMore = notes.length > limit;
+        const sliced = hasMore ? notes.slice(0, limit) : notes;
+
+        const last = sliced[sliced.length - 1];
+
+        const nextCursor = last
+            ? encodeURIComponent(
+                JSON.stringify({
+                    createdAt: last.createdAt,
+                    _id: last._id
+                })
+            )
+            : null;
+
+        res.status(200).json({
+            success: true,
+            mode: "SEMESTER_PREVIEW",
+            data: {
+                notes: sliced,
+                nextCursor,
+                hasMore
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ getSemesterPreviewNotes error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch semester preview"
+        });
     }
-
-    const notes = await Note.find(filters)
-      .sort({
-        recommended: -1,
-        recommendedRank: 1,
-        downloads: -1,
-        views: -1,
-        createdAt: -1,
-        _id: -1
-      })
-      .limit(limit + 1)
-      .populate("uploadedBy", "fullName avatar");
-
-    const hasMore = notes.length > limit;
-    const sliced = hasMore ? notes.slice(0, limit) : notes;
-
-    const last = sliced[sliced.length - 1];
-
-    const nextCursor = last
-      ? encodeURIComponent(
-          JSON.stringify({
-            createdAt: last.createdAt,
-            _id: last._id
-          })
-        )
-      : null;
-
-    res.status(200).json({
-      success: true,
-      mode: "SEMESTER_PREVIEW",
-      data:{
-        notes:sliced,
-        nextCursor,
-        hasMore
-      }
-    });
-
-  } catch (error) {
-    console.error("❌ getSemesterPreviewNotes error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch semester preview"
-    });
-  }
 };
 
 
@@ -448,16 +450,9 @@ export const getAllNoteStats = async (req, res) => {
         });
     }
 };
-
-
 export const getNote = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user?.id;
-
-    // console.log('\n========== getNote START ==========');
-    // console.log('📍 noteId:', id);
-    // console.log('👤 userId:', userId);
-    // console.log('👤 userId type:', typeof userId);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400));
@@ -473,81 +468,192 @@ export const getNote = async (req, res, next) => {
                     select: "fullName avatar"
                 }
             })
-            // ✅ ADD THIS populate
-            // .populate({
-            //     path: "viewedBy",
-            //     select: "fullName avatar.secure_url role academicProfile email"
-            // })
-
-            .select('+views +downloads +viewedBy');  // ✅ ADD viewedBy
+            .select(
+                "+views +downloads +viewedBy +isLocked +previewPages +previewFile"
+            );
 
         if (!note) {
-            return next(new Apperror("Note not found please try again", 404));
+            return next(new Apperror("Note not found", 404));
         }
 
-        // console.log('\n📊 BEFORE INCREMENT:');
-        // console.log('  views:', note.views);
-        // console.log('  viewedBy array:', note.viewedBy);
-        // console.log('  viewedBy length:', note.viewedBy?.length || 0);
-
+        /* ---------------------------
+           🔍 VIEW COUNT (UNCHANGED)
+        ---------------------------- */
         if (userId) {
             const userObjectId = new mongoose.Types.ObjectId(userId);
-            // console.log('\n🔄 COMPARING:');
-            // console.log('  userId (string):', userId);
-            // console.log('  userObjectId:', userObjectId);
-
-            const alreadyViewed = note.viewedBy.some(viewerId => {
-                const matches = viewerId.equals(userObjectId);
-                // console.log(`  checking ${viewerId} === ${userObjectId}? ${matches}`);
-                return matches;
-            });
-
-            // console.log('\n✅ alreadyViewed:', alreadyViewed);
+            const alreadyViewed = note.viewedBy.some(v => v.equals(userObjectId));
 
             if (!alreadyViewed) {
                 note.views += 1;
                 note.viewedBy.push(userObjectId);
-                const savedNote = await note.save();
-
-                // console.log('\n✅ AFTER SAVE:');
-                // console.log('  new views:', savedNote.views);
-                // console.log('  new viewedBy:', savedNote.viewedBy);
-            } else {
-                // console.log('⏭️  Skipping increment - already viewed');
+                await note.save();
             }
-        } else {
-            // console.log('⚠️  No userId - Anonymous user');
         }
 
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.set('Pragma', 'no-cache');
-        res.set('Expires', '0');
+        /* ---------------------------
+           🔒 ACCESS DECISION
+        ---------------------------- */
+        /* ---------------------------
+    🔒 ACCESS DECISION (FIXED)
+ ---------------------------- */
+        let dbUser = null;
 
+        if (userId) {
+            dbUser = await User.findById(userId).select("access");
+        }
+
+        const isSupporter =
+            dbUser?.access?.expiresAt &&
+            new Date(dbUser.access.expiresAt) > new Date();
+
+        let pdfUrl = note.fileDetails.secure_url;
+        let mode = "FULL";
+        let maxPages = null;
+        let allowDownload = true;
+
+        // 🔒 LOCKED + FREE USER
+        if (note.isLocked && !isSupporter) {
+            mode = "PREVIEW";
+            maxPages = note.previewPages || 8;
+            allowDownload = false;
+
+            // 🔥 LAZY PREVIEW GENERATION
+            if (!note.previewFile?.secure_url) {
+                try {
+                    const previewBuffer = await generatePreviewFromUrl(
+                        note.fileDetails.secure_url,
+                        maxPages
+                    );
+
+                    const previewUpload = await uploadPdfBuffer(previewBuffer, {
+                        folder: "AcademicArk/previews",
+                        public_id: `preview_${note._id}`,
+                    });
+
+                    note.previewFile = {
+                        public_id: previewUpload.public_id,
+                        secure_url: previewUpload.secure_url
+                    };
+
+                    await note.save();
+                } catch (err) {
+                    console.error("❌ Preview generation failed:", err);
+                    return next(
+                        new Apperror("Preview not available at the moment", 500)
+                    );
+                }
+            }
+
+            // 🔐 SERVE PREVIEW PDF
+            pdfUrl = note.previewFile.secure_url;
+        }
+
+        /* ---------------------------
+           📊 ACTIVITY LOGGING
+        ---------------------------- */
         if (userId) {
             await logUserActivity(userId, "NOTE_VIEWED", {
                 resourceId: id,
                 resourceType: "NOTE",
                 ipAddress: req.ip,
-                userAgent: req.get('user-agent'),
+                userAgent: req.get("user-agent"),
                 sessionId: req.sessionID
             });
         }
 
-        // console.log('\n📤 SENDING RESPONSE:');
-        // console.log('  views in response:', note.views);
-        // console.log('========== getNote END ==========\n');
         await markStudyActivity(userId);
+
+        /* ---------------------------
+           📤 FINAL RESPONSE
+        ---------------------------- */
         res.status(200).json({
             success: true,
-            message: "note fetched successfully",
-            data: note
+            message: "Note fetched successfully",
+            data: {
+                ...note.toObject(),
+                pdfAccess: {
+                    pdfUrl,
+                    mode,        // PREVIEW | FULL
+                    maxPages,    // number | null
+                    allowDownload
+                }
+            }
         });
 
     } catch (error) {
-        console.error('❌ getNote error:', error);
-        next(new Apperror("Failed to fetch note: " + error.message, 500));
+        console.error("❌ getNote error:", error);
+        next(new Apperror("Failed to fetch note", 500));
     }
 };
+
+
+// 🔒 Toggle note lock (Admin only)
+export const toggleLockNote = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { isLocked, previewPages } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next(new Apperror("Invalid note ID", 400));
+        }
+
+        // Validation
+        if (typeof isLocked !== "boolean") {
+            return next(new Apperror("isLocked must be boolean", 400));
+        }
+
+        if (isLocked && previewPages !== undefined) {
+            if (typeof previewPages !== "number" || previewPages < 1 || previewPages > 30) {
+                return next(
+                    new Apperror("previewPages must be a number between 1 and 30", 400)
+                );
+            }
+        }
+
+        const updates = {
+            isLocked,
+            ...(isLocked && previewPages ? { previewPages } : {})
+        };
+
+        // If unlocking → reset previewPages to default (optional but clean)
+        if (!isLocked) {
+            updates.previewPages = 8;
+        }
+
+        const note = await Note.findByIdAndUpdate(
+            id,
+            updates,
+            { new: true, runValidators: true }
+        ).populate("uploadedBy", "fullName avatar.secure_url");
+
+        if (!note) {
+            return next(new Apperror("Note not found", 404));
+        }
+
+        // 🧹 Clear cache
+        await redisClient.del(`notes:${JSON.stringify({})}`);
+
+        res.status(200).json({
+            success: true,
+            message: isLocked
+                ? "Note locked successfully"
+                : "Note unlocked successfully",
+            data: {
+                id: note._id,
+                title: note.title,
+                isLocked: note.isLocked,
+                previewPages: note.previewPages
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ toggleLockNote error:", error);
+        return next(
+            new Apperror(error.message || "Failed to toggle note lock", 500)
+        );
+    }
+};
+
 
 // ✅ OPTIMIZED: Get all notes without viewer data
 

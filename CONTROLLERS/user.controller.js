@@ -184,20 +184,31 @@ export const logout = async (req, res, next) => {
 //     }
 // };
 
-
 export const getProfile = async (req, res, next) => {
-    const userid=req.user.id;
-    const user=await User.findById(userid);
-    if(!user){
-        return next(new Apperror("operation failed please try again!"))
-    }
-    res.status(200).json({
-        success:true,
-        message:'Your details',
-        data:user
-    })
+  try {
+    const userId = req.user.id;
 
-}
+    const user = await User.findById(userId)
+      .select("-password -forgotPasswordToken -forgotPasswordExpiry")
+      .populate({
+        path: "access.plan",
+        select: "name code price validityDays dailyDownloadLimit"
+      });
+
+    if (!user) {
+      return next(new Apperror("Operation failed, please try again", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Your details",
+      data: user
+    });
+  } catch (error) {
+    next(new Apperror("Failed to fetch profile", 500));
+  }
+};
+
 
 
 export const forgotPassword = async (req, res, next) => {

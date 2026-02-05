@@ -1,7 +1,7 @@
 import { Router } from "express";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
-import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getAllNoteStats, getNote, getNotesController, getNoteViewers, getRecommendedNotes, getSemesterPreviewNotes, incrementViewCount, registerNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
+import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getAllNoteStats, getNote, getNotesController, getNoteViewers, getRecommendedNotes, getSemesterPreviewNotes, incrementViewCount, registerNote, toggleLockNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 import { cacheNotes, cacheSemesterPreview } from "../MIDDLEWARES/cache.middleware.js";
 import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, addSem6ToFifthSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
@@ -95,6 +95,15 @@ router.route("/admin/recommendations")
     asyncWrap(authorizedRoles("ADMIN")),
     asyncWrap(getRecommendedNotes)
   );
+
+  // 🔒 Admin: Lock / Unlock Note
+router.route("/admin/lock/:id")
+  .patch(
+    asyncWrap(isLoggedIn),
+    asyncWrap(authorizedRoles("ADMIN")),
+    asyncWrap(toggleLockNote)
+  );
+
 
 // Optional: Get all notes for admin dashboard
 // router.route("/admin/all")

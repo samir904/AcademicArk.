@@ -66,6 +66,10 @@ const noteSchema = new Schema({
             required: true
         }
     },
+    previewFile: {
+        public_id: String,
+        secure_url: String
+    },
     category: {
         type: String,
         enum: ["Notes", "Important Question", "PYQ", "Handwritten Notes"],
@@ -118,18 +122,32 @@ const noteSchema = new Schema({
     bookmarkedBy: [{
         type: Schema.Types.ObjectId,
         ref: "User"
-    }]
+    }],
+    // 🔒 Premium Lock System
+    isLocked: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+
+    previewPages: {
+        type: Number,
+        default: 8,
+        min: 1,
+        max: 30
+    },
+
 }, {
     timestamps: true
 })
 
 // Compound Index for optimized recommended notes sorting
 noteSchema.index({
-  recommended: -1,
-  recommendedRank: 1,
-  downloads: -1,
-  views: -1,
-  createdAt: -1
+    recommended: -1,
+    recommendedRank: 1,
+    downloads: -1,
+    views: -1,
+    createdAt: -1
 });
 // Indexes for performance
 noteSchema.index({ subject: 1, semester: 1 });
