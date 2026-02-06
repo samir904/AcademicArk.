@@ -146,6 +146,12 @@ const userSessionSchema = new Schema({
                     "PROFILE",
                     "LEADERBOARD",
                     "VIDEOS",
+                    "ADMIN",
+                    "DOWNLOADS",
+                    "MYSPACE",
+                    "ATTENDANCE",
+                    "PLANNER",
+                    "SUPPORT",
                     "OTHER"
                 ]
             },
