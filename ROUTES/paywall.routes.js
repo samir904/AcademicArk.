@@ -2,6 +2,7 @@ import express from "express";
 import { trackPaywallEvent } from "../CONTROLLERS/paywall.controller.js";
 import { optionalAuth } from '../MIDDLEWARES/auth.middleware.js';
 
+
 const router = express.Router();
 
 /**
