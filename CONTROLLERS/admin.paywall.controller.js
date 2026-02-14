@@ -176,3 +176,59 @@ export const getTopConvertingNotes = async (req, res) => {
     res.status(500).json({ success: false });
   }
 };
+
+export const getMostPaywalledNotes = async (req, res) => {
+  try {
+
+    const data = await PaywallEvent.aggregate([
+      {
+        $match: {
+          eventType: "PAYWALL_SHOWN",
+          noteId: { $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: "$noteId",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 10
+      },
+      {
+        $lookup: {
+          from: "notes",
+          localField: "_id",
+          foreignField: "_id",
+          as: "note"
+        }
+      },
+      {
+        $unwind: "$note"
+      },
+      {
+        $project: {
+          _id: 1,
+          count: 1,
+          title: "$note.title",
+          subject: "$note.subject",
+          semester: "$note.semester",
+          category: "$note.category"
+        }
+      }
+    ]);
+
+    return res.json({
+      success: true,
+      data
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false });
+  }
+};

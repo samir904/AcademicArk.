@@ -3,7 +3,8 @@ import {
   getFunnelOverview,
   getEventBreakdown,
   getUserSegments,
-  getTopConvertingNotes
+  getTopConvertingNotes,
+  getMostPaywalledNotes
 } from "../CONTROLLERS/admin.paywall.controller.js";
 
 const router = express.Router();
@@ -16,5 +17,5 @@ router.get("/overview", getFunnelOverview);
 router.get("/events", getEventBreakdown);
 router.get("/segments", getUserSegments);
 router.get("/top-notes", getTopConvertingNotes);
-
+router.get('/most-paywalled',getMostPaywalledNotes)
 export default router;
