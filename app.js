@@ -39,6 +39,11 @@ import failedSearchRoutes from './ROUTES/failedSearchAction.routes.js'
 import searchAdminManageRoutes from './ROUTES/searchAdminManage.routes.js'
 import planRoutes from "./ROUTES/plan.routes.js";
 import paymentRoutes from "./ROUTES/payment.routes.js";
+import paywallRoutes from './ROUTES/paywall.routes.js'
+import adminPaywallRoutes from './ROUTES/admin.paywall.routes.js'
+
+import sessionV2Routes from './ROUTES/session.v2.routes.js'
+// import analyticsV2Routes from './ROUTES/analytics.v2.routes.js'
 
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
 // import studyPlannerRoutes from './ROUTES/studyPlanner.routes.js';
@@ -179,6 +184,15 @@ app.use("/api/v1/payments", paymentRoutes);
  // ✨ ADD THIS NEW SESSIONS ROUTE
 app.use("/api/v1/session", sessionRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
+
+//session analytics v2
+app.use('/api/v1/sessionV2',sessionV2Routes)
+// app.use('/api/v2/analytics',analyticsV2Routes)
+
+//paywall stats
+app.use("/api/v1/paywall", paywallRoutes);
+app.use("/api/v1/admin/paywall", adminPaywallRoutes);
+
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes
