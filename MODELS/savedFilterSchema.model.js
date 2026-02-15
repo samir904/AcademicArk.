@@ -14,7 +14,7 @@ const savedFilterSchema = new Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 60
+      maxlength: [100, "Filter name must be less than 100 characters"],  // ✅ Increased from 60
     },
 
     // The actual filters snapshot

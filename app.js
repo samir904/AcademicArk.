@@ -41,6 +41,7 @@ import planRoutes from "./ROUTES/plan.routes.js";
 import paymentRoutes from "./ROUTES/payment.routes.js";
 import paywallRoutes from './ROUTES/paywall.routes.js'
 import adminPaywallRoutes from './ROUTES/admin.paywall.routes.js'
+import filterRoute from './ROUTES/filterAnalytics.routes.js'
 
 import sessionV2Routes from './ROUTES/session.v2.routes.js'
 // import analyticsV2Routes from './ROUTES/analytics.v2.routes.js'
@@ -84,7 +85,7 @@ app.use((req, res, next) => {
      origin: process.env.FRONTEND_URL,
      credentials: true,
      methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
-     allowedHeaders: ["Content-Type", "Authorization", "Cache-Control"], //what is the use of authorization her 
+     allowedHeaders: ["Content-Type",'x-session-id', "Authorization", "Cache-Control"], //what is the use of authorization her 
    })
  );
 //  import path from "path";a
@@ -175,6 +176,7 @@ app.use("/api/v1/search/suggestions", searchSuggestionRoutes);
 app.use("/api/v1/search/admin", searchAdminAnalyticsRoutes);
 app.use('/api/v1/search/failed',failedSearchRoutes);
 app.use("/api/v1/search/admin/manage", searchAdminManageRoutes);
+app.use('/api/v1/filter-analytics',filterRoute);
 
 // 💳 Plans & Payments (Soft Paywall)
 app.use("/api/v1/plans", planRoutes);
