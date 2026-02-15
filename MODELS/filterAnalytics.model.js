@@ -164,6 +164,20 @@ filterAnalyticsSchema.index({
   semester: 1,
   createdAt: -1
 });
+// In filterAnalytics.model.js
+
+// ✅ ADD THIS INDEX for session-based queries
+filterAnalyticsSchema.index({
+  sessionId: 1,
+  createdAt: 1
+});
+
+// ✅ ADD THIS INDEX for hour-based aggregations
+filterAnalyticsSchema.index({
+  createdAt: 1,
+  sessionId: 1,
+  userId: 1
+});
 
 const FilterAnalytics = model("FilterAnalytics", filterAnalyticsSchema);
 export default FilterAnalytics;

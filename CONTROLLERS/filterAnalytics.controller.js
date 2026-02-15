@@ -16,12 +16,12 @@ export const trackFilterEvent = async (req, res) => {
     deviceInfo  // ✨ NEW: Accept device info from frontend
   } = req.body;
 
-  console.log('📊 Tracking filter event:', {
-    userId: req.user?._id || req.user?.id || null,
-    sessionId: req.headers["x-session-id"],
-    deviceInfo,  // ✅ Log device info
-    body: req.body
-  });
+  // console.log('📊 Tracking filter event:', {
+  //   userId: req.user?._id || req.user?.id || null,
+  //   sessionId: req.headers["x-session-id"],
+  //   deviceInfo,  // ✅ Log device info
+  //   body: req.body
+  // });
 
   if (!semester) {
     return res.status(400).json({
@@ -59,11 +59,11 @@ export const markDownloadAfterFilter = async (req, res) => {
     const sessionId = req.headers["x-session-id"];
     const { noteId } = req.body;
 
-    console.log('📥 [DOWNLOAD] Mark download request:', {
-      sessionId,
-      noteId,
-      userId: req.user?._id || req.user?.id || null
-    });
+    // console.log('📥 [DOWNLOAD] Mark download request:', {
+    //   sessionId,
+    //   noteId,
+    //   userId: req.user?._id || req.user?.id || null
+    // });
 
     if (!sessionId) {
       console.error('❌ [DOWNLOAD] No session ID provided');
@@ -153,14 +153,14 @@ export const markDownloadAfterFilter = async (req, res) => {
       { new: true }
     );
 
-    console.log('✅ [DOWNLOAD] Marked successfully:', {
-      entryId: result._id,
-      semester: result.semester,
-      subject: result.subject || 'N/A',
-      category: result.category || 'N/A',
-      unit: result.unit || 'N/A',
-      timeToDownload: `${(timeToDownload / 1000).toFixed(2)}s`
-    });
+    // console.log('✅ [DOWNLOAD] Marked successfully:', {
+    //   entryId: result._id,
+    //   semester: result.semester,
+    //   subject: result.subject || 'N/A',
+    //   category: result.category || 'N/A',
+    //   unit: result.unit || 'N/A',
+    //   timeToDownload: `${(timeToDownload / 1000).toFixed(2)}s`
+    // });
 
     return res.json({
       success: true,
@@ -192,7 +192,7 @@ export const trackNoteView = async (req, res) => {
     const sessionId = req.headers["x-session-id"];
     const { noteId } = req.body;
 
-    console.log('👁️ [VIEW] Track request:', { sessionId, noteId });
+    // console.log('👁️ [VIEW] Track request:', { sessionId, noteId });
 
     if (!sessionId) {
       console.warn('⚠️ [VIEW] No session ID');
@@ -254,11 +254,11 @@ export const trackNoteView = async (req, res) => {
       { new: true }
     );
 
-    console.log('✅ [VIEW] Tracked:', {
-      sessionId,
-      noteId,
-      totalViewed: updated.viewedNotes.length
-    });
+    // console.log('✅ [VIEW] Tracked:', {
+    //   sessionId,
+    //   noteId,
+    //   totalViewed: updated.viewedNotes.length
+    // });
 
     return res.json({
       success: true,
@@ -294,13 +294,13 @@ export const checkPresetSuggestion = async (req, res) => {
     category = category && category !== 'undefined' ? category : null;
     unit = unit && unit !== 'undefined' ? unit : null;
 
-    console.log('💡 [PRESET SUGGESTION] Check request (cleaned):', {
-      userId,
-      semester,
-      subject,
-      category,
-      unit
-    });
+    // console.log('💡 [PRESET SUGGESTION] Check request (cleaned):', {
+    //   userId,
+    //   semester,
+    //   subject,
+    //   category,
+    //   unit
+    // });
 
     // ✅ Must have at least semester + subject
     if (!semester || !subject) {
@@ -325,14 +325,14 @@ export const checkPresetSuggestion = async (req, res) => {
     if (category) queryFilter.category = category;
     if (unit) queryFilter.unit = Number(unit);
 
-    console.log('🔍 [PRESET SUGGESTION] Query filter:', queryFilter);
+    // console.log('🔍 [PRESET SUGGESTION] Query filter:', queryFilter);
 
     const frequency = await FilterAnalytics.countDocuments(queryFilter);
 
-    console.log('📊 [PRESET SUGGESTION] Filter frequency:', frequency);
+    // console.log('📊 [PRESET SUGGESTION] Filter frequency:', frequency);
 
     if (frequency < 3) {
-      console.log('⏳ [PRESET SUGGESTION] Not enough usage (need 3+)');
+      // console.log('⏳ [PRESET SUGGESTION] Not enough usage (need 3+)');
       return res.json({
         success: true,
         showSuggestion: false,
@@ -346,7 +346,7 @@ export const checkPresetSuggestion = async (req, res) => {
       userId: userObjectId 
     });
 
-    console.log(`🔍 [PRESET SUGGESTION] Checking ${allUserPresets.length} existing presets`);
+    // console.log(`🔍 [PRESET SUGGESTION] Checking ${allUserPresets.length} existing presets`);
 
     const matchingPreset = allUserPresets.find(preset => {
       const filters = preset.filters;
@@ -371,7 +371,7 @@ export const checkPresetSuggestion = async (req, res) => {
     });
 
     if (matchingPreset) {
-      console.log('✅ [PRESET SUGGESTION] Already saved as preset:', matchingPreset.name);
+      // console.log('✅ [PRESET SUGGESTION] Already saved as preset:', matchingPreset.name);
       return res.json({
         success: true,
         showSuggestion: false,
@@ -380,7 +380,7 @@ export const checkPresetSuggestion = async (req, res) => {
       });
     }
 
-    console.log('🎯 [PRESET SUGGESTION] No matching preset found - Showing suggestion!');
+    // console.log('🎯 [PRESET SUGGESTION] No matching preset found - Showing suggestion!');
     
     return res.json({
       success: true,
@@ -508,12 +508,12 @@ export const getHybridFilters = async (req, res) => {
     
     const userId = req.user?.id || req.user?._id;
 
-    console.log('🎯 [HYBRID] Request:', {
-      userId,
-      querySemester: req.query.semester,
-      userSemester: req.user?.semester,
-      selectedSemester: semester
-    });
+    // console.log('🎯 [HYBRID] Request:', {
+    //   userId,
+    //   querySemester: req.query.semester,
+    //   userSemester: req.user?.semester,
+    //   selectedSemester: semester
+    // });
 
     if (!semester) {
       return res.status(400).json({
@@ -556,7 +556,7 @@ export const getHybridFilters = async (req, res) => {
       { $limit: 3 }
     ]);
 
-    console.log('👤 [HYBRID] Personal top filters:', personalTop.length);
+    // console.log('👤 [HYBRID] Personal top filters:', personalTop.length);
 
     /**
      * 🔹 2. GLOBAL TRENDING (Last 7 days) for SELECTED semester
@@ -598,7 +598,7 @@ export const getHybridFilters = async (req, res) => {
       { $limit: 6 }
     ]);
 
-    console.log('🌍 [HYBRID] Global trending (7 days):', globalTrending.length);
+    // console.log('🌍 [HYBRID] Global trending (7 days):', globalTrending.length);
 
     /**
      * 🔹 3. REMOVE DUPLICATES (exclude personal filters from trending)
@@ -626,7 +626,7 @@ export const getHybridFilters = async (req, res) => {
      * ✨ 4. FALLBACK: If no trending this week, get all-time trending
      */
     if (filteredTrending.length === 0) {
-      console.log('⚠️ [HYBRID] No trending filters this week, fetching all-time...');
+      // console.log('⚠️ [HYBRID] No trending filters this week, fetching all-time...');
       
       const allTimeTrending = await FilterAnalytics.aggregate([
         {
@@ -664,7 +664,7 @@ export const getHybridFilters = async (req, res) => {
         { $limit: 6 }
       ]);
 
-      console.log('📊 [HYBRID] All-time trending found:', allTimeTrending.length);
+      // console.log('📊 [HYBRID] All-time trending found:', allTimeTrending.length);
 
       // Remove duplicates from all-time trending too
       filteredTrending = allTimeTrending.filter(item => {
@@ -678,12 +678,12 @@ export const getHybridFilters = async (req, res) => {
       trendingTimeframe = 'all-time';
     }
 
-    console.log('✅ [HYBRID] Final results:', {
-      semester,
-      recommended: personalTop.length,
-      trending: filteredTrending.length,
-      trendingTimeframe
-    });
+    // console.log('✅ [HYBRID] Final results:', {
+    //   semester,
+    //   recommended: personalTop.length,
+    //   trending: filteredTrending.length,
+    //   trendingTimeframe
+    // });
 
     return res.json({
       success: true,
@@ -824,11 +824,11 @@ export const updateEngagementMetrics = async (req, res) => {
     const sessionId = req.headers["x-session-id"];
     const { scrollDepth, timeOnResults } = req.body;
 
-    console.log('📊 [ENGAGEMENT] Update request:', {
-      sessionId,
-      scrollDepth,
-      timeOnResults
-    });
+    // console.log('📊 [ENGAGEMENT] Update request:', {
+    //   sessionId,
+    //   scrollDepth,
+    //   timeOnResults
+    // });
 
     if (!sessionId) {
       return res.status(400).json({
@@ -862,10 +862,10 @@ export const updateEngagementMetrics = async (req, res) => {
       });
     }
 
-    console.log('✅ [ENGAGEMENT] Updated:', {
-      scrollDepth: updated.engagement.scrollDepth,
-      timeOnResults: updated.engagement.timeOnResults
-    });
+    // console.log('✅ [ENGAGEMENT] Updated:', {
+    //   scrollDepth: updated.engagement.scrollDepth,
+    //   timeOnResults: updated.engagement.timeOnResults
+    // });
 
     return res.json({
       success: true,
@@ -908,7 +908,7 @@ export const markFilterSavedAsPreset = async (req, res) => {
       });
     }
 
-    console.log('💾 [PRESET] Marked as saved:', sessionId);
+    // console.log('💾 [PRESET] Marked as saved:', sessionId);
 
     return res.json({
       success: true,
@@ -1188,6 +1188,10 @@ export const getSubjectPerformance = async (req, res) => {
  * 📱 Get Device/Platform Analytics
  * Understand mobile vs desktop usage patterns
  */
+/**
+ * 📱 Get Device/Platform Analytics (FIXED: Count unique sessions)
+ * Understand mobile vs desktop usage patterns
+ */
 export const getDeviceAnalytics = async (req, res) => {
   try {
     const { days = 30 } = req.query;
@@ -1199,43 +1203,71 @@ export const getDeviceAnalytics = async (req, res) => {
       {
         $match: {
           createdAt: { $gte: dateLimit },
+          sessionId: { $exists: true, $ne: null },  // ✅ Must have sessionId
           'deviceInfo.platform': { $exists: true, $ne: null }
         }
       },
       {
+        // ✅ STEP 1: Get unique sessions first (deduplicate)
         $group: {
           _id: {
+            sessionId: '$sessionId',
             platform: '$deviceInfo.platform',
             browser: '$deviceInfo.browser'
           },
-          totalSessions: { $sum: 1 },
-          downloads: {
-            $sum: { $cond: ['$downloadedAfterFilter', 1, 0] }
+          // Aggregate session-level data
+          events: { $sum: 1 },  // Events in this session
+          hasDownload: { $max: { $cond: ['$downloadedAfterFilter', 1, 0] } },
+          maxScrollDepth: { $max: '$engagement.scrollDepth' },
+          totalTimeOnPage: { $sum: '$engagement.timeOnResults' },
+          minTimeToDownload: { 
+            $min: { $cond: ['$timeToDownload', '$timeToDownload', null] } 
           },
-          avgScrollDepth: { $avg: '$engagement.scrollDepth' },
-          avgTimeOnPage: { $avg: '$engagement.timeOnResults' },
+          userId: { $first: '$userId' }
+        }
+      },
+      {
+        // ✅ STEP 2: Now group by platform + browser (count unique sessions)
+        $group: {
+          _id: {
+            platform: '$_id.platform',
+            browser: '$_id.browser'
+          },
+          uniqueSessions: { $sum: 1 },  // ✅ Count of unique sessions
+          totalEvents: { $sum: '$events' },  // Total filter events across sessions
+          downloads: { $sum: '$hasDownload' },
+          avgScrollDepth: { $avg: '$maxScrollDepth' },
+          avgTimeOnPage: { $avg: '$totalTimeOnPage' },
           avgTimeToDownload: {
-            $avg: { $cond: ['$timeToDownload', '$timeToDownload', null] }
-          }
+            $avg: { $cond: ['$minTimeToDownload', '$minTimeToDownload', null] }
+          },
+          uniqueUsers: { $addToSet: '$userId' }
         }
       },
       {
         $addFields: {
+          uniqueUsersCount: { $size: '$uniqueUsers' },
           conversionRate: {
             $multiply: [
-              { $divide: ['$downloads', '$totalSessions'] },
+              { $divide: ['$downloads', '$uniqueSessions'] },
               100
             ]
+          },
+          eventsPerSession: {
+            $divide: ['$totalEvents', '$uniqueSessions']
           }
         }
       },
-      { $sort: { totalSessions: -1 } },
+      { $sort: { uniqueSessions: -1 } },
       {
         $project: {
           platform: '$_id.platform',
           browser: '$_id.browser',
-          totalSessions: 1,
+          uniqueSessions: 1,
+          totalEvents: 1,  // ✅ Include for debugging
+          eventsPerSession: { $round: ['$eventsPerSession', 1] },
           downloads: 1,
+          uniqueUsersCount: 1,
           conversionRate: { $round: ['$conversionRate', 2] },
           avgScrollDepth: { $round: ['$avgScrollDepth', 1] },
           avgTimeOnPage: { $round: ['$avgTimeOnPage', 1] },
@@ -1246,31 +1278,55 @@ export const getDeviceAnalytics = async (req, res) => {
       }
     ]);
 
-    // ✅ Calculate platform breakdown
+    // ✅ Calculate platform breakdown (group browsers by platform)
     const platformSummary = deviceStats.reduce((acc, stat) => {
       const platform = stat.platform;
       if (!acc[platform]) {
         acc[platform] = {
           platform,
-          totalSessions: 0,
+          uniqueSessions: 0,
+          totalEvents: 0,
           downloads: 0,
+          uniqueUsers: 0,
           browsers: []
         };
       }
-      acc[platform].totalSessions += stat.totalSessions;
+      acc[platform].uniqueSessions += stat.uniqueSessions;
+      acc[platform].totalEvents += stat.totalEvents;
       acc[platform].downloads += stat.downloads;
+      acc[platform].uniqueUsers = Math.max(acc[platform].uniqueUsers, stat.uniqueUsersCount);
       acc[platform].browsers.push({
         browser: stat.browser,
-        sessions: stat.totalSessions
+        sessions: stat.uniqueSessions,
+        events: stat.totalEvents
       });
       return acc;
     }, {});
+
+    // ✅ Add overall summary statistics
+    const overallSummary = {
+      totalUniqueSessions: deviceStats.reduce((sum, s) => sum + s.uniqueSessions, 0),
+      totalEvents: deviceStats.reduce((sum, s) => sum + s.totalEvents, 0),
+      totalDownloads: deviceStats.reduce((sum, s) => sum + s.downloads, 0),
+      avgEventsPerSession: deviceStats.length > 0
+        ? (deviceStats.reduce((sum, s) => sum + s.totalEvents, 0) / 
+           deviceStats.reduce((sum, s) => sum + s.uniqueSessions, 0)).toFixed(1)
+        : 0
+    };
+
+    console.log('📱 [DEVICE ANALYTICS] Summary:', {
+      totalPlatforms: Object.keys(platformSummary).length,
+      totalUniqueSessions: overallSummary.totalUniqueSessions,
+      totalEvents: overallSummary.totalEvents,
+      avgEventsPerSession: overallSummary.avgEventsPerSession
+    });
 
     return res.json({
       success: true,
       period: `${days} days`,
       detailed: deviceStats,
-      summary: Object.values(platformSummary)
+      summary: Object.values(platformSummary),
+      overall: overallSummary  // ✅ NEW: Overall stats
     });
 
   } catch (error) {
@@ -1282,39 +1338,103 @@ export const getDeviceAnalytics = async (req, res) => {
   }
 };
 
+
 /**
  * ⏰ Get Peak Usage Times
  * Understand when users are most active (for scheduled uploads, maintenance)
+ */
+/**
+ * ⏰ Get Peak Usage Times (FIXED: Count unique sessions, not events)
  */
 export const getPeakUsageTimes = async (req, res) => {
   try {
     const { days = 30 } = req.query;
 
     const dateLimit = new Date();
-    dateLimit.setDate(dateLimit.setDate(dateLimit.getDate() - days));
+    dateLimit.setDate(dateLimit.getDate() - days);
 
+    // ✅ FIXED: Group by sessionId first, then by hour
     const usageByHour = await FilterAnalytics.aggregate([
       {
         $match: {
-          createdAt: { $gte: dateLimit }
+          createdAt: { $gte: dateLimit },
+          sessionId: { $exists: true, $ne: null }  // ✅ Only count valid sessions
         }
       },
       {
+        // ✅ STEP 1: Get unique sessions per hour
         $group: {
           _id: {
+            sessionId: '$sessionId',  // ✅ Group by session first
             hour: { $hour: { date: '$createdAt', timezone: 'Asia/Kolkata' } },
-            dayOfWeek: { $dayOfWeek: { date: '$createdAt', timezone: 'Asia/Kolkata' } }
+            dayOfWeek: { $dayOfWeek: { date: '$createdAt', timezone: 'Asia/Kolkata' } },
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'Asia/Kolkata' } }
           },
-          sessions: { $sum: 1 },
-          downloads: {
-            $sum: { $cond: ['$downloadedAfterFilter', 1, 0] }
+          firstActivity: { $min: '$createdAt' },
+          lastActivity: { $max: '$createdAt' },
+          activityCount: { $sum: 1 },  // Events in this session during this hour
+          hasDownload: { $max: { $cond: ['$downloadedAfterFilter', 1, 0] } },
+          userId: { $first: '$userId' }
+        }
+      },
+      {
+        // ✅ STEP 2: Now count unique sessions per hour
+        $group: {
+          _id: {
+            hour: '$_id.hour',
+            dayOfWeek: '$_id.dayOfWeek',
+            date: '$_id.date'
           },
-          uniqueUsers: { $addToSet: '$userId' }
+          sessions: { $sum: 1 },  // ✅ Now this counts UNIQUE sessions
+          downloads: { $sum: '$hasDownload' },
+          uniqueUsers: { $addToSet: '$userId' },
+          totalEvents: { $sum: '$activityCount' }  // ✅ Track total events too
         }
       },
       {
         $addFields: {
           uniqueUsersCount: { $size: '$uniqueUsers' },
+          dayName: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$_id.dayOfWeek', 1] }, then: 'Sunday' },
+                { case: { $eq: ['$_id.dayOfWeek', 2] }, then: 'Monday' },
+                { case: { $eq: ['$_id.dayOfWeek', 3] }, then: 'Tuesday' },
+                { case: { $eq: ['$_id.dayOfWeek', 4] }, then: 'Wednesday' },
+                { case: { $eq: ['$_id.dayOfWeek', 5] }, then: 'Thursday' },
+                { case: { $eq: ['$_id.dayOfWeek', 6] }, then: 'Friday' },
+                { case: { $eq: ['$_id.dayOfWeek', 7] }, then: 'Saturday' }
+              ],
+              default: 'Unknown'
+            }
+          }
+        }
+      },
+      {
+        // ✅ STEP 3: Group by hour across all days for aggregated view
+        $group: {
+          _id: {
+            hour: '$_id.hour',
+            dayOfWeek: '$_id.dayOfWeek'
+          },
+          sessions: { $sum: '$sessions' },  // Total unique sessions in this hour slot
+          downloads: { $sum: '$downloads' },
+          uniqueUsers: { $addToSet: '$uniqueUsers' },
+          totalEvents: { $sum: '$totalEvents' },
+          daysWithData: { $sum: 1 }  // How many days had activity in this hour
+        }
+      },
+      {
+        $addFields: {
+          uniqueUsersCount: { 
+            $size: { 
+              $reduce: {
+                input: '$uniqueUsers',
+                initialValue: [],
+                in: { $setUnion: ['$$value', '$$this'] }
+              }
+            }
+          },
           dayName: {
             $switch: {
               branches: [
@@ -1338,7 +1458,9 @@ export const getPeakUsageTimes = async (req, res) => {
           dayOfWeek: '$dayName',
           sessions: 1,
           downloads: 1,
-          uniqueUsersCount: 1
+          uniqueUsersCount: 1,
+          totalEvents: 1,  // ✅ Include for debugging
+          daysWithData: 1
         }
       }
     ]);
@@ -1348,12 +1470,27 @@ export const getPeakUsageTimes = async (req, res) => {
       curr.sessions > (max?.sessions || 0) ? curr : max
     , null);
 
+    console.log('⏰ [PEAK USAGE] Sample data:', {
+      totalHourSlots: usageByHour.length,
+      peakHour: peakHour ? `${peakHour.hour}:00` : 'N/A',
+      peakSessions: peakHour?.sessions,
+      peakEvents: peakHour?.totalEvents
+    });
+
     return res.json({
       success: true,
       period: `${days} days`,
       peakHour: peakHour ? `${peakHour.hour}:00-${peakHour.hour + 1}:00` : 'N/A',
       peakDay: peakHour?.dayOfWeek || 'N/A',
-      hourlyBreakdown: usageByHour
+      hourlyBreakdown: usageByHour,
+      summary: {
+        totalUniqueSessions: usageByHour.reduce((sum, h) => sum + h.sessions, 0),
+        totalEvents: usageByHour.reduce((sum, h) => sum + h.totalEvents, 0),
+        avgEventsPerSession: usageByHour.length > 0 
+          ? (usageByHour.reduce((sum, h) => sum + h.totalEvents, 0) / 
+             usageByHour.reduce((sum, h) => sum + h.sessions, 0)).toFixed(1)
+          : 0
+      }
     });
 
   } catch (error) {
@@ -1364,6 +1501,7 @@ export const getPeakUsageTimes = async (req, res) => {
     });
   }
 };
+
 
 /**
  * 🎯 Get Popular Filter Combinations
