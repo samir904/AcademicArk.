@@ -3,7 +3,7 @@ import {
   getSeoPageBySlug,
   getAllSeoPages,
   trackSeoPageClick
-} from "../controllers/seo.controller.js";
+} from "../CONTROLLERS/seo.controller.js";
 import {
   createSeoPage,
   updateSeoPage,
