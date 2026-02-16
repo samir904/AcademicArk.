@@ -5,7 +5,7 @@ import cloudinary from "cloudinary";
 import fs from "fs/promises"
 // import fetch from "nodea-fetch";
 import redisClient from "../CONFIG/redisClient.js"
-// import redisClient from "../server.js"
+// import redisClient from "../server.sjs"
 import axios from "axios";
 import { logUserActivity } from "../UTIL/activityLogger.js";
 import { addWatermarkToPDF } from "../UTIL/pdfWatermark.util.js";
@@ -16,6 +16,7 @@ import { extractUnitFromTitle } from "../UTIL/unitExtractor.js";
 import VideoLecture from "../MODELS/videoLecture.model.js";
 import { generatePreviewFromUrl } from "../UTIL/generatePreviewFromUrl.js";
 import { uploadPdfBuffer } from "../UTIL/uploadPdfBuffer.js";
+import slugify from "slugify";
 
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
@@ -38,6 +39,33 @@ export const registerNote = async (req, res, next) => {
         ? semester.map(s => parseInt(s))
         : [parseInt(semester)];
 
+        // ============================================
+    // 🔥 GENERATE UNIQUE SLUG
+    // ============================================
+
+    const baseSlug = slugify(
+        `${title}-semester-${semesterArray[0]}-${subject}-aktu`,
+        { lower: true, strict: true }
+    );
+
+    let slug = baseSlug;
+    let counter = 1;
+
+    while (await Note.findOne({ slug })) {
+        slug = `${baseSlug}-${counter++}`;
+    }
+
+    // ============================================
+    // 🔥 AUTO SEO FIELDS
+    // ============================================
+
+    const seoTitle = `${title} | AKTU ${subject} Semester ${semesterArray[0]} Notes`;
+    const seoDescription = `Download ${title} for AKTU ${subject} semester ${semesterArray[0]}. Updated syllabus notes, important questions and PYQ available on AcademicArk.`;
+
+    // ============================================
+    // 📝 CREATE NOTE
+    // ============================================
+
     const note = await Note.create({
         title: title.trim(),
         description: description.trim(),
@@ -48,6 +76,9 @@ export const registerNote = async (req, res, next) => {
         category: category.trim(),
         unit: extractedUnit,  // ✅ AUTO-FILLED
         uploadedBy: userId,
+        slug,
+        seoTitle,
+        seoDescription,
         fileDetails: {
             public_id: title,
             secure_url: 'dummy'

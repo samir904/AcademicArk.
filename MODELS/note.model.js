@@ -9,6 +9,26 @@ const noteSchema = new Schema({
         minlength: [3, "Title must be at least 3 character long"],
         maxlength: [100, "Title must be less than 100 characters"]
     },
+    slug: {
+        type: String,
+        // required: true,
+        unique: true,
+        index: true,
+        lowercase: true,
+        trim: true,
+        sparse: true
+    },
+    seoTitle: {
+        type: String,
+        trim: true,
+        maxlength: 150
+    },
+
+    seoDescription: {
+        type: String,
+        trim: true,
+        maxlength: 300
+    },
     description: {
         type: String,
         required: true,

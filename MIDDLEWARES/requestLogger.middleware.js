@@ -48,6 +48,19 @@ const SKIP_PATHS = [
   '/track/page-exit',
   '/personalized',
   '/track/click',
+  '/admin/conversion-funnel',
+  '/admin/top-download',
+  '/admin/filter-combinations',
+  '/admin/peak-usage',
+  '/admin/device-analytics',
+  '/admin/subject-performance',
+  '/admin/content-gaps',
+  '/admin/most-viewed',
+  '/admin/dashboard',
+  '/hybrid',
+  '/update-engagement',
+  '/event',
+  '/suggest',
   
 ];
 

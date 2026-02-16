@@ -44,6 +44,7 @@ import adminPaywallRoutes from './ROUTES/admin.paywall.routes.js'
 import filterRoute from './ROUTES/filterAnalytics.routes.js'
 
 import sessionV2Routes from './ROUTES/session.v2.routes.js'
+import seoRoutes from './ROUTES/seo.routes.js'
 // import analyticsV2Routes from './ROUTES/analytics.v2.routes.js'
 
 //  import studyBuddyRoutes from './ROUTES/studyBuddy.routes.js';
@@ -58,6 +59,7 @@ import requestLoggerMiddleware from "./MIDDLEWARES/requestLogger.middleware.js";
 import queryTrackerMiddleware from "./MIDDLEWARES/queryTracker.middleware.js";
 import queryMetricsRoutes from './ROUTES/queryMetrics.routes.js'
 import sessionTrackerMiddleware from "./MIDDLEWARES/sessionTracker.middleware.js";
+import { generateRobotsTxt, generateSitemap, generateSitemapIndex } from "./CONTROLLERS/sitemap.controller.js";
 // import session from "express-session";
 // import passport from "passport";
 
@@ -151,6 +153,15 @@ app.use(responseTime((req,res,time)=>{
 // ✅ ADD THIS - Request logger middleware (AFTER morgan, BEFORE routes)
 app.use(requestLoggerMiddleware);
 app.use(queryTrackerMiddleware);
+
+// ========================================
+// 🔥 SITEMAP & ROBOTS (BEFORE ALL ROUTES)
+// ========================================
+app.get("/sitemap.xml", generateSitemap);
+app.get("/robots.txt", generateRobotsTxt);
+app.get("/sitemap-index.xml", generateSitemapIndex); // For future
+
+
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
 app.use('/api/v1/home',homepageRoutes)
@@ -198,6 +209,19 @@ app.use("/api/v1/admin/paywall", adminPaywallRoutes);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes
+
+// 3️⃣ SEO Routes LAST (catch-all for slugs)
+// This handles all remaining routes like /aktu-dbms-notes
+app.use("/api/v1/seo", seoRoutes); // ✅ CRITICAL: Mount last!
+
+// 4️⃣ 404 Handler (if no route matched)
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found"
+  });
+});
+
 initSessionCronJobs();
 
 console.log('✅ OAuth routes registered at /api/v1/oauth');
