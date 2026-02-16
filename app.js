@@ -157,6 +157,11 @@ app.use(queryTrackerMiddleware);
 // ========================================
 // 🔥 SITEMAP & ROBOTS (BEFORE ALL ROUTES)
 // ========================================
+app.get("/google123abc.html", (req, res) => {
+  res.send("google-site-verification=Vlgj2_2zV1h6tpxq4Z-TJLGhCONOwDCotYQCBS5_YUU");
+});
+
+{/* <meta name="google-site-verification" content="Vlgj2_2zV1h6tpxq4Z-TJLGhCONOwDCotYQCBS5_YUU" /> */}
 app.get("/sitemap.xml", generateSitemap);
 app.get("/robots.txt", generateRobotsTxt);
 app.get("/sitemap-index.xml", generateSitemapIndex); // For future
