@@ -158,7 +158,8 @@ app.use(queryTrackerMiddleware);
 // 🔥 SITEMAP & ROBOTS (BEFORE ALL ROUTES)
 // ========================================
 app.get("/google87d7a8fb5b2c4434.html", (req, res) => {
-  res.send("google-site-verification=Vlgj2_2zV1h6tpxq4Z-TJLGhCONOwDCotYQCBS5_YUU");
+  res.type("text/plain");
+  res.send("google-site-verification=87d7a8fb5b2c4434");
 });
 
 {/* <meta name="google-site-verification" content="Vlgj2_2zV1h6tpxq4Z-TJLGhCONOwDCotYQCBS5_YUU" /> */}
