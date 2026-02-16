@@ -157,7 +157,7 @@ app.use(queryTrackerMiddleware);
 // ========================================
 // 🔥 SITEMAP & ROBOTS (BEFORE ALL ROUTES)
 // ========================================
-app.get("/google123abc.html", (req, res) => {
+app.get("/google87d7a8fb5b2c4434.html", (req, res) => {
   res.send("google-site-verification=Vlgj2_2zV1h6tpxq4Z-TJLGhCONOwDCotYQCBS5_YUU");
 });
 
