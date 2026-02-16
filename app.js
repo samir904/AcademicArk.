@@ -159,8 +159,9 @@ app.use(queryTrackerMiddleware);
 // ========================================
 app.get("/google87d7a8fb5b2c4434.html", (req, res) => {
   res.type("text/plain");
-  res.send("google-site-verification=87d7a8fb5b2c4434");
+  res.send("google-site-verification=google87d7a8fb5b2c4434.html");
 });
+
 
 {/* <meta name="google-site-verification" content="Vlgj2_2zV1h6tpxq4Z-TJLGhCONOwDCotYQCBS5_YUU" /> */}
 app.get("/sitemap.xml", generateSitemap);
