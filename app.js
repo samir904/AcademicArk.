@@ -84,7 +84,7 @@ app.use((req, res, next) => {
 
  app.use(
    cors({
-     origin: process.env.FRONTEND_URL,
+     origin: true,
      credentials: true,
      methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
      allowedHeaders: ["Content-Type",'x-session-id', "Authorization", "Cache-Control"], //what is the use of authorization her 
