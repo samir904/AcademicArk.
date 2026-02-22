@@ -44,16 +44,40 @@ export const getPersonalizedHomepage = async (req, res) => {
         }
 
         // ✅ STEP 3: Build response structure
+        // ✅ FASTER — all sections fetch simultaneously
+        const [
+            continueWhere,
+            studyMaterialToday,
+            recommended,
+            trending,
+            examAlert,
+            attendance,
+            leaderboard,
+            downloads,
+            newNotesBadge          // ✅ ADD
+        ] = await Promise.all([
+            getContinueWhere(userId, user),
+            getStudyMaterialForToday(userId, user),
+            getRecommendedNotes(userId, user),
+            getTrendingInSemester(userId, user),
+            getExamAlert(userId, user),
+            getAttendanceSnapshot(userId, user),
+            getLeaderboardPreview(userId),
+            getDownloadsSnapshot(userId),
+            getNewNotesBadge(userId, user)          // ✅ ADD
+        ]);
+
         const homepageData = {
             greeting: buildGreeting(user),
-            continue: await getContinueWhere(userId, user),
-            recommended: await getRecommendedNotes(userId, user),
-            trending: await getTrendingInSemester(userId, user),
-            examAlert: await getExamAlert(userId, user),
-            // ⭐ ADD THESE
-            attendance: await getAttendanceSnapshot(userId, user),
-            leaderboard: await getLeaderboardPreview(userId),
-            downloads: await getDownloadsSnapshot(userId),
+            continue: continueWhere,
+            studyMaterialToday,
+            newNotesBadge,                          // ✅ ADD
+            recommended,
+            trending,
+            examAlert,
+            attendance,
+            leaderboard,
+            downloads,
             metadata: {
                 timestamp: new Date(),
                 profileComplete: user.academicProfile?.isCompleted || false,
@@ -336,71 +360,53 @@ async function getRecommendedNotes(userId, user) {
  * Max 5 items
  */
 async function getTrendingInSemester(userId, user) {
-    try {
-        if (!user.academicProfile?.semester) {
-            return {
-                hasData: false,
-                message: "Update your semester preference"
-            };
-        }
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const semester = user.academicProfile?.semester;
+  if (!semester) return { hasData: false };
 
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // ✅ Get semester note IDs FIRST, then find trending among those
+  const semesterNoteIds = await Note.distinct("_id", {
+    semester: { $in: [semester] },
+    course: "BTECH"
+  });
 
-        // Get trending activities for this semester
-        const trendingActivities = await UserActivity.aggregate([
-            {
-                $match: {
-                    activityType: { $in: ["NOTE_VIEWED", "NOTE_DOWNLOADED"] },
-                    createdAt: { $gte: sevenDaysAgo }
-                }
-            },
-            {
-                $group: {
-                    _id: "$resourceId",
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { count: -1 }
-            },
-            {
-                $limit: 5
-            }
-        ]);
+  const trendingActivities = await UserActivity.aggregate([
+    {
+      $match: {
+        activityType:  { $in: ["NOTE_VIEWED", "NOTE_DOWNLOADED"] },
+        resourceId:    { $in: semesterNoteIds },  // ✅ filter BEFORE grouping
+        createdAt:     { $gte: sevenDaysAgo }
+      }
+    },
+    { $group:  { _id: "$resourceId", count: { $sum: 1 } } },
+    { $sort:   { count: -1 } },
+    { $limit:  5 }
+  ]);
 
-        const noteIds = trendingActivities.map(activity => activity._id);
+  const noteIds = trendingActivities.map(a => a._id);
+  if (!noteIds.length) return { hasData: false, message: "No trending notes yet" };
 
-        // Fetch full note details
-        const trending = await Note.find({
-            _id: { $in: noteIds },
-            semester: user.academicProfile.semester
-        }).select(
-            'title subject category downloads views totalBookmarks'
-        );
+  const trending = await Note.find({ _id: { $in: noteIds } })
+    .select("title subject category downloads views");
 
-        if (trending.length === 0) {
-            return {
-                hasData: false,
-                message: "No trending notes in your semester yet"
-            };
-        }
+  // ✅ Preserve trending order from aggregation
+  const trendingMap = new Map(trending.map(n => [n._id.toString(), n]));
+  const ordered = noteIds
+    .map(id => trendingMap.get(id.toString()))
+    .filter(Boolean);
 
-        return {
-            hasData: true,
-            section: `Trending in Semester ${user.academicProfile.semester}`,
-            notes: trending.map(note => ({
-                id: note._id,
-                title: note.title.substring(0, 45),
-                subject: note.subject,
-                category: note.category,
-                downloads: note.downloads || 0
-            }))
-        };
-
-    } catch (error) {
-        console.error('getTrendingInSemester error:', error);
-        return { hasData: false, error: true };
-    }
+  return {
+    hasData: true,
+    section: `Trending in Semester ${semester}`,
+    notes: ordered.map((note, i) => ({
+      rank:      i + 1,
+      id:        note._id,
+      title:     note.title.substring(0, 45),
+      subject:   note.subject,
+      category:  note.category,
+      downloads: note.downloads || 0
+    }))
+  };
 }
 
 
@@ -523,7 +529,200 @@ async function getDownloadsSnapshot(userId) {
         return null;
     }
 }
+/**
+ * 📚 SECTION: STUDY MATERIAL FOR TODAY
+ *
+ * Based on last viewed note's subject + unit
+ * Groups: notes, handwritten, imp, pyq (sorted by year desc)
+ */
+async function getStudyMaterialForToday(userId, user) {
+    try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
+        // 1️⃣ Get last viewed note
+        const lastViewed = await UserActivity.findOne({
+            userId,
+            activityType: "NOTE_VIEWED",
+            createdAt: { $gte: sevenDaysAgo }
+        })
+            .sort({ createdAt: -1 })
+            .select("resourceId")
+            .lean();
+
+        if (!lastViewed?.resourceId) return { hasData: false };
+
+        // 2️⃣ Fetch source note
+        const sourceNote = await Note.findById(lastViewed.resourceId)
+            .select("subject unit semester")
+            .lean();
+
+        if (!sourceNote?.subject || !sourceNote?.unit) {
+            return { hasData: false };
+        }
+
+        const { subject, unit, semester } = sourceNote;
+
+        // 3️⃣ Fetch all related materials
+        const allMaterials = await Note.find({
+            subject: subject,
+            $or: [
+                { unit: unit },         // specific unit materials
+                { unit: null },         // combined/general materials
+                { unit: { $exists: false } }  // safety
+            ]
+        })
+            .select("_id title subject unit category downloads views createdAt recommended recommendedRank")            .lean();
+        if (!allMaterials.length) return { hasData: false };
+
+        // 🧠 Get all material IDs
+        const materialIds = allMaterials.map(n => n._id);
+
+        // 🧠 Find which of these user has viewed
+        const viewedIds = await UserActivity.distinct("resourceId", {
+            userId,
+            activityType: "NOTE_VIEWED",
+            resourceId: { $in: materialIds }
+        });
+
+        // Convert to string for safe comparison
+        const viewedSet = new Set(viewedIds.map(id => id.toString()));
+
+        // 🧠 Calculate progress
+        const completedCount = viewedSet.size;
+        const totalCount = materialIds.length;
+        const percentage = totalCount > 0
+            ? Math.round((completedCount / totalCount) * 100)
+            : 0;
+
+        // 4️⃣ Group by strict enum category
+        const grouped = {
+            notes: [],
+            handwritten: [],
+            imp: [],
+            pyq: []
+        };
+
+        for (const note of allMaterials) {
+
+            switch (note.category) {
+
+                case "Notes":
+                    if (note.unit === unit)
+                        grouped.notes.push(note);
+                    break;
+
+                case "Handwritten Notes":
+                    if (note.unit === unit)
+                        grouped.handwritten.push(note);
+                    break;
+
+                case "Important Question":
+                    // Include both:
+                    // - unit specific IMP
+                    // - unlabelled IMP (no unit field)
+                    if (note.unit === unit || !note.unit) {
+                        grouped.imp.push(note);
+                    }
+                    break;
+
+                case "PYQ":
+                    // Include both unit-specific and general
+                    if (note.unit === unit || !note.unit) {
+                        grouped.pyq.push(note);
+                    }
+                    break;
+            }
+        }
+        // Sort PYQs latest first
+        // grouped.pyq.sort((a, b) =>
+        //     new Date(b.createdAt) - new Date(a.createdAt)
+        // );
+   const sortByPriority = (a, b) => {
+
+    const aRecommended = !!a.recommended;
+    const bRecommended = !!b.recommended;
+
+    // 1️⃣ Recommended always first
+    if (aRecommended !== bRecommended) {
+        return aRecommended ? -1 : 1;
+    }
+
+    // 2️⃣ If both recommended → rank ASC
+    if (aRecommended && bRecommended) {
+        const aRank = Number.isFinite(a.recommendedRank) ? a.recommendedRank : 9999;
+        const bRank = Number.isFinite(b.recommendedRank) ? b.recommendedRank : 9999;
+
+        if (aRank !== bRank) {
+            return aRank - bRank;
+        }
+    }
+
+    // 3️⃣ Downloads DESC
+    const aDownloads = a.downloads || 0;
+    const bDownloads = b.downloads || 0;
+
+    if (aDownloads !== bDownloads) {
+        return bDownloads - aDownloads;
+    }
+
+    // 4️⃣ Views DESC
+    const aViews = a.views || 0;
+    const bViews = b.views || 0;
+
+    if (aViews !== bViews) {
+        return bViews - aViews;
+    }
+
+    // 5️⃣ FINAL fallback → createdAt DESC
+    return new Date(b.createdAt) - new Date(a.createdAt);
+};
+// Apply sorting to all categories
+grouped.notes.sort(sortByPriority);
+grouped.handwritten.sort(sortByPriority);
+grouped.imp.sort(sortByPriority);
+grouped.pyq.sort(sortByPriority);
+        const CATEGORY_ORDER = ["notes", "handwritten", "imp", "pyq"];
+
+        const sections = CATEGORY_ORDER
+            .filter(cat => grouped[cat].length > 0)
+            .map(cat => ({
+                category: cat,
+                label: {
+                    notes: "Notes",
+                    handwritten: "Handwritten Notes",
+                    imp: "Important Questions",
+                    pyq: "Previous Year Papers"
+                }[cat],
+                items: grouped[cat].map(n => ({
+                    id: n._id,
+                    title: n.title,
+                    downloads: n.downloads || 0,
+                    views: n.views || 0,
+                    isViewed: viewedSet.has(n._id.toString()),
+                    isRecommended: n.recommended || false   // ✅ ADD
+                }))
+            }));
+
+        return {
+            hasData: true,
+            subject,
+            unit,
+            semester,
+            focusLabel: `${subject} – Unit ${unit}`,
+            totalMaterials: totalCount,
+            progress: {
+                completed: completedCount,
+                total: totalCount,
+                percentage
+            },
+            lastViewedId:   lastViewed.resourceId.toString(), // ✅ ADD THIS
+            sections
+        };
+    } catch (error) {
+        console.error("getStudyMaterialForToday error:", error);
+        return { hasData: false };
+    }
+}
 
 
 /**
@@ -548,6 +747,74 @@ async function getExamAlert(userId, user) {
         return { hasExamSoon: false, error: true };
     }
 }
+
+/**
+ * 🆕 NEW NOTES BADGE
+ * 
+ * Compares lastHomepageVisit with note createdAt
+ * Returns count + preview of new notes for user's semester
+ */
+async function getNewNotesBadge(userId, user) {
+  try {
+    const lastVisit    = user.lastHomepageVisit;
+    const semester     = user.academicProfile?.semester;
+
+    // ── No previous visit or no semester → skip
+    if (!lastVisit || !semester) return { hasNew: false };
+
+    // ── Count new notes since last visit
+    const newNotes = await Note.find({
+      semester:  { $in: [semester] },
+      course:    "BTECH",
+      createdAt: { $gt: lastVisit }        // strictly AFTER last visit
+    })
+      .select("_id title subject category createdAt")
+      .sort({ createdAt: -1 })
+      .limit(5)                            // preview max 5
+      .lean();
+
+    if (!newNotes.length) return { hasNew: false };
+
+    // ── Group subjects for summary text
+    // e.g. "Cloud Computing, OS, CN"
+    const subjectSet = [...new Set(newNotes.map(n => n.subject))];
+    const subjectSummary = subjectSet.slice(0, 3).join(", ")
+      + (subjectSet.length > 3 ? ` +${subjectSet.length - 3} more` : "");
+
+    return {
+      hasNew:         true,
+      count:          newNotes.length,
+      sinceLabel:     formatTimeSince(lastVisit),   // "2 hours ago"
+      subjectSummary,
+      preview: newNotes.map(n => ({
+        id:       n._id,
+        title:    n.title,
+        subject:  n.subject,
+        category: n.category,
+      }))
+    };
+
+  } catch (err) {
+    console.error("getNewNotesBadge error:", err);
+    return { hasNew: false };
+  }
+}
+
+/**
+ * ⏱ FORMAT TIME SINCE
+ * Returns human-readable time like "2 hours ago", "3 days ago"
+ */
+function formatTimeSince(date) {
+  const diffMs      = Date.now() - new Date(date).getTime();
+  const diffMins    = Math.floor(diffMs / 60000);
+  const diffHours   = Math.floor(diffMins / 60);
+  const diffDays    = Math.floor(diffHours / 24);
+
+  if (diffMins  < 60)  return `${diffMins} min ago`;
+  if (diffHours < 24)  return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+}
+
 
 /**
  * 🔔 LOG ACTIVITY ASYNC (non-blocking)
