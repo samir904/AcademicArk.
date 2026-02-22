@@ -1,5 +1,6 @@
 import HomepageSectionEvent    from "../MODELS/HomepageSectionEvent.model.js";
 import HomepageAnalyticsSnapshot from "../MODELS/HomepageAnalyticsSnapshot.model.js";
+import { EXCLUDED_ANALYTICS_USER_IDS } from "../CONSTANTS/analyticsConfig.js";
 
 const SECTION_ORDER = [
   "continue_where", "study_material_today", "new_notes_badge",
@@ -65,7 +66,13 @@ export const logHomepageEvent = async (req, res) => {
     if (!Array.isArray(events) || !events.length) {
       return res.status(400).json({ success: false, message: "No events" });
     }
+// ✅ Silently skip dev/tester accounts — don't pollute analytics
+    const isDevUser = EXCLUDED_ANALYTICS_USER_IDS
+      .some((id) => id.equals(userId));
 
+    if (isDevUser) {
+      return res.status(200).json({ success: true, skipped: true });
+    }
     const docs = events
       .filter(e => e.section && e.eventType)
       .map(e => ({
