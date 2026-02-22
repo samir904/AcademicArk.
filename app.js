@@ -42,6 +42,7 @@ import paymentRoutes from "./ROUTES/payment.routes.js";
 import paywallRoutes from './ROUTES/paywall.routes.js'
 import adminPaywallRoutes from './ROUTES/admin.paywall.routes.js'
 import filterRoute from './ROUTES/filterAnalytics.routes.js'
+import homepageAnalyticsRoutes from './ROUTES/homepageAnalytics.routes.js'
 
 import sessionV2Routes from './ROUTES/session.v2.routes.js'
 import seoRoutes from './ROUTES/seo.routes.js'
@@ -172,6 +173,7 @@ app.get("/sitemap-index.xml", generateSitemapIndex); // For future
 
 app.use("/api/v1/user",userRoute);
 app.use("/api/v1/notes",noteRoute);
+app.use('/api/v1/home/analytics', homepageAnalyticsRoutes);  // ✅ ADD
 app.use('/api/v1/home',homepageRoutes)
 app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', adminRoutes);
