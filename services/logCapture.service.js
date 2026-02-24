@@ -14,13 +14,17 @@ export const captureRequestLog = async (req, res, responseTime) => {
       statusCode: res.statusCode,
       statusMessage: res.statusMessage,
       responseTime: responseTime,
-      userId: req.user?._id || null,
+      userId: req.user?.id || req.user?._id || null,
       userEmail: req.user?.email || null,
-      ipAddress: req.ip || req.connection.remoteAddress,
+      ipAddress:
+        req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+        req.ip ||
+        req.connection?.remoteAddress ||
+        null,
       userAgent: req.get('user-agent'),
       timestamp: new Date()
     });
-
+    console.log(requestLog)
     await requestLog.save();
   } catch (error) {
     console.error('[LOG_CAPTURE] Error capturing request log:', error);

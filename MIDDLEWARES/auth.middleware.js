@@ -186,7 +186,7 @@ export const isLoggedIn = async (req, res, next) => {
     // console.log('🔐 Auth middleware checking...');
     let token;
 
-    // ✅ Try Authorization header first (from frontend)
+    // ✅ Try Authorization header first (from frontend) for the google only ok 
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];

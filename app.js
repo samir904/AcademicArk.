@@ -65,6 +65,7 @@ import { generateRobotsTxt, generateSitemap, generateSitemapIndex } from "./CONT
 // import passport from "passport";
 
 const app=express();
+app.set('trust proxy', true);   // 🔥 ADD THIS
 // 🔥 ADD THIS LINE
 app.disable("etag");
 
