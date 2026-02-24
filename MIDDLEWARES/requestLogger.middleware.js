@@ -1,101 +1,154 @@
+// MIDDLEWARES/requestLogger.middleware.js
 import { captureRequestLog } from '../services/logCapture.service.js';
 
-/**
- * List of paths to SKIP logging
- * These are high-frequency requests that shouldn't be logged
- */
-const SKIP_PATHS = [
-  '/server-metrics',           // ✅ Now matches!
-  '/session-metrics',          // ✅ Now matches!
-  '/academic-profile/check',
-  '/activity',
-  '/weekly-comparison',
-  '/traffic-pattern',
-  '/banner',
-  '/dashboard/stats',
-  '/session-history',
-  '/api/v1/health',
-  '/colleges/list',
-  '/all',
+// ─────────────────────────────────────────────
+// 🔧 SKIP CONFIG — full mounted paths only
+// ─────────────────────────────────────────────
+// Exact matches (no startsWith)
+const SKIP_EXACT = new Set([
+  '/health',
+  '/sitemap.xml',
+  '/sitemap-index.xml',
+  '/robots.txt',
+  '/google87d7a8fb5b2c4434.html',
+]);
+
+// Prefix matches — must be specific, never skip entire /admin
+const SKIP_PREFIXES = [
+  // ✅ Logs viewer — prevent self-logging infinite loop
+  '/api/v1/logs/',
+
+  // ✅ DB / Cache health checks
+  '/api/v1/db/',
+  '/api/v1/cache/',
+  '/api/v1/query-metrics/',
+
+  // ✅ Session polling (high-frequency, no value in logging)
+  '/api/v1/admin/server-metrics',
+  '/api/v1/admin/session-metrics',
+  '/api/v1/admin/traffic-pattern',
+  '/api/v1/admin/weekly-comparison',
+  '/api/v1/admin/activity',
+  '/api/v1/admin/session-history',
+  '/api/v1/sessionV2/',
+
+  // ✅ Admin analytics dashboards (pure read, high-freq)
+  '/api/v1/admin/analytics/',
   '/api/v1/admin/dashboard/stats',
   '/api/v1/admin/banner',
-  '/console',
-  '/requests',
-  '/stats',
-  '/analytics',
-  '/users',
-  '/academic-analytics',
-  '/admin-logs',
-  '/admin/all',
-  '/analytics/overview',
-  '/suspicious',
-  '/by-device',
-  '/by-browser',
-  '/cohorts',
-  '/ltv-metrics',
-  '/churn-analysis',
-  '/retention-metrics',
-  '/health',
-  '/performance',
-  '/hits',
-  '/keys',
-  '/memory',
-  '/connection',
-  '/track/page-view',
-  '/start',
-  '/cache/invalidate',
-  '/ping',
-  '/track/page-exit',
-  '/personalized',
-  '/track/click',
-  '/admin/conversion-funnel',
-  '/admin/top-download',
-  '/admin/filter-combinations',
-  '/admin/peak-usage',
-  '/admin/device-analytics',
-  '/admin/subject-performance',
-  '/admin/content-gaps',
-  '/admin/most-viewed',
-  '/admin/dashboard',
-  '/hybrid',
-  '/update-engagement',
-  '/event',
-  '/suggest',
-  
+  '/api/v1/admin/conversion-funnel',
+  '/api/v1/admin/top-download',
+  '/api/v1/admin/filter-combinations',
+  '/api/v1/admin/peak-usage',
+  '/api/v1/admin/device-analytics',
+  '/api/v1/admin/subject-performance',
+  '/api/v1/admin/content-gaps',
+  '/api/v1/admin/most-viewed',
+
+  // ✅ Homepage analytics
+  '/api/v1/home/analytics/',
+  '/api/v1/home/banner',
+
+  // ✅ Analytics read dashboards
+  '/api/v1/analytics/overview',
+  '/api/v1/analytics/academic-analytics',
+  '/api/v1/filter-analytics/',
+
+  // ✅ Retention heavy reads
+  '/api/v1/retention/cohorts',
+  '/api/v1/retention/ltv-metrics',
+  '/api/v1/retention/churn-analysis',
+  '/api/v1/retention/retention-metrics',
+
+  // ✅ Public high-freq
+  '/api/v1/public/colleges/list',
+  '/api/v1/user/academic-profile/check',
+  '/api/v1/user/all',
+  '/api/v1/admin/all',
+
+  // ✅ Paywall reads
+  '/api/v1/paywall/',
+  '/api/v1/admin/paywall/',
+
+  // ✅ Search suggestions + analytics (fire-and-forget)
+  '/api/v1/search/suggestions/',
+  '/api/v1/search/analytics/',
+  '/api/v1/analytics/track/page-exit',
+  '/api/v1/analytics/track/click',
+  '/api/v1/analytics/update-engagement',
+  '/api/v1/analytics/event',
+  '/api/v1/analytics/personalized',
+  '/api/v1/analytics/hybrid',
+  '/api/v1/analytics/cache/invalidate',
+ '/api/v1/admin/'
+
 ];
 
-
-/**
- * Check if path should be skipped
- */
-const shouldSkipPath = (path) => {
-  return SKIP_PATHS.some(skipPath => path.startsWith(skipPath));
+// ─────────────────────────────────────────────
+// 🔧 HELPER
+// ─────────────────────────────────────────────
+const shouldSkipPath = (req) => {
+  // ✅ baseUrl + path = full mounted path (e.g. /api/v1/logs/device-intelligence)
+  const routePath = req.baseUrl + req.path;
+  if (SKIP_EXACT.has(routePath))                                       return true;
+  if (SKIP_PREFIXES.some(prefix => routePath.startsWith(prefix)))      return true;
+  return false;
 };
 
-/**
- * Middleware to capture all HTTP requests (except metrics)
- */
-export const requestLoggerMiddleware = async (req, res, next) => {
+// ─────────────────────────────────────────────
+// 🚀 MIDDLEWARE
+// ─────────────────────────────────────────────
+export const requestLoggerMiddleware = (req, res, next) => {
+  // ✅ Early skip — before any overhead
+  if (shouldSkipPath(req)) return next();
+
   const startTime = Date.now();
 
-  // Capture original send function
-  const originalSend = res.send;
+  // ✅ Snapshot BEFORE Express mutates baseUrl/path during routing
+  const fullPath = req.baseUrl + req.path;
+  const query    = { ...req.query }; // shallow clone
 
-  // Override send to capture response
-  res.send = function (data) {
-    res.send = originalSend;
+  let responseSize = 0;
+
+  // ── Override res.write to track streaming response size
+  const originalWrite = res.write.bind(res);
+  const originalEnd   = res.end.bind(res);
+
+  res.write = function (chunk, ...args) {
+    try {
+      // ✅ Safe type check before Buffer.byteLength
+      if (chunk != null) {
+        if (Buffer.isBuffer(chunk) || typeof chunk === 'string') {
+          responseSize += Buffer.byteLength(chunk);
+        } else if (chunk instanceof Uint8Array) {
+          responseSize += chunk.byteLength;
+        }
+      }
+    } catch (_) { /* never crash the app */ }
+    return originalWrite(chunk, ...args);
+  };
+
+  res.end = function (chunk, ...args) {
+    try {
+      if (chunk != null) {
+        if (Buffer.isBuffer(chunk) || typeof chunk === 'string') {
+          responseSize += Buffer.byteLength(chunk);
+        } else if (chunk instanceof Uint8Array) {
+          responseSize += chunk.byteLength;
+        }
+      }
+    } catch (_) {}
 
     const responseTime = Date.now() - startTime;
 
-    // SKIP logging for certain paths
-    if (!shouldSkipPath(req.path)) {
-      // Capture the request (async, don't wait)
-      captureRequestLog(req, res, responseTime).catch(error => {
-        console.error('[REQUEST_LOGGER] Error capturing log:', error);
-      });
-    }
+    // ✅ Correct signature — single meta object, no confusion
+    captureRequestLog(req, res, responseTime, {
+      fullPath,
+      query,
+      responseSize,
+    }).catch(err => console.error('[REQUEST_LOGGER]', err.message));
 
-    return originalSend.call(this, data);
+    return originalEnd(chunk, ...args);
   };
 
   next();

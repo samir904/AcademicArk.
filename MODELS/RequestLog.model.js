@@ -64,7 +64,13 @@ const RequestLogSchema = new Schema({
   // Size tracking
   requestSize: Number,
   responseSize: Number,
-
+// ✅ Parsed device info — stored at save time, fast to query
+deviceInfo: {
+  browser: { type: String, default: null }, // "Chrome" | "Safari" | "Firefox" | "Edge"
+  os:      { type: String, default: null }, // "Windows" | "macOS" | "Android" | "iOS" | "Linux"
+  device:  { type: String, default: null }, // "Desktop" | "Mobile" | "Tablet"
+  isMobile:{ type: Boolean, default: false },
+},
   // Timestamps
   timestamp: {
     type: Date,
