@@ -38,7 +38,16 @@ export const captureRequestLog = async (req, res, responseTime, meta = {}) => {
       responseSize = 0,
     } = meta;
 
-    const userId    = req.user?._id   || null;
+    // ✅ Safe ObjectId conversion — never silently store garbage
+    const rawId    = req.user?._id || req.user?.id || null;
+    let   userId   = null;
+    if (rawId) {
+      try {
+        userId = new mongoose.Types.ObjectId(rawId.toString());
+      } catch {
+        userId = null; // malformed id — store null cleanly
+      }
+    }
     const userEmail = req.user?.email || null;
     const ua        = req.headers['user-agent'] || '';
     const deviceInfo = parseUserAgent(ua);

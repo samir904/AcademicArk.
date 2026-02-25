@@ -86,8 +86,8 @@ RequestLogSchema.index({ statusCode: 1 });
 RequestLogSchema.index({ userId: 1, timestamp: -1 });
 RequestLogSchema.index({ method: 1, path: 1 });
 RequestLogSchema.index({ statusCode: 1, timestamp: -1 });
-// Auto-delete logs older than 6 hours
-RequestLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 21600 });
+// Auto-delete logs older than 6 hours 21600
+RequestLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 2592000 });
 // 2592000 seconds = 30 days
 
 export default model('RequestLog', RequestLogSchema);

@@ -314,7 +314,7 @@ export const getRequestAnalytics = async (req, res) => {
               },
               totalRequestSize:  { $sum: "$requestSize"  },
               totalResponseSize: { $sum: "$responseSize" },
-              uniqueUsers:       { $addToSet: "$userId"  },
+              uniqueUsers:       { $addToSet: "$userEmail"  },
               uniqueIPs:         { $addToSet: "$ipAddress" },
             },
           },
@@ -660,7 +660,7 @@ export const getTopEndpoints = async (req, res) => {
           successCount: {
             $sum: { $cond: [{ $lt: ["$statusCode", 400] }, 1, 0] }
           },
-          uniqueUsers: { $addToSet: "$userId" },
+          uniqueUsers: { $addToSet: "$userEmail" },
         },
       },
       {
@@ -706,40 +706,54 @@ export const getTopUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
+    // 🔍 DEBUG — log this in console once to verify, remove after fix confirmed
+    // const debug = await RequestLog.aggregate([
+    //   { $match: { timestamp: { $gte: since } } },
+    //   {
+    //     $group: {
+    //       _id:           null,
+    //       total:         { $sum: 1 },
+    //       withUserId:    { $sum: { $cond: [{ $gt: ['$userId',    null] }, 1, 0] } },
+    //       withUserEmail: { $sum: { $cond: [{ $gt: ['$userEmail', null] }, 1, 0] } },
+    //     },
+    //   },
+    // ]);
+    // console.log('[getTopUsers] field audit:', JSON.stringify(debug));
+    // Expected: withUserId << withUserEmail (confirms the bug)
+
     const top = await RequestLog.aggregate([
       {
         $match: {
           timestamp: { $gte: since },
-          userId:    { $ne: null },
+          userEmail: { $exists: true, $ne: null }, // ✅ userEmail is always reliable
         },
       },
       {
         $group: {
-          _id:             "$userId",
-          userEmail:       { $first: "$userEmail" },
+          _id:             '$userEmail',   // ✅ group by email, not userId
+          userId:          { $first: '$userId' },
+          userEmail:       { $first: '$userEmail' },
           totalRequests:   { $sum: 1 },
-          avgResponseTime: { $avg: "$responseTime" },
+          avgResponseTime: { $avg: '$responseTime' },
           errorCount: {
-            $sum: { $cond: [{ $gte: ["$statusCode", 400] }, 1, 0] }
+            $sum: { $cond: [{ $gte: ['$statusCode', 400] }, 1, 0] },
           },
-          // ✅ Which paths they hit most
-          paths:         { $push: "$path" },
-          lastActive:    { $max: "$timestamp" },
-          uniqueIPs:     { $addToSet: "$ipAddress" },
+          uniquePaths: { $addToSet: '$path' },      // ✅ unique set
+          uniqueIPs:   { $addToSet: '$ipAddress' },
+          lastActive:  { $max: '$timestamp' },
         },
       },
       {
         $project: {
-          _id:           0,
-          userId:        "$_id",
-          userEmail:     1,
-          totalRequests: 1,
-          errorCount:    1,
-          avgResponseTime: { $round: ["$avgResponseTime", 2] },
-          lastActive:    1,
-          uniqueIPs:     { $size: "$uniqueIPs" },
-          // ✅ Count how many requests per path
-          pathCount:     { $size: "$paths" },
+          _id:             0,
+          userId:          1,
+          userEmail:       1,
+          totalRequests:   1,
+          errorCount:      1,
+          avgResponseTime: { $round: ['$avgResponseTime', 2] },
+          lastActive:      1,
+          uniqueIPs:       { $size: '$uniqueIPs' },
+          pathCount:       { $size: '$uniquePaths' }, // ✅ unique paths count
         },
       },
       { $sort:  { totalRequests: -1 } },
@@ -749,10 +763,11 @@ export const getTopUsers = async (req, res) => {
     res.status(200).json({ success: true, hours, data: top });
 
   } catch (err) {
-    console.error("[getTopUsers] error:", err);
+    console.error('[getTopUsers] error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 // ─────────────────────────────────────────────
 // 🚨 7. SUSPICIOUS ACTIVITY DETECTION
@@ -785,7 +800,7 @@ export const getSuspiciousActivity = async (req, res) => {
             _id:           "$ipAddress",
             totalRequests: { $sum: 1 },
             uniquePaths:   { $addToSet: "$path" },
-            uniqueUsers:   { $addToSet: "$userId" },
+            uniqueUsers:   { $addToSet: "$userEmail" },
             errorCount: {
               $sum: { $cond: [{ $gte: ["$statusCode", 400] }, 1, 0] }
             },
@@ -1124,6 +1139,10 @@ function buildDeviceInsight(ratio, topBrowser) {
 // 👤 9. USER BEHAVIOR SIGNALS
 // GET /api/v1/logs/user-behavior?hours=6
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// 👤 9. USER BEHAVIOR SIGNALS — FIXED
+// GET /api/v1/logs/user-behavior?hours=6
+// ─────────────────────────────────────────────
 export const getUserBehaviorSignals = async (req, res) => {
   try {
     const hours = parseInt(req.query.hours) || 6;
@@ -1137,7 +1156,8 @@ export const getUserBehaviorSignals = async (req, res) => {
       perUserStats,
     ] = await Promise.all([
 
-      // ── 1. Anonymous vs Logged-in ratio
+      // ── 1. Anonymous vs Authenticated ratio
+      // ✅ Use userEmail instead of userId (userId is null even for auth users)
       RequestLog.aggregate([
         { $match: { timestamp: { $gte: since } } },
         {
@@ -1145,10 +1165,10 @@ export const getUserBehaviorSignals = async (req, res) => {
             _id:   null,
             total: { $sum: 1 },
             authenticated: {
-              $sum: { $cond: [{ $ne: ["$userId", null] }, 1, 0] }
+              $sum: { $cond: [{ $ne: ['$userEmail', null] }, 1, 0] } // ✅
             },
             anonymous: {
-              $sum: { $cond: [{ $eq: ["$userId", null] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$userEmail', null] }, 1, 0] } // ✅
             },
           },
         },
@@ -1159,53 +1179,59 @@ export const getUserBehaviorSignals = async (req, res) => {
             authenticated: 1,
             anonymous:     1,
             authPct: {
-              $round: [{ $multiply: [{ $divide: ["$authenticated", "$total"] }, 100] }, 1]
+              $round: [{ $multiply: [{ $divide: ['$authenticated', '$total'] }, 100] }, 1],
             },
             anonPct: {
-              $round: [{ $multiply: [{ $divide: ["$anonymous",     "$total"] }, 100] }, 1]
+              $round: [{ $multiply: [{ $divide: ['$anonymous', '$total'] }, 100] }, 1],
             },
           },
         },
       ]),
 
       // ── 2. Abuse signals — users with very high error rates
+      // ✅ Group by userEmail, filter by userEmail
       RequestLog.aggregate([
         {
           $match: {
             timestamp: { $gte: since },
-            userId:    { $ne: null },
+            userEmail: { $exists: true, $ne: null }, // ✅ was: userId: { $ne: null }
           },
         },
         {
           $group: {
-            _id:           "$userId",
-            userEmail:     { $first: "$userEmail" },
+            _id:           '$userEmail',             // ✅ was: "$userId"
+            userEmail:     { $first: '$userEmail' },
+            userId:        { $first: '$userId' },    // keep if present
             totalRequests: { $sum: 1 },
             errorCount: {
-              $sum: { $cond: [{ $gte: ["$statusCode", 400] }, 1, 0] }
+              $sum: { $cond: [{ $gte: ['$statusCode', 400] }, 1, 0] },
             },
             count401: {
-              $sum: { $cond: [{ $eq: ["$statusCode", 401] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$statusCode', 401] }, 1, 0] },
             },
             count403: {
-              $sum: { $cond: [{ $eq: ["$statusCode", 403] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$statusCode', 403] }, 1, 0] },
             },
-            uniquePaths: { $addToSet: "$path" },
-            lastActive:  { $max: "$timestamp" },
+            uniquePaths: { $addToSet: '$path' },
+            lastActive:  { $max: '$timestamp' },
           },
         },
         {
           $addFields: {
             errorRate: {
               $cond: [
-                { $gt: ["$totalRequests", 0] },
-                { $round: [{ $multiply: [{ $divide: ["$errorCount", "$totalRequests"] }, 100] }, 1] },
+                { $gt: ['$totalRequests', 0] },
+                {
+                  $round: [
+                    { $multiply: [{ $divide: ['$errorCount', '$totalRequests'] }, 100] },
+                    1,
+                  ],
+                },
                 0,
               ],
             },
           },
         },
-        // ✅ Only flag users with >30% error rate AND >10 requests
         {
           $match: {
             errorRate:     { $gte: 30 },
@@ -1215,14 +1241,14 @@ export const getUserBehaviorSignals = async (req, res) => {
         {
           $project: {
             _id:           0,
-            userId:        "$_id",
+            userId:        1,
             userEmail:     1,
             totalRequests: 1,
             errorCount:    1,
             errorRate:     1,
             count401:      1,
             count403:      1,
-            uniquePaths:   { $size: "$uniquePaths" },
+            uniquePaths:   { $size: '$uniquePaths' },
             lastActive:    1,
           },
         },
@@ -1230,76 +1256,78 @@ export const getUserBehaviorSignals = async (req, res) => {
         { $limit: 10 },
       ]),
 
-      // ── 3. Most active users (normal — for reference)
+      // ── 3. Most active users (top N)
+      // ✅ Group by userEmail, filter by userEmail
       RequestLog.aggregate([
         {
           $match: {
             timestamp: { $gte: since },
-            userId:    { $ne: null },
+            userEmail: { $exists: true, $ne: null }, // ✅
           },
         },
         {
           $group: {
-            _id:           "$userId",
-            userEmail:     { $first: "$userEmail" },
-            totalRequests: { $sum: 1 },
-            uniquePaths:   { $addToSet: "$path" },
-            lastActive:    { $max: "$timestamp" },
-            avgResponseTime: { $avg: "$responseTime" },
+            _id:             '$userEmail',           // ✅
+            userEmail:       { $first: '$userEmail' },
+            userId:          { $first: '$userId' },
+            totalRequests:   { $sum: 1 },
+            uniquePaths:     { $addToSet: '$path' },
+            lastActive:      { $max: '$timestamp' },
+            avgResponseTime: { $avg: '$responseTime' },
           },
         },
         {
           $project: {
-            _id:           0,
-            userId:        "$_id",
-            userEmail:     1,
-            totalRequests: 1,
-            uniquePaths:   { $size: "$uniquePaths" },
-            lastActive:    1,
-            avgResponseTime: { $round: ["$avgResponseTime", 2] },
+            _id:             0,
+            userId:          1,
+            userEmail:       1,
+            totalRequests:   1,
+            uniquePaths:     { $size: '$uniquePaths' },
+            lastActive:      1,
+            avgResponseTime: { $round: ['$avgResponseTime', 2] },
           },
         },
         { $sort:  { totalRequests: -1 } },
         { $limit: limit },
       ]),
 
-      // ── 4. Request distribution per user — for abuse detection
+      // ── 4. Per-user distribution (for abuse pattern detection)
+      // ✅ Group by userEmail, filter by userEmail
       RequestLog.aggregate([
         {
           $match: {
             timestamp: { $gte: since },
-            userId:    { $ne: null },
+            userEmail: { $exists: true, $ne: null }, // ✅
           },
         },
         {
           $group: {
-            _id:           "$userId",
+            _id:           '$userEmail',             // ✅
             totalRequests: { $sum: 1 },
           },
         },
         {
           $group: {
-            _id:           null,
-            avgPerUser:    { $avg: "$totalRequests" },
-            maxPerUser:    { $max: "$totalRequests" },
-            minPerUser:    { $min: "$totalRequests" },
-            totalUsers:    { $sum: 1 },
-            // ✅ Users with >3x avg requests = potential abusers
+            _id:          null,
+            avgPerUser:   { $avg: '$totalRequests' },
+            maxPerUser:   { $max: '$totalRequests' },
+            minPerUser:   { $min: '$totalRequests' },
+            totalUsers:   { $sum: 1 },
             highActivity: {
               $sum: {
-                $cond: [{ $gte: ["$totalRequests", 50] }, 1, 0]
+                $cond: [{ $gte: ['$totalRequests', 50] }, 1, 0],
               },
             },
           },
         },
         {
           $project: {
-            _id:         0,
-            avgPerUser:  { $round: ["$avgPerUser", 1] },
-            maxPerUser:  1,
-            minPerUser:  1,
-            totalUsers:  1,
-            highActivity:1,
+            _id:          0,
+            avgPerUser:   { $round: ['$avgPerUser', 1] },
+            maxPerUser:   1,
+            minPerUser:   1,
+            totalUsers:   1,
+            highActivity: 1,
           },
         },
       ]),
@@ -1309,15 +1337,16 @@ export const getUserBehaviorSignals = async (req, res) => {
       success: true,
       hours,
       data: {
-        anonVsAuth:      anonVsAuth[0] || {},
-        abuseSignals,                        // ← users to watch 🚨
+        anonVsAuth:     anonVsAuth[0] || {},
+        abuseSignals,
         topActiveUsers,
-        distribution:    perUserStats[0] || {},
+        distribution:   perUserStats[0] || {},
       },
     });
 
   } catch (err) {
-    console.error("[getUserBehaviorSignals] error:", err);
+    console.error('[getUserBehaviorSignals] error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
