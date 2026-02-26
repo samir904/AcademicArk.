@@ -5,7 +5,8 @@ sendDailyCampaignEmails,
 getCampaigns,
 getCampaignDetails,
 pauseCampaign,
-resumeCampaign
+resumeCampaign,
+sendPersonalEmail
 } from '../CONTROLLERS/emailCampaign.controller.js';
 import { isLoggedIn, authorizedRoles } from '../MIDDLEWARES/auth.middleware.js';
 
@@ -18,5 +19,11 @@ router.get('/list', isLoggedIn, authorizedRoles('ADMIN'), getCampaigns);
 router.get('/:campaignId', isLoggedIn, authorizedRoles('ADMIN'), getCampaignDetails);
 router.put('/:campaignId/pause', isLoggedIn, authorizedRoles('ADMIN'), pauseCampaign);
 router.put('/:campaignId/resume', isLoggedIn, authorizedRoles('ADMIN'), resumeCampaign);
-
+// ✅ ADD this route
+router.post(
+  '/send-personal',
+  isLoggedIn,
+  authorizedRoles('ADMIN'),
+  sendPersonalEmail
+);
 export default router;

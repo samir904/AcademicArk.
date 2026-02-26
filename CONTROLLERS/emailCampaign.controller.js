@@ -336,3 +336,58 @@ export const resumeCampaign = async (req, res, next) => {
     return next(new Apperror(error.message, 500));
   }
 };
+
+// CONTROLLERS/emailCampaign.controller.js — ADD THIS at the bottom
+
+/**
+ * @SEND_PERSONAL_EMAIL
+ * @ROUTE POST /api/v1/admin/campaign/send-personal
+ * @ACCESS Private (Admin only)
+ */
+// CONTROLLERS/emailCampaign.controller.js — update sendPersonalEmail
+
+export const sendPersonalEmail = async (req, res, next) => {
+  try {
+    const {
+      to,
+      subject,
+      message,
+      ctaText,
+      ctaLink,
+      noticeText,    // ✅ optional — e.g. "No money was deducted"
+      noticeWarn,    // ✅ optional — true = red box, false = green box
+    } = req.body;
+
+    if (!to || !subject || !message) {
+      return next(new Apperror("to, subject, and message are required", 400));
+    }
+
+    // ✅ Use dedicated personal email template
+    const templatePath    = path.join(__dirname, "../TEMPLATES/personalEmail.hbs");
+    const templateSource  = fs.readFileSync(templatePath, "utf-8");
+    const template        = Handlebars.compile(templateSource);
+
+    const htmlContent = template({
+      subject,
+      message:         message.replace(/\n/g, "<br>"),
+      ctaText:         ctaText   || null,
+      ctaLink:         ctaLink   || process.env.FRONTEND_URL,
+      noticeText:      noticeText || null,
+      noticeWarn:      noticeWarn || false,
+      unsubscribeLink: `${process.env.FRONTEND_URL}/unsubscribe`,
+      preferencesLink: `${process.env.FRONTEND_URL}/preferences`,
+    });
+
+    await sendEmail(to, subject, htmlContent);
+    console.log(`✅ Personal email sent to ${to}`);
+
+    res.status(200).json({
+      success: true,
+      message: `Email sent to ${to}`,
+    });
+  } catch (error) {
+    console.error("❌ Personal email error:", error.message);
+    return next(new Apperror(error.message, 500));
+  }
+};
+

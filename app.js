@@ -43,6 +43,8 @@ import paywallRoutes from './ROUTES/paywall.routes.js'
 import adminPaywallRoutes from './ROUTES/admin.paywall.routes.js'
 import filterRoute from './ROUTES/filterAnalytics.routes.js'
 import homepageAnalyticsRoutes from './ROUTES/homepageAnalytics.routes.js'
+import cloudinaryHealthRoutes    from './ROUTES/cloudinaryHealth.routes.js';
+import { initCloudinarySnapshotCron } from './UTIL/cloudinarySnapshotCron.js';
 
 import sessionV2Routes from './ROUTES/session.v2.routes.js'
 import seoRoutes from './ROUTES/seo.routes.js'
@@ -189,6 +191,7 @@ app.use("/api/v1/retention", retentionRoutes);
 app.use('/api/v1/query-metrics', queryMetricsRoutes); 
 app.use('/api/v1/db', mongoDbHealthRoutes);
 app.use('/api/v1/cache', redisHealthRoutes);
+app.use('/api/v1/admin/cloudinary', cloudinaryHealthRoutes);
 app.use('/api/v1/leaderboards', leaderboardRoutes);
 app.use("/api/v1/videos", videoLectureRoute);
 app.use("/api/v1/planner", plannerRoutes);
@@ -234,7 +237,7 @@ app.use((req, res) => {
 });
 
 initSessionCronJobs();
-
+initCloudinarySnapshotCron(); // ✅ daily snapshot
 console.log('✅ OAuth routes registered at /api/v1/oauth');
 
 app.use(errorMiddleware)
