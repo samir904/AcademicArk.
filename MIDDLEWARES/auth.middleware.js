@@ -2,6 +2,24 @@ import jwt from "jsonwebtoken";
 import Apperror from "../UTIL/error.util.js";
 import sessionTracker from "../UTIL/sessionTracker.js";
 
+
+export const isLoggedInViaQuery = async (req, res, next) => {
+  try {
+    // ✅ Token comes from ?token= query param (sendBeacon can't set headers)
+    const token = req.query.token;
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; // same shape as your normal isLoggedIn
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+};
+
 // ✨ NEW: Optional authentication (doesn't require login)
 export const optionalAuth = async (req, res, next) => {
   try {
@@ -38,7 +56,7 @@ export const optionalAuth = async (req, res, next) => {
       next();
     } catch (error) {
       // console.log('⚠️ optionalAuth token invalid - treating as guest');
-      req.user = null;
+      req.user = null;// 👈 invalid/expired token — treat as anonymous, don't reject
       next();
     }
   } catch (error) {

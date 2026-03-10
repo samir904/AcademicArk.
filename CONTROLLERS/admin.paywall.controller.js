@@ -151,7 +151,6 @@ export const getUserSegments = async (req, res) => {
  */
 export const getTopConvertingNotes = async (req, res) => {
   try {
-
     const result = await PaywallEvent.aggregate([
       {
         $match: { eventType: "PAYMENT_SUCCESS" }
@@ -163,19 +162,44 @@ export const getTopConvertingNotes = async (req, res) => {
         }
       },
       { $sort: { conversions: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
+
+      // ── Populate note title ──────────────────────────────────────────
+      {
+        $lookup: {
+          from: "notes",           // ← MongoDB collection name (lowercase plural)
+          localField: "_id",        // noteId grouped above
+          foreignField: "_id",      // _id in Notes collection
+          as: "note"
+        }
+      },
+      {
+        // $lookup returns an array — flatten to single object
+        $unwind: {
+          path: "$note",
+          preserveNullAndEmptyArrays: true  // keeps rows even if note was deleted
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          conversions: 1,
+          title:     "$note.title",
+          // add any other fields you need:
+          // subject:   "$note.subject",
+          // createdBy: "$note.createdBy",
+        }
+      }
     ]);
 
-    return res.json({
-      success: true,
-      data: result
-    });
+    return res.json({ success: true, data: result });
 
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false });
   }
 };
+
 
 export const getMostPaywalledNotes = async (req, res) => {
   try {

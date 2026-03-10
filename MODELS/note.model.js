@@ -40,6 +40,7 @@ const noteSchema = new Schema({
         type: String,
         required: true,
         trim: true,
+        lowercase: true,   // ← ADD THIS — auto-lowercases on save
         maxlength: [50, "Subject name must be less than 50 character long "]
     },
     unit: {

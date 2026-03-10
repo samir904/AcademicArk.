@@ -7,6 +7,10 @@ import express from "express";
 import cors from "cors"
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import chalk  from 'chalk'; 
+import pinoHttp    from 'pino-http';
+import pino        from 'pino';
+
 import session from 'express-session';
 import passport from 'passport';
 
@@ -44,6 +48,15 @@ import adminPaywallRoutes from './ROUTES/admin.paywall.routes.js'
 import filterRoute from './ROUTES/filterAnalytics.routes.js'
 import homepageAnalyticsRoutes from './ROUTES/homepageAnalytics.routes.js'
 import cloudinaryHealthRoutes    from './ROUTES/cloudinaryHealth.routes.js';
+import arkShotRoutes            from './ROUTES/arkShot.routes.js';
+import adminArkShotRoutes       from './ROUTES/admin.arkShot.routes.js';
+import arkShotSessionRoutes     from './ROUTES/arkShotSession.routes.js';
+import utmRoutes       from './ROUTES/utm.routes.js';
+import adminUtmRoutes  from './ROUTES/admin.utm.routes.js';
+import ogProxyRouter from './ROUTES/ogProxy.route.js'
+import pwaRoutes from "./ROUTES/pwa.routes.js";
+
+
 import { initCloudinarySnapshotCron } from './UTIL/cloudinarySnapshotCron.js';
 
 import sessionV2Routes from './ROUTES/session.v2.routes.js'
@@ -77,7 +90,52 @@ initConsoleLogger();
 app.use(express.urlencoded({extended:true}));
 app.use(express.json())
 app.use(cookieParser())
-app.use(morgan("dev"))
+
+
+// ── Custom token: colored status code
+morgan.token('status-colored', (req, res) => {
+  const s = res.statusCode;
+  if (s >= 500) return chalk.red.bold(s);
+  if (s >= 400) return chalk.yellow.bold(s);
+  if (s >= 300) return chalk.cyan(s);
+  if (s >= 200) return chalk.green.bold(s);
+  return chalk.white(s);
+});
+
+// ── Custom token: colored method
+morgan.token('method-colored', (req) => {
+  const m = req.method;
+  const map = {
+    GET:    chalk.green(m),
+    POST:   chalk.blue(m),
+    PUT:    chalk.yellow(m),
+    PATCH:  chalk.magenta(m),
+    DELETE: chalk.red(m),
+  };
+  return map[m] || chalk.white(m);
+});
+
+// ── Custom token: response time colored
+morgan.token('rt-colored', (req, res) => {
+  const t = parseFloat(res.getHeader?.('X-Response-Time') || 0);
+  const ms = morgan['response-time'](req, res, 0);
+  const n  = parseFloat(ms);
+  if (n > 500) return chalk.red(`${ms}ms`);
+  if (n > 200) return chalk.yellow(`${ms}ms`);
+  return chalk.gray(`${ms}ms`);
+});
+
+const FORMAT =
+  chalk.gray(':date[iso]') +
+  ' :method-colored' +
+  chalk.white(' :url') +
+  ' :status-colored' +
+  ' :rt-colored' +
+  chalk.gray(' — :res[content-length] bytes');
+
+app.use(morgan(FORMAT,{ skip: (req) => req.method === 'OPTIONS' }));
+
+
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -91,9 +149,10 @@ app.use((req, res, next) => {
      origin: true,
      credentials: true,
      methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
-     allowedHeaders: ["Content-Type",'x-session-id', "Authorization", "Cache-Control"], //what is the use of authorization her 
+     allowedHeaders: ["Content-Type",'x-session-id', "X-Client-Mode","Authorization", "Cache-Control"], //what is the use of authorization her 
    })
  );
+ 
 //  import path from "path";a
 // // If using ESM ("type": "module" in package.json)
 // const __dirname = path.resolve();
@@ -202,6 +261,23 @@ app.use("/api/v1/search/admin", searchAdminAnalyticsRoutes);
 app.use('/api/v1/search/failed',failedSearchRoutes);
 app.use("/api/v1/search/admin/manage", searchAdminManageRoutes);
 app.use('/api/v1/filter-analytics',filterRoute);
+// 🎯 ArkShots — Public + Auth
+app.use('/api/v1/arkshots',              arkShotRoutes);
+
+// 🔐 ArkShots — Admin
+app.use('/api/v1/admin/arkshots',        adminArkShotRoutes);
+
+// 📊 ArkShots — Session tracking
+app.use('/api/v1/arkshots/sessions',     arkShotSessionRoutes);
+
+// 📊 UTM Tracking — Public (pixel + event tracking)
+app.use('/api/v1/utm',              utmRoutes);
+
+// 🔐 UTM Campaigns — Admin management
+app.use('/api/v1/admin/utm',        adminUtmRoutes);
+
+// app.js
+app.use("/api/v1/pwa", pwaRoutes);
 
 // 💳 Plans & Payments (Soft Paywall)
 app.use("/api/v1/plans", planRoutes);
@@ -223,6 +299,9 @@ app.use("/api/v1/admin/paywall", adminPaywallRoutes);
 //app.use('/api/v1/study-buddy', studyBuddyRoutes);
 //app.use('/api/v1/study-planner', studyPlannerRoutes);
 // After all middleware and routes
+
+// ✅ OG proxy BEFORE static/SPA catch-all
+app.use('/arkshots', ogProxyRouter);
 
 // 3️⃣ SEO Routes LAST (catch-all for slugs)
 // This handles all remaining routes like /aktu-dbms-notes
