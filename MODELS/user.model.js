@@ -283,6 +283,11 @@ userSchema.index({ 'academicProfile.isCompleted': 1 });
 userSchema.index({ role: 1 }); // accelerate role-based queries
 userSchema.index({ forgotPasswordToken: 1 });     // speed up password reset lookups
 userSchema.index({ isProfilePublic: 1 }); // NEW: Index for public profiles
+// Add these to your userSchema indexes for the new queries
+userSchema.index({ lastHomepageVisit: 1 });     // DAU/WAU/MAU/churn
+userSchema.index({ lastStudyDate: 1 });          // study engagement
+userSchema.index({ 'access.expiresAt': 1 });     // expiring subscriptions
+userSchema.index({ 'plannerSetup.isCompleted': 1 }); // planner adoption
 
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) {

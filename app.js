@@ -55,6 +55,8 @@ import utmRoutes       from './ROUTES/utm.routes.js';
 import adminUtmRoutes  from './ROUTES/admin.utm.routes.js';
 import ogProxyRouter from './ROUTES/ogProxy.route.js'
 import pwaRoutes from "./ROUTES/pwa.routes.js";
+import userAnalyticsRoutes from './ROUTES/userAnalytics.routes.js';
+import clientErrorRoutes from './ROUTES/clientError.routes.js';
 
 
 import { initCloudinarySnapshotCron } from './UTIL/cloudinarySnapshotCron.js';
@@ -278,6 +280,13 @@ app.use('/api/v1/admin/utm',        adminUtmRoutes);
 
 // app.js
 app.use("/api/v1/pwa", pwaRoutes);
+
+// with all other routes
+app.use('/api/v1/user-analytics', userAnalyticsRoutes);
+
+// ── mount with other routes ──────────────────
+app.use('/api/v1/client-errors', clientErrorRoutes);
+
 
 // 💳 Plans & Payments (Soft Paywall)
 app.use("/api/v1/plans", planRoutes);

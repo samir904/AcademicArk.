@@ -174,6 +174,11 @@ noteSchema.index({
 noteSchema.index({ subject: 1, semester: 1 });
 noteSchema.index({ university: 1, course: 1 });
 noteSchema.index({ uploadedBy: 1 });
+// note.model.js — add these if not already present
+
+noteSchema.index({ _id: 1, isLocked: 1 });           // access decision fast
+noteSchema.index({ viewedBy: 1 });                    // addToSet lookup
+noteSchema.index({ "fileDetails.secure_url": 1 });    // preview check
 
 // Virtual for total bookmarks
 noteSchema.virtual('totalBookmarks').get(function () {

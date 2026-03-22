@@ -1,314 +1,352 @@
-// BACKEND/UTIL/mongoDbHealth.js - FINAL FIXED VERSION
+// BACKEND/UTIL/mongoDbHealth.js — FIXED
 
 import mongoose from 'mongoose';
-import os from 'os';
 
 class MongoDBHealthTracker {
-    constructor() {
-        this.healthData = {
-            status: 'disconnected',
-            connected: false,
-            connectionTime: null,
-            responseTime: 0,
-            uptime: 0,
-            startTime: Date.now(),
-            collections: [],
-            indexes: 0,
-            dbSize: '0 MB',
-            storageEngine: 'wiredTiger',
-            version: 'unknown',
-            operations: {
-                totalInserts: 0,
-                totalUpdates: 0,
-                totalDeletes: 0,
-                totalQueries: 0
-            },
-            performance: {
-                avgQueryTime: 0,
-                slowQueries: 0,
-                queryCache: 0
-            },
-            replication: {
-                isReplica: false,
-                replicas: 0
-            },
-            memory: {
-                resident: 0,
-                virtual: 0,
-                mapped: 0
-            }
-        };
+  constructor() {
+    this.healthData = {
+      status:         'disconnected',
+      connected:      false,
+      connectionTime: null,
+      responseTime:   0,
+      uptime:         0,
+      startTime:      Date.now(),
+      collections:    [],
+      indexes:        0,
+      dbSize:         '0 Bytes',
+      storageEngine:  'wiredTiger',
+      version:        'unknown',
+      operations: {
+        totalInserts: 0,
+        totalUpdates: 0,
+        totalDeletes: 0,
+        totalQueries: 0,
+      },
+      performance: {
+        avgQueryTime: 0,
+        slowQueries:  0,
+        queryCache:   0,
+      },
+      replication: {
+        isReplica: false,
+        replicas:  0,
+      },
+      memory: {
+        residentMB: 0,
+        virtualMB:  0,
+        mappedMB:   0,
+      },
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────
+
+  formatBytes(bytes) {
+    if (!bytes || bytes <= 0) return '0 Bytes';
+    const k     = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i     = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+  }
+
+  // FIX 1: mem values from serverStatus are already in MB — NOT bytes
+  // Previous code passed MB values into formatBytes() → showed "45 Bytes" instead of "45 MB"
+  formatMB(mb) {
+    if (!mb || mb <= 0) return '0 MB';
+    if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+    return mb + ' MB';
+  }
+
+  get readyState() {
+    return mongoose.connection.readyState;
+  }
+
+  // ─────────────────────────────────────────────
+  // SAFE ADMIN HELPER
+  // Wraps adminDb calls — Atlas free tier can deny
+  // serverStatus / replSetGetStatus without crashing
+  // ─────────────────────────────────────────────
+  async safeAdminCommand(fn, fallback = {}) {
+    try {
+      return await fn();
+    } catch {
+      return fallback;
     }
+  }
 
-    /**
-     * Check MongoDB connection health
-     */
-    async checkHealth() {
-        try {
-            const startTime = Date.now();
+  // ─────────────────────────────────────────────
+  // CHECK HEALTH
+  // ─────────────────────────────────────────────
+  async checkHealth() {
+    // FIX 2: startTime declared BEFORE try block
+    // Previous code had it inside try{} but catch{} referenced it → ReferenceError crash
+    const startTime = Date.now();
 
-            // Check if connected
-            if (mongoose.connection.readyState === 1) {
-                this.healthData.status = 'connected';
-                this.healthData.connected = true;
-                this.healthData.connectionTime = new Date().toISOString();
-            } else if (mongoose.connection.readyState === 0) {
-                this.healthData.status = 'disconnected';
-                this.healthData.connected = false;
-            } else if (mongoose.connection.readyState === 2) {
-                this.healthData.status = 'connecting';
-                this.healthData.connected = false;
-            }
+    try {
+      const state = this.readyState;
 
-            // Get database stats
-            if (this.healthData.connected) {
-                const db = mongoose.connection.db;
-                
-                // Get admin database
-                const adminDb = db.admin();
+      // Update connection status
+      if (state === 1) {
+        this.healthData.status         = 'connected';
+        this.healthData.connected      = true;
+        this.healthData.connectionTime = new Date().toISOString();
+      } else if (state === 2) {
+        this.healthData.status    = 'connecting';
+        this.healthData.connected = false;
+      } else if (state === 3) {
+        this.healthData.status    = 'disconnecting';
+        this.healthData.connected = false;
+      } else {
+        this.healthData.status    = 'disconnected';
+        this.healthData.connected = false;
+      }
 
-                // Get server info
-                try {
-                    const serverStatus = await adminDb.serverStatus();
-                    
-                    // console.log('📊 DEBUG: serverStatus received');
-
-                    this.healthData.uptime = serverStatus.uptime || 0;
-                    this.healthData.version = serverStatus.version || 'unknown';
-                    
-                    // ✅ FIX 2: Memory stats from serverStatus.mem
-                    if (serverStatus.mem) {
-                        // console.log('📈 Memory stats found');
-                        this.healthData.memory.resident = serverStatus.mem.resident || 0;
-                        this.healthData.memory.virtual = serverStatus.mem.virtual || 0;
-                        this.healthData.memory.mapped = serverStatus.mem.mapped || 0;
-                        // console.log('✓ resident:', serverStatus.mem.resident);
-                        // console.log('✓ virtual:', serverStatus.mem.virtual);
-                        // console.log('✓ mapped:', serverStatus.mem.mapped);
-                    } else {
-                        console.log('⚠️ No mem data in serverStatus');
-                    }
-
-                    // Operations
-                    if (serverStatus.opcounters) {
-                        this.healthData.operations.totalInserts = serverStatus.opcounters.insert || 0;
-                        this.healthData.operations.totalUpdates = serverStatus.opcounters.update || 0;
-                        this.healthData.operations.totalDeletes = serverStatus.opcounters.delete || 0;
-                        this.healthData.operations.totalQueries = serverStatus.opcounters.query || 0;
-                    }
-
-                    // Replication info
-                    try {
-                        const replStatus = await adminDb.replSetGetStatus();
-                        if (replStatus) {
-                            this.healthData.replication.isReplica = true;
-                            this.healthData.replication.replicas = replStatus.members?.length || 0;
-                        }
-                    } catch (e) {
-                        this.healthData.replication.isReplica = false;
-                    }
-                } catch (error) {
-                    console.error('Error getting server status:', error.message);
-                }
-
-                // Get collections and calculate database size
-                try {
-                    const collections = await db.listCollections().toArray();
-                    this.healthData.collections = collections.map(c => c.name);
-
-                    // ✅ FIX 3: Count indexes using listIndexes() method (CORRECT API)
-                    let totalIndexes = 0;
-                    for (const collName of this.healthData.collections) {
-                        try {
-                            const collection = db.collection(collName);
-                            // ✅ CORRECT METHOD: listIndexes() instead of getIndexes()
-                            const indexesCursor = await collection.listIndexes();
-                            const indexes = await indexesCursor.toArray();
-                            const indexCount = indexes.length;
-                            totalIndexes += indexCount;
-                            // console.log(`✓ Collection "${collName}" has ${indexCount} indexes`);
-                        } catch (error) {
-                            console.error(`Error getting indexes for ${collName}:`, error.message);
-                        }
-                    }
-                    this.healthData.indexes = totalIndexes;
-                    // console.log('✅ Total indexes:', totalIndexes);
-                } catch (error) {
-                    console.error('Error getting collections:', error.message);
-                }
-
-                // ✅ FIX 1: Get database size from db.stats()
-                try {
-                    const dbStats = await db.stats();
-                    // console.log('📊 Database stats received');
-                    // console.log('✓ storageSize:', dbStats.storageSize);
-                    
-                    // Use storageSize for database size (most reliable)
-                    if (dbStats.storageSize && dbStats.storageSize > 0) {
-                        this.healthData.dbSize = this.formatBytes(dbStats.storageSize);
-                        // console.log('✓ dbSize calculated from storageSize:', this.healthData.dbSize);
-                    } else if (dbStats.dataSize && dbStats.dataSize > 0) {
-                        // Fallback to dataSize
-                        this.healthData.dbSize = this.formatBytes(dbStats.dataSize);
-                        // console.log('✓ dbSize calculated from dataSize:', this.healthData.dbSize);
-                    }
-                } catch (error) {
-                    // console.error('Error getting database size:', error.message);
-                }
-            }
-
-            this.healthData.responseTime = Date.now() - startTime;
-            // console.log('✅ Health check completed');
-            // console.log('📊 Final healthData:', this.healthData);
-            return this.healthData;
-        } catch (error) {
-            console.error('MongoDB health check error:', error);
-            this.healthData.status = 'error';
-            this.healthData.connected = false;
-            this.healthData.responseTime = Date.now() - startTime;
-            return this.healthData;
-        }
-    }
-
-    /**
-     * Get current health data
-     */
-    getHealth() {
+      if (!this.healthData.connected) {
+        this.healthData.responseTime = Date.now() - startTime;
         return this.healthData;
-    }
+      }
 
-    /**
-     * Get connection details
-     */
-    getConnectionDetails() {
+      const db      = mongoose.connection.db;
+      const adminDb = db.admin();
+
+      // ── 1. Server status — FIX 3: each sub-block isolated ──────────────
+      // Previous code — one big try/catch meant ANY failure aborted ALL stats
+      // Now each section has its own guard so partial data still saves
+
+      const serverStatus = await this.safeAdminCommand(
+        () => adminDb.serverStatus(),
+        null
+      );
+
+      if (serverStatus) {
+        this.healthData.uptime  = serverStatus.uptime  ?? 0;
+        this.healthData.version = serverStatus.version ?? 'unknown';
+
+        // FIX 4: mem values are MB not bytes — use formatMB not formatBytes
+        if (serverStatus.mem) {
+          this.healthData.memory = {
+            residentMB: serverStatus.mem.resident ?? 0,
+            virtualMB:  serverStatus.mem.virtual  ?? 0,
+            mappedMB:   serverStatus.mem.mapped   ?? 0,
+          };
+        }
+
+        if (serverStatus.opcounters) {
+          this.healthData.operations = {
+            totalInserts: serverStatus.opcounters.insert ?? 0,
+            totalUpdates: serverStatus.opcounters.update ?? 0,
+            totalDeletes: serverStatus.opcounters.delete ?? 0,
+            totalQueries: serverStatus.opcounters.query  ?? 0,
+          };
+        }
+      }
+
+      // ── 2. Replication — isolated, Atlas may block this ──────────────────
+      const replStatus = await this.safeAdminCommand(
+        () => adminDb.replSetGetStatus(),
+        null
+      );
+      if (replStatus) {
+        this.healthData.replication.isReplica = true;
+        this.healthData.replication.replicas  = replStatus.members?.length ?? 0;
+      } else {
+        this.healthData.replication.isReplica = false;
+      }
+
+      // ── 3. Collections — isolated ────────────────────────────────────────
+      try {
+        const cols = await db.listCollections().toArray();
+        this.healthData.collections = cols.map((c) => c.name);
+      } catch (err) {
+        console.error('[MongoHealth] listCollections failed:', err.message);
+        this.healthData.collections = [];
+      }
+
+      // ── 4. Index count — FIX 5: listIndexes() is NOT async ───────────────
+      // Previous code: await collection.listIndexes() — works but wrong pattern
+      // Correct:       collection.listIndexes().toArray() — cursor, then toArray()
+      // Also added concurrency limit to avoid hammering Atlas with 20+ simultaneous calls
+      if (this.healthData.collections.length > 0) {
+        let totalIndexes = 0;
+
+        // Process in batches of 5 to avoid overwhelming Atlas
+        const BATCH = 5;
+        const names = this.healthData.collections;
+
+        for (let i = 0; i < names.length; i += BATCH) {
+          const batch = names.slice(i, i + BATCH);
+          const results = await Promise.allSettled(
+            batch.map(async (collName) => {
+              const col     = db.collection(collName);
+              // FIX 5: no await on listIndexes() — it returns a cursor, not a Promise
+              const indexes = await col.listIndexes().toArray();
+              return indexes.length;
+            })
+          );
+          for (const r of results) {
+            if (r.status === 'fulfilled') totalIndexes += r.value;
+          }
+        }
+        this.healthData.indexes = totalIndexes;
+      }
+
+      // ── 5. DB size via db.stats() — isolated ─────────────────────────────
+      try {
+        const dbStats = await db.stats();
+        const sizeBytes =
+          (dbStats.storageSize > 0 ? dbStats.storageSize : null) ??
+          (dbStats.dataSize    > 0 ? dbStats.dataSize    : null) ??
+          0;
+        this.healthData.dbSize = this.formatBytes(sizeBytes);
+      } catch (err) {
+        console.error('[MongoHealth] db.stats() failed:', err.message);
+      }
+
+      this.healthData.responseTime = Date.now() - startTime;
+      return this.healthData;
+
+    } catch (err) {
+      // FIX 2 payoff: startTime is now always defined here
+      console.error('[MongoHealth] checkHealth fatal error:', err.message);
+      this.healthData.status       = 'error';
+      this.healthData.connected    = false;
+      this.healthData.responseTime = Date.now() - startTime;
+      return this.healthData;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // GET HEALTH (sync — returns cached data)
+  // ─────────────────────────────────────────────
+  getHealth() {
+    return this.healthData;
+  }
+
+  // ─────────────────────────────────────────────
+  // GET CONNECTION DETAILS
+  // ─────────────────────────────────────────────
+  getConnectionDetails() {
+    return {
+      host:        mongoose.connection.host       ?? 'unknown',
+      port:        mongoose.connection.port       ?? null,
+      name:        mongoose.connection.name       ?? 'unknown',
+      readyState:  this.readyState,
+      collections: this.healthData.collections.length,
+      status:      this.healthData.status,
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // GET DATABASE STATS
+  // ─────────────────────────────────────────────
+  async getDatabaseStats() {
+    if (!this.healthData.connected) {
+      return { error: 'Database not connected' };
+    }
+    try {
+      const db    = mongoose.connection.db;
+      const stats = await db.stats().catch(() => ({
+        dataSize: 0, indexSize: 0, storageSize: 0,
+      }));
+
+      return {
+        collections:  this.healthData.collections.length,
+        indexes:      this.healthData.indexes,
+        dbSize:       this.healthData.dbSize,
+        dataSize:     this.formatBytes(stats.dataSize    ?? 0),
+        indexSize:    this.formatBytes(stats.indexSize   ?? 0),
+        storageSize:  this.formatBytes(stats.storageSize ?? 0),
+        // FIX 4: use formatMB for memory — values are already in MB
+        memory: {
+          resident: this.formatMB(this.healthData.memory.residentMB),
+          virtual:  this.formatMB(this.healthData.memory.virtualMB),
+          mapped:   this.formatMB(this.healthData.memory.mappedMB),
+        },
+      };
+    } catch (err) {
+      console.error('[MongoHealth] getDatabaseStats error:', err.message);
+      return { error: err.message };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // GET PERFORMANCE METRICS
+  // ─────────────────────────────────────────────
+  async getPerformanceMetrics() {
+    if (!this.healthData.connected) {
+      return { error: 'Database not connected' };
+    }
+    try {
+      const adminDb      = mongoose.connection.db.admin();
+      const serverStatus = await this.safeAdminCommand(
+        () => adminDb.serverStatus(),
+        null
+      );
+
+      if (!serverStatus) {
+        return { error: 'serverStatus unavailable (Atlas free tier restriction)' };
+      }
+
+      return {
+        connections:     serverStatus.connections     ?? {},
+        network:         serverStatus.network         ?? {},
+        opcounters:      serverStatus.opcounters      ?? {},
+        opcountersRepl:  serverStatus.opcountersRepl  ?? {},
+        // FIX 4: mem is MB not bytes
+        memory: {
+          resident: this.formatMB(serverStatus.mem?.resident ?? 0),
+          virtual:  this.formatMB(serverStatus.mem?.virtual  ?? 0),
+          mapped:   this.formatMB(serverStatus.mem?.mapped   ?? 0),
+        },
+      };
+    } catch (err) {
+      console.error('[MongoHealth] getPerformanceMetrics error:', err.message);
+      return { error: err.message };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // GET MEMORY STATS
+  // ─────────────────────────────────────────────
+  async getMemoryStats() {
+    if (!this.healthData.connected) {
+      return { error: 'Database not connected' };
+    }
+    try {
+      const adminDb      = mongoose.connection.db.admin();
+      const serverStatus = await this.safeAdminCommand(
+        () => adminDb.serverStatus(),
+        null
+      );
+
+      if (!serverStatus?.mem) {
+        // Fallback to cached healthData memory
         return {
-            host: mongoose.connection.host,
-            port: mongoose.connection.port,
-            name: mongoose.connection.name,
-            readyState: mongoose.connection.readyState,
-            collections: this.healthData.collections.length,
-            status: this.healthData.status
+          resident:   this.formatMB(this.healthData.memory.residentMB),
+          virtual:    this.formatMB(this.healthData.memory.virtualMB),
+          mapped:     this.formatMB(this.healthData.memory.mappedMB),
+          residentMB: this.healthData.memory.residentMB,
+          virtualMB:  this.healthData.memory.virtualMB,
+          mappedMB:   this.healthData.memory.mappedMB,
         };
+      }
+
+      // FIX 4: values are in MB — no bytes conversion needed
+      return {
+        resident:   this.formatMB(serverStatus.mem.resident ?? 0),
+        virtual:    this.formatMB(serverStatus.mem.virtual  ?? 0),
+        mapped:     this.formatMB(serverStatus.mem.mapped   ?? 0),
+        residentMB: serverStatus.mem.resident ?? 0,
+        virtualMB:  serverStatus.mem.virtual  ?? 0,
+        mappedMB:   serverStatus.mem.mapped   ?? 0,
+      };
+    } catch (err) {
+      console.error('[MongoHealth] getMemoryStats error:', err.message);
+      return { error: err.message };
     }
-
-    /**
-     * Format bytes to human readable
-     */
-    formatBytes(bytes) {
-        if (!bytes || bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    /**
-     * Get database statistics
-     */
-    async getDatabaseStats() {
-        try {
-            if (!this.healthData.connected) {
-                return { error: 'Database not connected' };
-            }
-
-            const db = mongoose.connection.db;
-            
-            // Get dbStats with all size information
-            let stats = {};
-            try {
-                stats = await db.stats();
-                // console.log('📊 getDatabaseStats - stats:', stats);
-            } catch (error) {
-                // console.error('Error getting db.stats():', error.message);
-                stats = {
-                    dataSize: 0,
-                    indexSize: 0,
-                    storageSize: 0
-                };
-            }
-
-            return {
-                databases: stats.databases || 0,
-                indexes: this.healthData.indexes,
-                collections: this.healthData.collections.length,
-                dataSize: this.formatBytes(stats.dataSize || 0),
-                indexSize: this.formatBytes(stats.indexSize || 0),
-                storageSize: this.formatBytes(stats.storageSize || 0),
-                // ✅ Include database size from healthData
-                dbSize: this.healthData.dbSize,
-                // ✅ Include memory info
-                memory: {
-                    resident: this.formatBytes(this.healthData.memory.resident),
-                    virtual: this.formatBytes(this.healthData.memory.virtual),
-                    mapped: this.formatBytes(this.healthData.memory.mapped)
-                }
-            };
-        } catch (error) {
-            console.error('Error getting database stats:', error);
-            return { error: error.message };
-        }
-    }
-
-    /**
-     * Get performance metrics
-     */
-    async getPerformanceMetrics() {
-        try {
-            if (!this.healthData.connected) {
-                return { error: 'Database not connected' };
-            }
-
-            const db = mongoose.connection.db;
-            const adminDb = db.admin();
-            const serverStatus = await adminDb.serverStatus();
-
-            return {
-                connections: serverStatus.connections || {},
-                network: serverStatus.network || {},
-                opcounters: serverStatus.opcounters || {},
-                opcountersRepl: serverStatus.opcountersRepl || {},
-                memory: {
-                    resident: this.formatBytes(serverStatus.mem?.resident || 0),
-                    virtual: this.formatBytes(serverStatus.mem?.virtual || 0),
-                    mapped: this.formatBytes(serverStatus.mem?.mapped || 0)
-                }
-            };
-        } catch (error) {
-            console.error('Error getting performance metrics:', error);
-            return { error: error.message };
-        }
-    }
-
-    /**
-     * Get memory statistics
-     */
-    async getMemoryStats() {
-        try {
-            if (!this.healthData.connected) {
-                return { error: 'Database not connected' };
-            }
-
-            const db = mongoose.connection.db;
-            const adminDb = db.admin();
-            const serverStatus = await adminDb.serverStatus();
-
-            // console.log('📊 Getting memory stats');
-            // console.log('✓ serverStatus.mem:', serverStatus.mem);
-
-            return {
-                resident: this.formatBytes(serverStatus.mem?.resident || 0),
-                virtual: this.formatBytes(serverStatus.mem?.virtual || 0),
-                mapped: this.formatBytes(serverStatus.mem?.mapped || 0),
-                residentMB: serverStatus.mem?.resident ? Math.round(serverStatus.mem.resident) : 0,
-                virtualMB: serverStatus.mem?.virtual ? Math.round(serverStatus.mem.virtual) : 0,
-                mappedMB: serverStatus.mem?.mapped ? Math.round(serverStatus.mem.mapped) : 0
-            };
-        } catch (error) {
-            console.error('Error getting memory stats:', error);
-            return { error: error.message };
-        }
-    }
+  }
 }
 
-// Export singleton instance
 export default new MongoDBHealthTracker();

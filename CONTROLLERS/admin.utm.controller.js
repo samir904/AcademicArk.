@@ -326,7 +326,7 @@ const templateLinearDark = (campaign, c) => ({
                     type: 'span',
                     props: {
                       style: { color: '#374151', fontSize: '17px', letterSpacing: '0.04em' },
-                      children: 'academicark.com',
+                      children: 'academicark-mvp8.onrender.com',
                     },
                   },
                 ],

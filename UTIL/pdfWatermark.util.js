@@ -7,8 +7,9 @@ export const addWatermarkToPDF = async (
 ) => {
   try {
     const pdfBytes = await fs.readFile(filePath);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-
+    const pdfDoc = await PDFDocument.load(pdfBytes, {
+     ignoreEncryption: true
+});
     const pages = pdfDoc.getPages();
     const totalPages = pages.length;
 
@@ -53,7 +54,10 @@ export const addWatermarkToPDF = async (
       }
     });
 
-    const watermarkedBytes = await pdfDoc.save();
+    const watermarkedBytes = await pdfDoc.save({
+  useObjectStreams: false,
+  addDefaultPage: false,
+});
     await fs.writeFile(filePath, Buffer.from(watermarkedBytes));
 
     console.log('✅ Watermark added (URL on first & last page only)');

@@ -17,6 +17,219 @@ import VideoLecture from "../MODELS/videoLecture.model.js";
 import { generatePreviewFromUrl } from "../UTIL/generatePreviewFromUrl.js";
 import { uploadPdfBuffer } from "../UTIL/uploadPdfBuffer.js";
 import slugify from "slugify";
+// import redis      from "../CONFIG/redis.js";           // your ioredis client
+
+// ─────────────────────────────────────────────
+// CACHE BUST  ← FIX 2: was using undefined `redis`, now `redisClient`
+// ─────────────────────────────────────────────
+export const bustNoteCache = async (noteId) => {
+  await redisClient.del(NOTE_CACHE_KEY(noteId));  // ✅ redisClient not redis
+};
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const NOTE_CACHE_TTL   = 60 * 5;   // 5 min
+const NOTE_CACHE_KEY   = (id) => `note:${id}`;
+const ACCESS_CACHE_KEY = (id) => `user:access:${id}`;
+const ACCESS_CACHE_TTL = 60 * 2;   // 2 min
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+// Fire-and-forget — never blocks the response
+const fireAndForget = (promise) => {
+  Promise.resolve(promise).catch((err) =>
+    console.error("🔥 background task failed:", err.message)
+  );
+};
+
+// Atomic view count — no load → check → save cycle
+// const incrementViewCount = (noteId, userId) => {
+//   const userObjId = new mongoose.Types.ObjectId(userId);
+//   return Note.findByIdAndUpdate(
+//     noteId,
+//     {
+//       $addToSet: { viewedBy: userObjId },  // no-op if already exists
+//       $inc:      { views: 1 },
+//     },
+//     { new: false }  // don't need the result
+//   );
+// };
+// ─────────────────────────────────────────────
+// CACHED NOTE FETCH
+// ─────────────────────────────────────────────
+const getCachedNote = async (id) => {
+  const cacheKey = NOTE_CACHE_KEY(id);
+
+  const cached = await redisClient.get(cacheKey);
+  if (cached) return { note: JSON.parse(cached), fromCache: true };
+
+  const note = await Note.findById(id)
+    .populate("uploadedBy", "fullName avatar.secure_url")
+    .select("+isLocked +previewPages +previewFile +fileDetails")
+    .lean();
+
+  if (note) {
+    const { views, viewedBy, ...cacheable } = note;
+    // ✅ FIX 1 — node-redis v4: set(key, value, { EX: ttl }) not setex()
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(cacheable),
+      { EX: NOTE_CACHE_TTL }
+    );
+  }
+
+  return { note, fromCache: false };
+};
+
+// ─────────────────────────────────────────────
+// CACHED ACCESS CHECK
+// ─────────────────────────────────────────────
+const getUserAccess = async (userId) => {
+  if (!userId) return null;
+
+  const cacheKey = ACCESS_CACHE_KEY(userId);
+  const cached   = await redisClient.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const user = await User.findById(userId)
+    .select("access.expiresAt access.plan")
+    .lean();
+
+  const access = user?.access ?? null;
+  if (access) {
+    // ✅ FIX 1 — same fix here
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(access),
+      { EX: ACCESS_CACHE_TTL }
+    );
+  }
+
+  return access;
+};
+// ─────────────────────────────────────────────
+// PREVIEW — trigger async generation, never block
+// Called after response is sent
+// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// PREVIEW GENERATION
+// ─────────────────────────────────────────────
+const ensurePreviewExists = async (note) => {
+  if (note.previewFile?.secure_url) return;
+
+  try {
+    const maxPages      = note.previewPages || 8;
+    const previewBuf    = await generatePreviewFromUrl(
+      note.fileDetails.secure_url,
+      maxPages
+    );
+    const previewUpload = await uploadPdfBuffer(previewBuf, {
+      folder:    "AcademicArk/previews",
+      public_id: `preview_${note._id}`,
+    });
+
+    await Note.findByIdAndUpdate(note._id, {
+      $set: {
+        "previewFile.public_id":  previewUpload.public_id,
+        "previewFile.secure_url": previewUpload.secure_url,
+      },
+    });
+
+    // ✅ FIX 2 — was redis.del, now redisClient.del
+    await redisClient.del(NOTE_CACHE_KEY(note._id.toString()));
+    console.log(`✅ Preview generated for note ${note._id}`);
+  } catch (err) {
+    console.error(`❌ Preview generation failed for ${note._id}:`, err.message);
+  }
+};
+
+
+// ─────────────────────────────────────────────
+// MAIN CONTROLLER
+// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// MAIN CONTROLLER
+// ─────────────────────────────────────────────
+// export const getNote = async (req, res, next) => {
+//   const { id } = req.params;
+//   const userId = req.user?.id;
+
+//   if (!mongoose.Types.ObjectId.isValid(id)) {
+//     // ✅ FIX 3 — was AppError (undefined), now matches import name
+//     return next(new AppError("Invalid note Id", 400));
+//   }
+
+//   try {
+//     const [{ note }, access] = await Promise.all([
+//       getCachedNote(id),
+//       getUserAccess(userId),
+//     ]);
+
+//     if (!note) return next(new AppError("Note not found", 404));
+
+//     const isSupporter =
+//       access?.expiresAt && new Date(access.expiresAt) > new Date();
+
+//     let pdfUrl        = note.fileDetails.secure_url;
+//     let mode          = "FULL";
+//     let maxPages      = null;
+//     let allowDownload = true;
+//     let needsPreview  = false;
+
+//     if (note.isLocked && !isSupporter) {
+//       mode          = "PREVIEW";
+//       maxPages      = note.previewPages || 8;
+//       allowDownload = false;
+
+//       if (note.previewFile?.secure_url) {
+//         pdfUrl = note.previewFile.secure_url;
+//       } else {
+//         needsPreview = true;
+//         pdfUrl       = null;
+//       }
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Note fetched successfully",
+//       data: {
+//         ...note,
+//         pdfAccess: {
+//           pdfUrl,
+//           mode,
+//           maxPages,
+//           allowDownload,
+//           previewPending: needsPreview,
+//         },
+//       },
+//     });
+
+//     // ── Fire-and-forget side effects ──────────
+//     if (userId) {
+//       fireAndForget(incrementViewCount(id, userId));
+//       fireAndForget(
+//         logUserActivity(userId, "NOTE_VIEWED", {
+//           resourceId:   id,
+//           resourceType: "NOTE",
+//           ipAddress:    req.ip,
+//           userAgent:    req.get("user-agent"),
+//           sessionId:    req.sessionID,
+//         })
+//       );
+//       fireAndForget(markStudyActivity(userId));
+//     }
+
+//     if (needsPreview) {
+//       fireAndForget(ensurePreviewExists(note));
+//     }
+
+//   } catch (error) {
+//     console.error("❌ getNote error:", error);
+//     next(new Apperror("Failed to fetch note", 500));  // ✅ FIX 3
+//   }
+// };
 
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
@@ -110,8 +323,12 @@ export const registerNote = async (req, res, next) => {
                 await fs.rm(`uploads/${req.file.filename}`)
             }
         } catch (error) {
-            return next(new Apperror(error.mesage || "Failed to upload note please try again!"))
-        }
+    console.error("❌ Cloudinary upload error:", error);
+
+    return next(
+        new Apperror(error.message || "Failed to upload note please try again!", 500)
+    );
+}
     }
     await note.save();
     await redisClient.del(`notes:${JSON.stringify({})}`)//clear top level cache
@@ -831,7 +1048,7 @@ export const updateNote = async (req, res, next) => {
     // After note.save() in registerNote, updateNote, deleteNote:
     await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
     await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
-
+ await bustNoteCache(req.params.id);
 
     res.status(200).json({
         success: true,
@@ -842,6 +1059,7 @@ export const updateNote = async (req, res, next) => {
 
 export const deleteNote = async (req, res, next) => {
     const { id } = req.params;
+    const userId=req.user?.id
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new Apperror("Invalid note Id", 400))
     }
@@ -859,6 +1077,7 @@ export const deleteNote = async (req, res, next) => {
     // After note.save() in registerNote, updateNote, deleteNote:
     await redisClient.del(`notes:${JSON.stringify({})}`);        // clear top-level cache
     await redisClient.del(`notes:${JSON.stringify(req.query)}`); // clear specific filter
+    await bustNoteCache(req.params.id);
     // ✅ LOG DOWNLOAD ACTIVITY (only if user is logged in)
     if (userId) {
         await logUserActivity(userId, "NOTE_DOWNLOADED", {
