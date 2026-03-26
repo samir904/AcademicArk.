@@ -60,6 +60,7 @@ passport.use(new GoogleStrategy({
                 photoUrl = photoUrl.replace("http://", "https://");
             }
             let user = await User.findOne({ email });
+             let isNewUser = false;                          // ← track it
             if (!user) {
                 user = await User.create({
                     fullName: name,
@@ -71,7 +72,10 @@ passport.use(new GoogleStrategy({
                     },
                     authProvider: "google"
                 });
+                isNewUser = true;                             // ← new user created
             }
+             // ── Attach flag to user object so route handler can read it ──
+    user.isNewUser = isNewUser;
             return done(null, user)
         } catch (error) {
             return done(error, null)

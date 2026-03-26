@@ -1,24 +1,55 @@
 // src/CONTROLLERS/userAnalytics.controller.js
 import User from "../MODELS/user.model.js";
-// import AppError from "../UTILS/appError.js";
 import asyncHandler from "../UTIL/asyncHandler.js";
-// ─────────────────────────────────────────────
-// SHARED HELPERS
-// ─────────────────────────────────────────────
-const now       = () => new Date();
-const daysAgo   = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
-const weeksAgo  = (n) => daysAgo(n * 7);
-const monthsAgo = (n) => {
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+
+const TZ = "Asia/Kolkata"; // single source of truth
+
+const now = () => new Date();
+
+// n days ago at current time — used for range filters ($gte last7, last30)
+const daysAgo = (n) => {
   const d = new Date();
-  d.setMonth(d.getMonth() - n);
+  d.setDate(d.getDate() - n);
   return d;
 };
+
+// IST midnight of n days ago — used for ALL "today / daily" cutoffs
+// setHours(0,0,0,0)  → server local time → wrong on any non-IST server
+// setUTCHours        → UTC midnight      → off by 5h30m for IST users
+// This manually computes IST midnight as a UTC Date object ✅
+const startOfDayIST = (n = 0) => {
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5h 30min
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  const utcMs = d.getTime();
+  const istMs = utcMs + IST_OFFSET_MS;
+  const istMidnightMs = Math.floor(istMs / 86_400_000) * 86_400_000;
+  return new Date(istMidnightMs - IST_OFFSET_MS); // back to UTC-equivalent
+};
+
+// IST date label "YYYY-MM-DD" for fill loops — matches $dateToString Asia/Kolkata
+const istDateLabel = (n = 0) => {
+  const d = startOfDayIST(n);
+  return d.toLocaleString("en-CA", {
+    timeZone: TZ,
+    year:  "numeric",
+    month: "2-digit",
+    day:   "2-digit",
+  }).replace(/\//g, "-"); // "2026-03-22"
+};
+
+const weeksAgo  = (n) => { const d = new Date(); d.setDate(d.getDate() - n * 7); return d; };
+const monthsAgo = (n) => { const d = new Date(); d.setMonth(d.getMonth() - n);   return d; };
 
 // ══════════════════════════════════════════════
 // 📅 ACQUISITION
 // ══════════════════════════════════════════════
 
-// GET /acquisition/monthly?year=2025
+// GET /acquisition/monthly?year=2026
 export const getMonthlyAcquisition = asyncHandler(async (req, res) => {
   const year = parseInt(req.query.year) || new Date().getFullYear();
 
@@ -33,18 +64,15 @@ export const getMonthlyAcquisition = asyncHandler(async (req, res) => {
     },
     {
       $group: {
-        _id:   { $month: "$createdAt" },
+        // FIX: timezone so Dec 31 11:30 PM IST isn't counted as Jan 1 UTC
+        _id:   { $month: { date: "$createdAt", timezone: TZ } },
         count: { $sum: 1 },
       },
     },
     { $sort: { _id: 1 } },
   ]);
 
-  // Fill all 12 months — even months with 0
-  const MONTHS = [
-    "Jan","Feb","Mar","Apr","May","Jun",
-    "Jul","Aug","Sep","Oct","Nov","Dec",
-  ];
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const filled = MONTHS.map((label, i) => {
     const found = data.find((d) => d._id === i + 1);
     return { month: label, monthNumber: i + 1, count: found?.count ?? 0 };
@@ -53,13 +81,7 @@ export const getMonthlyAcquisition = asyncHandler(async (req, res) => {
   const total = filled.reduce((s, d) => s + d.count, 0);
   const peak  = filled.reduce((a, b) => (b.count > a.count ? b : a), filled[0]);
 
-  res.status(200).json({
-    success: true,
-    year,
-    total,
-    peak,
-    data: filled,
-  });
+  res.status(200).json({ success: true, year, total, peak, data: filled });
 });
 
 // GET /acquisition/yearly?from=2023&to=2026
@@ -78,21 +100,14 @@ export const getYearlyAcquisition = asyncHandler(async (req, res) => {
     },
     {
       $group: {
-        _id:   { $year: "$createdAt" },
+        _id:   { $year: { date: "$createdAt", timezone: TZ } }, // FIX: timezone
         count: { $sum: 1 },
       },
     },
     { $sort: { _id: 1 } },
-    {
-      $project: {
-        year:  "$_id",
-        count: 1,
-        _id:   0,
-      },
-    },
+    { $project: { year: "$_id", count: 1, _id: 0 } },
   ]);
 
-  // Fill missing years
   const filled = [];
   for (let y = from; y <= to; y++) {
     const found = data.find((d) => d.year === y);
@@ -100,9 +115,7 @@ export const getYearlyAcquisition = asyncHandler(async (req, res) => {
   }
 
   res.status(200).json({
-    success: true,
-    from,
-    to,
+    success: true, from, to,
     total: filled.reduce((s, d) => s + d.count, 0),
     data:  filled,
   });
@@ -111,14 +124,18 @@ export const getYearlyAcquisition = asyncHandler(async (req, res) => {
 // GET /acquisition/daily?days=30
 export const getDailyAcquisition = asyncHandler(async (req, res) => {
   const days  = parseInt(req.query.days) || 30;
-  const since = daysAgo(days);
+  const since = startOfDayIST(days); // FIX: IST midnight n days ago
 
   const data = await User.aggregate([
     { $match: { createdAt: { $gte: since } } },
     {
       $group: {
         _id: {
-          $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          $dateToString: {
+            format: "%Y-%m-%d",
+            date:   "$createdAt",
+            timezone: TZ,           // FIX: IST grouping
+          },
         },
         count: { $sum: 1 },
       },
@@ -127,18 +144,16 @@ export const getDailyAcquisition = asyncHandler(async (req, res) => {
     { $project: { date: "$_id", count: 1, _id: 0 } },
   ]);
 
-  // Fill every day in range
+  // FIX: fill loop uses IST labels — matches $dateToString Asia/Kolkata
   const filled = [];
   for (let i = days - 1; i >= 0; i--) {
-    const d     = daysAgo(i);
-    const label = d.toISOString().split("T")[0];
+    const label = istDateLabel(i);
     const found = data.find((r) => r.date === label);
     filled.push({ date: label, count: found?.count ?? 0 });
   }
 
   res.status(200).json({
-    success: true,
-    days,
+    success: true, days,
     total: filled.reduce((s, d) => s + d.count, 0),
     data:  filled,
   });
@@ -157,8 +172,8 @@ export const getAcquisitionByAuthProvider = asyncHandler(async (req, res) => {
     { $project: { provider: "$_id", count: 1, _id: 0 } },
   ]);
 
-  const total = data.reduce((s, d) => s + d.count, 0);
-  const withPct = data.map((d) => ({
+  const total    = data.reduce((s, d) => s + d.count, 0);
+  const withPct  = data.map((d) => ({
     ...d,
     percentage: total > 0 ? Math.round((d.count / total) * 100) : 0,
   }));
@@ -173,18 +188,18 @@ export const getAcquisitionByAuthProvider = asyncHandler(async (req, res) => {
 // GET /engagement/dau?days=30
 export const getDailyActiveUsers = asyncHandler(async (req, res) => {
   const days  = parseInt(req.query.days) || 30;
-  const since = daysAgo(days);
+  const since = startOfDayIST(days); // FIX: IST midnight n days ago
 
   const data = await User.aggregate([
-    {
-      $match: {
-        lastHomepageVisit: { $gte: since, $ne: null },
-      },
-    },
+    { $match: { lastHomepageVisit: { $gte: since, $ne: null } } },
     {
       $group: {
         _id: {
-          $dateToString: { format: "%Y-%m-%d", date: "$lastHomepageVisit" },
+          $dateToString: {
+            format:   "%Y-%m-%d",
+            date:     "$lastHomepageVisit",
+            timezone: TZ,           // FIX: group by IST day, not UTC day
+          },
         },
         count: { $sum: 1 },
       },
@@ -193,17 +208,15 @@ export const getDailyActiveUsers = asyncHandler(async (req, res) => {
     { $project: { date: "$_id", count: 1, _id: 0 } },
   ]);
 
-  // Fill gaps
+  // FIX: IST labels → matches $dateToString Asia/Kolkata output
   const filled = [];
   for (let i = days - 1; i >= 0; i--) {
-    const label = daysAgo(i).toISOString().split("T")[0];
+    const label = istDateLabel(i);
     const found = data.find((r) => r.date === label);
     filled.push({ date: label, dau: found?.count ?? 0 });
   }
 
-  const avg = Math.round(
-    filled.reduce((s, d) => s + d.dau, 0) / filled.length
-  );
+  const avg  = Math.round(filled.reduce((s, d) => s + d.dau, 0) / filled.length);
   const peak = filled.reduce((a, b) => (b.dau > a.dau ? b : a), filled[0]);
 
   res.status(200).json({ success: true, days, avg, peak, data: filled });
@@ -215,16 +228,13 @@ export const getWeeklyActiveUsers = asyncHandler(async (req, res) => {
   const since = weeksAgo(weeks);
 
   const data = await User.aggregate([
-    {
-      $match: {
-        lastHomepageVisit: { $gte: since, $ne: null },
-      },
-    },
+    { $match: { lastHomepageVisit: { $gte: since, $ne: null } } },
     {
       $group: {
         _id: {
-          year: { $isoWeekYear: "$lastHomepageVisit" },
-          week: { $isoWeek:     "$lastHomepageVisit" },
+          // FIX: timezone on isoWeekYear / isoWeek
+          year: { $isoWeekYear: { date: "$lastHomepageVisit", timezone: TZ } },
+          week: { $isoWeek:     { date: "$lastHomepageVisit", timezone: TZ } },
         },
         count: { $sum: 1 },
       },
@@ -248,16 +258,13 @@ export const getMonthlyActiveUsers = asyncHandler(async (req, res) => {
   const since  = monthsAgo(months);
 
   const data = await User.aggregate([
-    {
-      $match: {
-        lastHomepageVisit: { $gte: since, $ne: null },
-      },
-    },
+    { $match: { lastHomepageVisit: { $gte: since, $ne: null } } },
     {
       $group: {
         _id: {
-          year:  { $year:  "$lastHomepageVisit" },
-          month: { $month: "$lastHomepageVisit" },
+          // FIX: timezone on $year / $month
+          year:  { $year:  { date: "$lastHomepageVisit", timezone: TZ } },
+          month: { $month: { date: "$lastHomepageVisit", timezone: TZ } },
         },
         count: { $sum: 1 },
       },
@@ -285,37 +292,26 @@ export const getMonthlyActiveUsers = asyncHandler(async (req, res) => {
 });
 
 // GET /engagement/returning?days=30
-// "Returning" = lastHomepageVisit is on a DIFFERENT calendar day than createdAt
 export const getReturningUsers = asyncHandler(async (req, res) => {
   const days  = parseInt(req.query.days) || 30;
   const since = daysAgo(days);
 
   const [result] = await User.aggregate([
-    {
-      $match: {
-        lastHomepageVisit: { $gte: since, $ne: null },
-      },
-    },
+    { $match: { lastHomepageVisit: { $gte: since, $ne: null } } },
     {
       $addFields: {
-        signupDay:  { $dateToString: { format: "%Y-%m-%d", date: "$createdAt"          } },
-        visitDay:   { $dateToString: { format: "%Y-%m-%d", date: "$lastHomepageVisit"  } },
+        // FIX: compare IST dates so 11:30 PM IST signup + 12:30 AM IST visit
+        // aren't incorrectly counted as "same day" (UTC would show different days)
+        signupDay: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt",         timezone: TZ } },
+        visitDay:  { $dateToString: { format: "%Y-%m-%d", date: "$lastHomepageVisit", timezone: TZ } },
       },
     },
     {
       $group: {
         _id:       null,
         total:     { $sum: 1 },
-        returning: {
-          $sum: {
-            $cond: [{ $ne: ["$signupDay", "$visitDay"] }, 1, 0],
-          },
-        },
-        newVisit: {
-          $sum: {
-            $cond: [{ $eq: ["$signupDay", "$visitDay"] }, 1, 0],
-          },
-        },
+        returning: { $sum: { $cond: [{ $ne: ["$signupDay", "$visitDay"] }, 1, 0] } },
+        newVisit:  { $sum: { $cond: [{ $eq: ["$signupDay", "$visitDay"] }, 1, 0] } },
       },
     },
   ]);
@@ -325,10 +321,7 @@ export const getReturningUsers = asyncHandler(async (req, res) => {
   const newVisit  = result?.newVisit  ?? 0;
 
   res.status(200).json({
-    success: true,
-    days,
-    total,
-    returning,
+    success: true, days, total, returning,
     new: newVisit,
     returningRate: total > 0 ? `${Math.round((returning / total) * 100)}%` : "0%",
   });
@@ -342,66 +335,41 @@ export const getChurnedUsers = asyncHandler(async (req, res) => {
   const [result] = await User.aggregate([
     {
       $facet: {
-        // Never visited at all
-        neverVisited: [
-          { $match: { lastHomepageVisit: null } },
-          { $count: "count" },
-        ],
-        // Visited but not recently
-        inactive: [
-          {
-            $match: {
-              lastHomepageVisit: { $lt: cutoff, $ne: null },
-            },
-          },
-          { $count: "count" },
-        ],
-        // Active
-        active: [
-          {
-            $match: {
-              lastHomepageVisit: { $gte: cutoff },
-            },
-          },
-          { $count: "count" },
-        ],
-        total: [
-          { $count: "count" },
-        ],
+        neverVisited: [{ $match: { lastHomepageVisit: null                                      } }, { $count: "count" }],
+        inactive:     [{ $match: { lastHomepageVisit: { $lt: cutoff, $ne: null }               } }, { $count: "count" }],
+        active:       [{ $match: { lastHomepageVisit: { $gte: cutoff }                         } }, { $count: "count" }],
+        total:        [{ $count: "count" }],
       },
     },
   ]);
 
-  const total       = result.total[0]?.count       ?? 0;
-  const active      = result.active[0]?.count      ?? 0;
-  const inactive    = result.inactive[0]?.count    ?? 0;
-  const neverVisited= result.neverVisited[0]?.count ?? 0;
-  const churned     = inactive + neverVisited;
+  const total        = result.total[0]?.count        ?? 0;
+  const active       = result.active[0]?.count       ?? 0;
+  const inactive     = result.inactive[0]?.count     ?? 0;
+  const neverVisited = result.neverVisited[0]?.count ?? 0;
+  const churned      = inactive + neverVisited;
 
   res.status(200).json({
-    success: true,
-    inactiveDays,
-    total,
-    active,
-    inactive,
-    neverVisited,
-    churned,
-    churnRate:   total > 0 ? `${Math.round((churned  / total) * 100)}%` : "0%",
-    activeRate:  total > 0 ? `${Math.round((active   / total) * 100)}%` : "0%",
+    success: true, inactiveDays, total, active, inactive, neverVisited, churned,
+    churnRate:  total > 0 ? `${Math.round((churned / total) * 100)}%` : "0%",
+    activeRate: total > 0 ? `${Math.round((active  / total) * 100)}%` : "0%",
   });
 });
 
 // GET /engagement/homepage-trend?days=30
 export const getHomepageVisitTrend = asyncHandler(async (req, res) => {
   const days  = parseInt(req.query.days) || 30;
-  const since = daysAgo(days);
+  const since = startOfDayIST(days); // FIX: IST midnight
 
   const data = await User.aggregate([
     { $match: { lastHomepageVisit: { $gte: since, $ne: null } } },
     {
       $group: {
         _id: {
-          $dateToString: { format: "%Y-%m-%d", date: "$lastHomepageVisit" },
+          $dateToString: {
+            format: "%Y-%m-%d", date: "$lastHomepageVisit",
+            timezone: TZ,       // FIX: IST grouping
+          },
         },
         visits: { $sum: 1 },
       },
@@ -410,10 +378,10 @@ export const getHomepageVisitTrend = asyncHandler(async (req, res) => {
     { $project: { date: "$_id", visits: 1, _id: 0 } },
   ]);
 
-  // Fill all days
+  // FIX: IST fill labels
   const filled = [];
   for (let i = days - 1; i >= 0; i--) {
-    const label = daysAgo(i).toISOString().split("T")[0];
+    const label = istDateLabel(i);
     const found = data.find((r) => r.date === label);
     filled.push({ date: label, visits: found?.visits ?? 0 });
   }
@@ -425,12 +393,11 @@ export const getHomepageVisitTrend = asyncHandler(async (req, res) => {
 // 📚 STUDY BEHAVIOUR
 // ══════════════════════════════════════════════
 
-// GET /study/streak-distribution
 export const getStudyStreakDistribution = asyncHandler(async (req, res) => {
   const data = await User.aggregate([
     {
       $bucket: {
-        groupBy: "$studyStreak",
+        groupBy:    "$studyStreak",
         boundaries: [0, 1, 4, 8, 15, 31, 100],
         default:    "100+",
         output:     { count: { $sum: 1 } },
@@ -438,16 +405,12 @@ export const getStudyStreakDistribution = asyncHandler(async (req, res) => {
     },
   ]);
 
-  const labels = ["0", "1–3", "4–7", "8–14", "15–30", "31–99", "100+"];
-  const formatted = data.map((d, i) => ({
-    bucket: labels[i] ?? d._id,
-    count:  d.count,
-  }));
+  const labels    = ["0", "1–3", "4–7", "8–14", "15–30", "31–99", "100+"];
+  const formatted = data.map((d, i) => ({ bucket: labels[i] ?? d._id, count: d.count }));
 
   res.status(200).json({ success: true, data: formatted });
 });
 
-// GET /study/time-distribution
 export const getStudyTimeDistribution = asyncHandler(async (req, res) => {
   const data = await User.aggregate([
     {
@@ -460,38 +423,28 @@ export const getStudyTimeDistribution = asyncHandler(async (req, res) => {
     },
   ]);
 
-  const labels = ["0 min", "1–60 min", "1–5 hrs", "5–10 hrs", "10–25 hrs", "25+ hrs"];
-  const formatted = data.map((d, i) => ({
-    bucket: labels[i] ?? d._id,
-    count:  d.count,
-  }));
+  const labels    = ["0 min", "1–60 min", "1–5 hrs", "5–10 hrs", "10–25 hrs", "25+ hrs"];
+  const formatted = data.map((d, i) => ({ bucket: labels[i] ?? d._id, count: d.count }));
 
   res.status(200).json({ success: true, data: formatted });
 });
 
-// GET /study/planner-adoption
 export const getPlannerAdoptionStats = asyncHandler(async (req, res) => {
   const [result] = await User.aggregate([
     {
       $facet: {
-        adopted: [
-          { $match: { "plannerSetup.isCompleted": true } },
-          { $count: "count" },
-        ],
-        notAdopted: [
-          { $match: { "plannerSetup.isCompleted": { $ne: true } } },
-          { $count: "count" },
-        ],
-        total: [
-          { $count: "count" },
-        ],
-        // Monthly adoption trend
+        adopted:    [{ $match: { "plannerSetup.isCompleted": true           } }, { $count: "count" }],
+        notAdopted: [{ $match: { "plannerSetup.isCompleted": { $ne: true }  } }, { $count: "count" }],
+        total:      [{ $count: "count" }],
         trend: [
           { $match: { "plannerSetup.isCompleted": true, "plannerSetup.completedAt": { $ne: null } } },
           {
             $group: {
               _id: {
-                $dateToString: { format: "%Y-%m", date: "$plannerSetup.completedAt" },
+                $dateToString: {
+                  format: "%Y-%m", date: "$plannerSetup.completedAt",
+                  timezone: TZ,   // FIX: IST month grouping
+                },
               },
               count: { $sum: 1 },
             },
@@ -503,49 +456,38 @@ export const getPlannerAdoptionStats = asyncHandler(async (req, res) => {
     },
   ]);
 
-  const total    = result.total[0]?.count    ?? 0;
-  const adopted  = result.adopted[0]?.count  ?? 0;
+  const total      = result.total[0]?.count      ?? 0;
+  const adopted    = result.adopted[0]?.count    ?? 0;
   const notAdopted = result.notAdopted[0]?.count ?? 0;
 
   res.status(200).json({
-    success: true,
-    total,
-    adopted,
-    notAdopted,
+    success: true, total, adopted, notAdopted,
     adoptionRate: total > 0 ? `${Math.round((adopted / total) * 100)}%` : "0%",
     trend: result.trend,
   });
 });
 
-// GET /study/top-users?limit=20
 export const getTopStudyUsers = asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
   const data = await User.find(
     { totalStudyTimeMinutes: { $gt: 0 } },
     {
-      fullName:              1,
-      email:                 1,
-      "avatar.secure_url":   1,
-      totalStudyTimeMinutes: 1,
-      studyStreak:           1,
-      "academicProfile.branch":   1,
-      "academicProfile.semester": 1,
+      fullName: 1, email: 1, "avatar.secure_url": 1,
+      totalStudyTimeMinutes: 1, studyStreak: 1,
+      "academicProfile.branch": 1, "academicProfile.semester": 1,
     }
-  )
-    .sort({ totalStudyTimeMinutes: -1 })
-    .limit(limit)
-    .lean();
+  ).sort({ totalStudyTimeMinutes: -1 }).limit(limit).lean();
 
   const formatted = data.map((u, i) => ({
-    rank:          i + 1,
-    fullName:      u.fullName,
-    email:         u.email,
-    avatar:        u.avatar?.secure_url ?? null,
-    hoursStudied:  Math.round((u.totalStudyTimeMinutes / 60) * 10) / 10,
-    studyStreak:   u.studyStreak,
-    branch:        u.academicProfile?.branch   ?? "—",
-    semester:      u.academicProfile?.semester ?? "—",
+    rank:         i + 1,
+    fullName:     u.fullName,
+    email:        u.email,
+    avatar:       u.avatar?.secure_url ?? null,
+    hoursStudied: Math.round((u.totalStudyTimeMinutes / 60) * 10) / 10,
+    studyStreak:  u.studyStreak,
+    branch:       u.academicProfile?.branch   ?? "—",
+    semester:     u.academicProfile?.semester ?? "—",
   }));
 
   res.status(200).json({ success: true, limit, data: formatted });
@@ -555,59 +497,39 @@ export const getTopStudyUsers = asyncHandler(async (req, res) => {
 // 👤 PROFILE HEALTH
 // ══════════════════════════════════════════════
 
-// GET /profile/completion-funnel
 export const getProfileCompletionFunnel = asyncHandler(async (req, res) => {
   const [result] = await User.aggregate([
     {
       $facet: {
-        total: [{ $count: "count" }],
-
-        hasAvatar: [
-          { $match: { "avatar.secure_url": { $ne: null, $exists: true, $gt: "" } } },
-          { $count: "count" },
-        ],
-
-        hasBio: [
-          { $match: { bio: { $exists: true, $ne: "", $ne: null } } },
-          { $count: "count" },
-        ],
-
-        hasAcademicProfile: [
-          { $match: { "academicProfile.isCompleted": true } },
-          { $count: "count" },
-        ],
-
-        hasSocialLink: [
-          {
-            $match: {
-              $or: [
-                { "socialLinks.github":   { $ne: "", $exists: true } },
-                { "socialLinks.linkedin": { $ne: "", $exists: true } },
-                { "socialLinks.twitter":  { $ne: "", $exists: true } },
-                { "socialLinks.website":  { $ne: "", $exists: true } },
-              ],
-            },
+        total:      [{ $count: "count" }],
+        hasAvatar:  [{ $match: { "avatar.secure_url": { $gt: "" } } },                                         { $count: "count" }],
+        // FIX: $ne key collision → use $and
+        hasBio:     [{ $match: { $and: [{ bio: { $ne: null } }, { bio: { $ne: "" } }] } },                     { $count: "count" }],
+        hasAcademicProfile: [{ $match: { "academicProfile.isCompleted": true } },                              { $count: "count" }],
+        hasSocialLink: [{
+          $match: {
+            $or: [
+              { "socialLinks.github":   { $gt: "" } },
+              { "socialLinks.linkedin": { $gt: "" } },
+              { "socialLinks.twitter":  { $gt: "" } },
+              { "socialLinks.website":  { $gt: "" } },
+            ],
           },
-          { $count: "count" },
-        ],
-
-        // "Full profile" = has all 4
-        fullProfile: [
-          {
-            $match: {
-              "avatar.secure_url":        { $ne: null, $gt: "" },
-              bio:                        { $ne: "", $ne: null },
-              "academicProfile.isCompleted": true,
-              $or: [
-                { "socialLinks.github":   { $ne: "" } },
-                { "socialLinks.linkedin": { $ne: "" } },
-                { "socialLinks.twitter":  { $ne: "" } },
-                { "socialLinks.website":  { $ne: "" } },
-              ],
-            },
+        }, { $count: "count" }],
+        // FIX: $ne key collision in fullProfile → use $and for bio
+        fullProfile: [{
+          $match: {
+            "avatar.secure_url": { $gt: "" },
+            $and: [{ bio: { $ne: null } }, { bio: { $ne: "" } }],
+            "academicProfile.isCompleted": true,
+            $or: [
+              { "socialLinks.github":   { $gt: "" } },
+              { "socialLinks.linkedin": { $gt: "" } },
+              { "socialLinks.twitter":  { $gt: "" } },
+              { "socialLinks.website":  { $gt: "" } },
+            ],
           },
-          { $count: "count" },
-        ],
+        }, { $count: "count" }],
       },
     },
   ]);
@@ -615,12 +537,12 @@ export const getProfileCompletionFunnel = asyncHandler(async (req, res) => {
   const total = result.total[0]?.count ?? 0;
 
   const steps = [
-    { step: "Total Users",         count: total },
-    { step: "Has Avatar",          count: result.hasAvatar[0]?.count          ?? 0 },
-    { step: "Has Bio",             count: result.hasBio[0]?.count             ?? 0 },
-    { step: "Academic Profile",    count: result.hasAcademicProfile[0]?.count ?? 0 },
-    { step: "Has Social Link",     count: result.hasSocialLink[0]?.count      ?? 0 },
-    { step: "Full Profile",        count: result.fullProfile[0]?.count        ?? 0 },
+    { step: "Total Users",      count: total },
+    { step: "Has Avatar",       count: result.hasAvatar[0]?.count          ?? 0 },
+    { step: "Has Bio",          count: result.hasBio[0]?.count             ?? 0 },
+    { step: "Academic Profile", count: result.hasAcademicProfile[0]?.count ?? 0 },
+    { step: "Has Social Link",  count: result.hasSocialLink[0]?.count      ?? 0 },
+    { step: "Full Profile",     count: result.fullProfile[0]?.count        ?? 0 },
   ].map((s) => ({
     ...s,
     percentage: total > 0 ? Math.round((s.count / total) * 100) : 0,
@@ -629,34 +551,21 @@ export const getProfileCompletionFunnel = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, total, steps });
 });
 
-// GET /profile/social-links
 export const getSocialLinkAdoption = asyncHandler(async (req, res) => {
   const [result] = await User.aggregate([
     {
       $facet: {
-        github: [
-          { $match: { "socialLinks.github": { $ne: "", $exists: true, $ne: null } } },
-          { $count: "count" },
-        ],
-        linkedin: [
-          { $match: { "socialLinks.linkedin": { $ne: "", $exists: true, $ne: null } } },
-          { $count: "count" },
-        ],
-        twitter: [
-          { $match: { "socialLinks.twitter": { $ne: "", $exists: true, $ne: null } } },
-          { $count: "count" },
-        ],
-        website: [
-          { $match: { "socialLinks.website": { $ne: "", $exists: true, $ne: null } } },
-          { $count: "count" },
-        ],
-        total: [{ $count: "count" }],
+        // FIX: $ne key collision → use $gt: "" which correctly excludes null/""/missing
+        github:   [{ $match: { "socialLinks.github":   { $gt: "" } } }, { $count: "count" }],
+        linkedin: [{ $match: { "socialLinks.linkedin": { $gt: "" } } }, { $count: "count" }],
+        twitter:  [{ $match: { "socialLinks.twitter":  { $gt: "" } } }, { $count: "count" }],
+        website:  [{ $match: { "socialLinks.website":  { $gt: "" } } }, { $count: "count" }],
+        total:    [{ $count: "count" }],
       },
     },
   ]);
 
-  const total = result.total[0]?.count ?? 0;
-
+  const total     = result.total[0]?.count ?? 0;
   const platforms = ["github", "linkedin", "twitter", "website"].map((p) => ({
     platform:   p,
     count:      result[p][0]?.count ?? 0,
@@ -666,20 +575,14 @@ export const getSocialLinkAdoption = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, total, data: platforms });
 });
 
-// GET /profile/bio-adoption
 export const getBioAdoptionStats = asyncHandler(async (req, res) => {
   const [result] = await User.aggregate([
     {
       $facet: {
-        hasBio: [
-          { $match: { bio: { $exists: true, $ne: "", $ne: null } } },
-          { $count: "count" },
-        ],
-        noBio: [
-          { $match: { $or: [{ bio: "" }, { bio: null }, { bio: { $exists: false } }] } },
-          { $count: "count" },
-        ],
-        total: [{ $count: "count" }],
+        // FIX: $ne key collision → use $and
+        hasBio: [{ $match: { $and: [{ bio: { $ne: null } }, { bio: { $ne: "" } }] } }, { $count: "count" }],
+        noBio:  [{ $match: { $or:  [{ bio: "" }, { bio: null }, { bio: { $exists: false } }] } }, { $count: "count" }],
+        total:  [{ $count: "count" }],
       },
     },
   ]);
@@ -689,32 +592,22 @@ export const getBioAdoptionStats = asyncHandler(async (req, res) => {
   const noBio  = result.noBio[0]?.count  ?? 0;
 
   res.status(200).json({
-    success:    true,
-    total,
-    hasBio,
-    noBio,
+    success: true, total, hasBio, noBio,
     adoptionRate: total > 0 ? `${Math.round((hasBio / total) * 100)}%` : "0%",
   });
 });
 
-// GET /profile/visibility
 export const getPublicVsPrivateProfiles = asyncHandler(async (req, res) => {
   const data = await User.aggregate([
-    {
-      $group: {
-        _id:   "$isProfilePublic",
-        count: { $sum: 1 },
-      },
-    },
+    { $group: { _id: "$isProfilePublic", count: { $sum: 1 } } },
   ]);
 
-  const publicCount  = data.find((d) => d._id === true)?. count  ?? 0;
-  const privateCount = data.find((d) => d._id === false)?.count  ?? 0;
+  const publicCount  = data.find((d) => d._id === true)?.count  ?? 0;
+  const privateCount = data.find((d) => d._id === false)?.count ?? 0;
   const total        = publicCount + privateCount;
 
   res.status(200).json({
-    success: true,
-    total,
+    success: true, total,
     public:  publicCount,
     private: privateCount,
     publicRate:  total > 0 ? `${Math.round((publicCount  / total) * 100)}%` : "0%",
@@ -726,36 +619,16 @@ export const getPublicVsPrivateProfiles = asyncHandler(async (req, res) => {
 // 💳 PAYWALL / ACCESS
 // ══════════════════════════════════════════════
 
-// GET /access/paid-vs-free
 export const getPaidVsFreeRatio = asyncHandler(async (req, res) => {
   const now_ = now();
 
   const [result] = await User.aggregate([
     {
       $facet: {
-        paid: [
-          {
-            $match: {
-              "access.plan":      { $ne: null },
-              "access.expiresAt": { $gt: now_ },
-            },
-          },
-          { $count: "count" },
-        ],
-        expired: [
-          {
-            $match: {
-              "access.plan":      { $ne: null },
-              "access.expiresAt": { $lte: now_ },
-            },
-          },
-          { $count: "count" },
-        ],
-        free: [
-          { $match: { "access.plan": null } },
-          { $count: "count" },
-        ],
-        total: [{ $count: "count" }],
+        paid:    [{ $match: { "access.plan": { $ne: null }, "access.expiresAt": { $gt: now_  } } }, { $count: "count" }],
+        expired: [{ $match: { "access.plan": { $ne: null }, "access.expiresAt": { $lte: now_ } } }, { $count: "count" }],
+        free:    [{ $match: { "access.plan": null } },                                               { $count: "count" }],
+        total:   [{ $count: "count" }],
       },
     },
   ]);
@@ -766,68 +639,38 @@ export const getPaidVsFreeRatio = asyncHandler(async (req, res) => {
   const free    = result.free[0]?.count    ?? 0;
 
   res.status(200).json({
-    success: true,
-    total,
-    paid,
-    expired,
-    free,
+    success: true, total, paid, expired, free,
     paidRate:    total > 0 ? `${Math.round((paid    / total) * 100)}%` : "0%",
     expiredRate: total > 0 ? `${Math.round((expired / total) * 100)}%` : "0%",
     freeRate:    total > 0 ? `${Math.round((free    / total) * 100)}%` : "0%",
   });
 });
 
-// GET /access/plan-distribution
 export const getPlanDistribution = asyncHandler(async (req, res) => {
+  const now_ = now(); // FIX: capture once — don't call now() inside aggregate expression
   const data = await User.aggregate([
     { $match: { "access.plan": { $ne: null } } },
-    {
-      $lookup: {
-        from:         "plans",
-        localField:   "access.plan",
-        foreignField: "_id",
-        as:           "planDoc",
-      },
-    },
+    { $lookup: { from: "plans", localField: "access.plan", foreignField: "_id", as: "planDoc" } },
     { $unwind: { path: "$planDoc", preserveNullAndEmptyArrays: true } },
     {
       $group: {
-        _id:      "$planDoc.name",
-        count:    { $sum: 1 },
-        active:   {
-          $sum: { $cond: [{ $gt: ["$access.expiresAt", now()] }, 1, 0] },
-        },
-        expired:  {
-          $sum: { $cond: [{ $lte: ["$access.expiresAt", now()] }, 1, 0] },
-        },
+        _id:     "$planDoc.name",
+        count:   { $sum: 1 },
+        active:  { $sum: { $cond: [{ $gt:  ["$access.expiresAt", now_] }, 1, 0] } },
+        expired: { $sum: { $cond: [{ $lte: ["$access.expiresAt", now_] }, 1, 0] } },
       },
     },
     { $sort: { count: -1 } },
-    {
-      $project: {
-        planName: { $ifNull: ["$_id", "Unknown"] },
-        count:    1,
-        active:   1,
-        expired:  1,
-        _id:      0,
-      },
-    },
+    { $project: { planName: { $ifNull: ["$_id", "Unknown"] }, count: 1, active: 1, expired: 1, _id: 0 } },
   ]);
 
-  res.status(200).json({
-    success: true,
-    total: data.reduce((s, d) => s + d.count, 0),
-    data,
-  });
+  res.status(200).json({ success: true, total: data.reduce((s, d) => s + d.count, 0), data });
 });
 
-// GET /access/download-stats?days=7
 export const getDailyDownloadStats = asyncHandler(async (req, res) => {
   const days  = parseInt(req.query.days) || 7;
-  const since = daysAgo(days);
+  const since = startOfDayIST(days); // FIX: IST midnight
 
-  // downloadsToday is a daily counter reset each day —
-  // we use lastDownloadDate to group by day
   const data = await User.aggregate([
     {
       $match: {
@@ -839,29 +682,22 @@ export const getDailyDownloadStats = asyncHandler(async (req, res) => {
       $group: {
         _id: {
           $dateToString: {
-            format: "%Y-%m-%d",
-            date:   "$access.lastDownloadDate",
+            format: "%Y-%m-%d", date: "$access.lastDownloadDate",
+            timezone: TZ,       // FIX: IST grouping
           },
         },
-        totalDownloads:   { $sum: "$access.downloadsToday" },
-        activeDownloaders:{ $sum: 1 },
+        totalDownloads:    { $sum: "$access.downloadsToday" },
+        activeDownloaders: { $sum: 1 },
       },
     },
     { $sort: { _id: 1 } },
-    {
-      $project: {
-        date:              "$_id",
-        totalDownloads:    1,
-        activeDownloaders: 1,
-        _id:               0,
-      },
-    },
+    { $project: { date: "$_id", totalDownloads: 1, activeDownloaders: 1, _id: 0 } },
   ]);
 
-  // Fill gaps
+  // FIX: IST fill labels
   const filled = [];
   for (let i = days - 1; i >= 0; i--) {
-    const label = daysAgo(i).toISOString().split("T")[0];
+    const label = istDateLabel(i);
     const found = data.find((r) => r.date === label);
     filled.push({
       date:              label,
@@ -871,61 +707,37 @@ export const getDailyDownloadStats = asyncHandler(async (req, res) => {
   }
 
   res.status(200).json({
-    success: true,
-    days,
+    success: true, days,
     totalOverPeriod: filled.reduce((s, d) => s + d.totalDownloads, 0),
     data: filled,
   });
 });
 
-// GET /access/expiring?withinDays=7
 export const getExpiringSubscriptions = asyncHandler(async (req, res) => {
   const withinDays = parseInt(req.query.withinDays) || 7;
   const now_       = now();
   const cutoff     = daysAgo(-withinDays); // future date
 
   const data = await User.find(
-    {
-      "access.plan":      { $ne: null },
-      "access.expiresAt": { $gt: now_, $lte: cutoff },
-    },
-    {
-      fullName:           1,
-      email:              1,
-      "access.expiresAt": 1,
-      "access.plan":      1,
-    }
-  )
-    .populate("access.plan", "name price")
-    .sort({ "access.expiresAt": 1 })
-    .lean();
+    { "access.plan": { $ne: null }, "access.expiresAt": { $gt: now_, $lte: cutoff } },
+    { fullName: 1, email: 1, "access.expiresAt": 1, "access.plan": 1 }
+  ).populate("access.plan", "name price").sort({ "access.expiresAt": 1 }).lean();
 
-  res.status(200).json({
-    success:    true,
-    withinDays,
-    count:      data.length,
-    data,
-  });
+  res.status(200).json({ success: true, withinDays, count: data.length, data });
 });
 
 // ══════════════════════════════════════════════
 // 🔐 ROLES
 // ══════════════════════════════════════════════
 
-// GET /roles/distribution
 export const getRoleDistribution = asyncHandler(async (req, res) => {
   const data = await User.aggregate([
-    {
-      $group: {
-        _id:   "$role",
-        count: { $sum: 1 },
-      },
-    },
+    { $group: { _id: "$role", count: { $sum: 1 } } },
     { $sort: { count: -1 } },
     { $project: { role: "$_id", count: 1, _id: 0 } },
   ]);
 
-  const total = data.reduce((s, d) => s + d.count, 0);
+  const total   = data.reduce((s, d) => s + d.count, 0);
   const withPct = data.map((d) => ({
     ...d,
     percentage: total > 0 ? Math.round((d.count / total) * 100) : 0,
@@ -938,10 +750,6 @@ export const getRoleDistribution = asyncHandler(async (req, res) => {
 // 🔄 COHORT ANALYTICS
 // ══════════════════════════════════════════════
 
-// GET /cohort/retention?months=6
-// Returns a cohort table:
-// Each row = signup month
-// Cols = % still active after Week1 / Week2 / Month1 / Month2 / Month3
 export const getCohortRetention = asyncHandler(async (req, res) => {
   const months = Math.min(parseInt(req.query.months) || 6, 12);
   const since  = monthsAgo(months);
@@ -951,38 +759,33 @@ export const getCohortRetention = asyncHandler(async (req, res) => {
     { createdAt: 1, lastHomepageVisit: 1 }
   ).lean();
 
-  // Build cohort map: key = "YYYY-MM"
   const cohorts = {};
 
   users.forEach((u) => {
-    const cohortKey = u.createdAt.toISOString().slice(0, 7); // "2025-03"
-    if (!cohorts[cohortKey]) {
-      cohorts[cohortKey] = { total: 0, w1: 0, w2: 0, m1: 0, m2: 0, m3: 0 };
-    }
+    // FIX: use IST month label for cohort key
+    const cohortKey = u.createdAt.toLocaleString("en-CA", {
+      timeZone: TZ, year: "numeric", month: "2-digit",
+    }).slice(0, 7).replace("/", "-"); // "2026-03"
 
+    if (!cohorts[cohortKey]) cohorts[cohortKey] = { total: 0, w1: 0, w2: 0, m1: 0, m2: 0, m3: 0 };
     cohorts[cohortKey].total++;
 
     if (!u.lastHomepageVisit) return;
 
-    const signupMs  = u.createdAt.getTime();
-    const visitMs   = u.lastHomepageVisit.getTime();
-    const diffDays  = (visitMs - signupMs) / (1000 * 60 * 60 * 24);
+    const diffDays = (u.lastHomepageVisit.getTime() - u.createdAt.getTime()) / 86_400_000;
 
-    if (diffDays >= 1  && diffDays <= 7)   cohorts[cohortKey].w1++;
-    if (diffDays >= 8  && diffDays <= 14)  cohorts[cohortKey].w2++;
-    if (diffDays >= 15 && diffDays <= 30)  cohorts[cohortKey].m1++;
-    if (diffDays >= 31 && diffDays <= 60)  cohorts[cohortKey].m2++;
-    if (diffDays >= 61 && diffDays <= 90)  cohorts[cohortKey].m3++;
+    if (diffDays >= 1  && diffDays <= 7)  cohorts[cohortKey].w1++;
+    if (diffDays >= 8  && diffDays <= 14) cohorts[cohortKey].w2++;
+    if (diffDays >= 15 && diffDays <= 30) cohorts[cohortKey].m1++;
+    if (diffDays >= 31 && diffDays <= 60) cohorts[cohortKey].m2++;
+    if (diffDays >= 61 && diffDays <= 90) cohorts[cohortKey].m3++;
   });
 
-  const pct = (n, total) =>
-    total > 0 ? Math.round((n / total) * 100) : 0;
-
+  const pct   = (n, t) => t > 0 ? Math.round((n / t) * 100) : 0;
   const table = Object.entries(cohorts)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([cohort, c]) => ({
-      cohort,
-      total:  c.total,
+      cohort, total: c.total,
       week1:  { count: c.w1, rate: `${pct(c.w1, c.total)}%` },
       week2:  { count: c.w2, rate: `${pct(c.w2, c.total)}%` },
       month1: { count: c.m1, rate: `${pct(c.m1, c.total)}%` },
@@ -993,34 +796,15 @@ export const getCohortRetention = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, months, cohorts: table });
 });
 
-// GET /cohort/signup-to-first-action
-// How quickly users returned after signup
 export const getSignupToFirstAction = asyncHandler(async (req, res) => {
-  const users = await User.find(
-    {},
-    { createdAt: 1, lastHomepageVisit: 1, lastStudyDate: 1 }
-  ).lean();
+  const users = await User.find({}, { createdAt: 1, lastHomepageVisit: 1 }).lean();
 
-  const buckets = {
-    sameDay:  0,  // 0 days
-    d1to3:    0,  // 1–3 days
-    d4to7:    0,  // 4–7 days
-    w2:       0,  // 8–14 days
-    w3plus:   0,  // 15+ days
-    never:    0,  // no homepage visit ever
-  };
+  const buckets = { sameDay: 0, d1to3: 0, d4to7: 0, w2: 0, w3plus: 0, never: 0 };
 
   users.forEach((u) => {
-    if (!u.lastHomepageVisit) {
-      buckets.never++;
-      return;
-    }
-
-    const diffDays =
-      (u.lastHomepageVisit.getTime() - u.createdAt.getTime()) /
-      (1000 * 60 * 60 * 24);
-
-    if (diffDays < 1)       buckets.sameDay++;
+    if (!u.lastHomepageVisit) { buckets.never++; return; }
+    const diffDays = (u.lastHomepageVisit.getTime() - u.createdAt.getTime()) / 86_400_000;
+    if      (diffDays < 1)  buckets.sameDay++;
     else if (diffDays <= 3) buckets.d1to3++;
     else if (diffDays <= 7) buckets.d4to7++;
     else if (diffDays <= 14)buckets.w2++;
@@ -1028,119 +812,100 @@ export const getSignupToFirstAction = asyncHandler(async (req, res) => {
   });
 
   const total = users.length;
-  const pct   = (n) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  const pct   = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
 
-  const data = [
-    { bucket: "Same day",    count: buckets.sameDay, percentage: pct(buckets.sameDay)  },
-    { bucket: "1–3 days",    count: buckets.d1to3,   percentage: pct(buckets.d1to3)    },
-    { bucket: "4–7 days",    count: buckets.d4to7,   percentage: pct(buckets.d4to7)    },
-    { bucket: "8–14 days",   count: buckets.w2,      percentage: pct(buckets.w2)       },
-    { bucket: "15+ days",    count: buckets.w3plus,  percentage: pct(buckets.w3plus)   },
-    { bucket: "Never",       count: buckets.never,   percentage: pct(buckets.never)    },
-  ];
-
-  res.status(200).json({ success: true, total, data });
+  res.status(200).json({
+    success: true, total,
+    data: [
+      { bucket: "Same day",  count: buckets.sameDay, percentage: pct(buckets.sameDay) },
+      { bucket: "1–3 days",  count: buckets.d1to3,   percentage: pct(buckets.d1to3)   },
+      { bucket: "4–7 days",  count: buckets.d4to7,   percentage: pct(buckets.d4to7)   },
+      { bucket: "8–14 days", count: buckets.w2,       percentage: pct(buckets.w2)      },
+      { bucket: "15+ days",  count: buckets.w3plus,   percentage: pct(buckets.w3plus)  },
+      { bucket: "Never",     count: buckets.never,    percentage: pct(buckets.never)   },
+    ],
+  });
 });
 
 // ══════════════════════════════════════════════
-// 📊 OVERVIEW — all key metrics in one call
+// 📊 OVERVIEW
 // ══════════════════════════════════════════════
 
 export const getUserAnalyticsOverview = asyncHandler(async (req, res) => {
-  const now_     = now();
-  const today    = daysAgo(0);
-  const last7    = daysAgo(7);
-  const last30   = daysAgo(30);
-  const last90   = daysAgo(90);
+  const now_  = now();
+  const today = startOfDayIST(0); // FIX: IST midnight ✅
+  const last7  = daysAgo(7);
+  const last30 = daysAgo(30);
 
   const [result] = await User.aggregate([
     {
       $facet: {
-
-        // ── Totals ────────────────────────────
-        total:          [{ $count: "count" }],
-
-        newToday:       [{ $match: { createdAt:          { $gte: today  } } }, { $count: "count" }],
-        newLast7:       [{ $match: { createdAt:          { $gte: last7  } } }, { $count: "count" }],
-        newLast30:      [{ $match: { createdAt:          { $gte: last30 } } }, { $count: "count" }],
-
-        // ── Engagement ────────────────────────
-        activeLast7:    [{ $match: { lastHomepageVisit:  { $gte: last7  } } }, { $count: "count" }],
-        activeLast30:   [{ $match: { lastHomepageVisit:  { $gte: last30 } } }, { $count: "count" }],
-        churned30:      [{ $match: { $or: [
-                            { lastHomepageVisit: { $lt: last30 } },
-                            { lastHomepageVisit: null },
-                          ]}}, { $count: "count" }],
-
-        // ── Profiles ──────────────────────────
-        profileComplete:[{ $match: { "academicProfile.isCompleted": true  } }, { $count: "count" }],
-        hasBio:         [{ $match: { bio:  { $ne: "", $ne: null }          } }, { $count: "count" }],
-        hasAvatar:      [{ $match: { "avatar.secure_url": { $gt: "" }      } }, { $count: "count" }],
-
-        // ── Study ─────────────────────────────
-        studyingLast7:  [{ $match: { lastStudyDate: { $gte: last7 }        } }, { $count: "count" }],
-        plannerAdopted: [{ $match: { "plannerSetup.isCompleted": true       } }, { $count: "count" }],
-
-        // ── Paywall ───────────────────────────
-        paidActive:     [{ $match: { "access.plan": { $ne: null }, "access.expiresAt": { $gt: now_ } } }, { $count: "count" }],
-
-        // ── Roles ─────────────────────────────
+        total:     [{ $count: "count" }],
+        newToday:  [{ $match: { createdAt:          { $gte: today  } } }, { $count: "count" }],
+        newLast7:  [{ $match: { createdAt:          { $gte: last7  } } }, { $count: "count" }],
+        newLast30: [{ $match: { createdAt:          { $gte: last30 } } }, { $count: "count" }],
+        activeToday:  [{ $match: { lastHomepageVisit: { $gte: today,  $ne: null } } }, { $count: "count" }],
+        activeLast7:  [{ $match: { lastHomepageVisit: { $gte: last7,  $ne: null } } }, { $count: "count" }],
+        activeLast30: [{ $match: { lastHomepageVisit: { $gte: last30, $ne: null } } }, { $count: "count" }],
+        churned30: [{ $match: { $or: [
+          { lastHomepageVisit: { $lt: last30 } },
+          { lastHomepageVisit: null            },
+        ]}}, { $count: "count" }],
+        profileComplete: [{ $match: { "academicProfile.isCompleted": true } }, { $count: "count" }],
+        hasBio:    [{ $match: { $and: [{ bio: { $ne: null } }, { bio: { $ne: "" } }] } }, { $count: "count" }],
+        hasAvatar: [{ $match: { "avatar.secure_url": { $gt: "" } } },                     { $count: "count" }],
+        studyingLast7:  [{ $match: { lastStudyDate:              { $gte: last7 }  } }, { $count: "count" }],
+        plannerAdopted: [{ $match: { "plannerSetup.isCompleted": true             } }, { $count: "count" }],
+        paidActive: [{ $match: {
+          "access.plan":      { $ne: null },
+          "access.expiresAt": { $gt: now_ },
+        }}, { $count: "count" }],
         roleBreakdown: [
-          { $group: { _id: "$role", count: { $sum: 1 } } },
-          { $project: { role: "$_id", count: 1, _id: 0 } },
+          { $group:   { _id: "$role", count: { $sum: 1 } } },
+          { $project: { role: "$_id", count: 1, _id: 0  } },
         ],
-
-        // ── Auth Providers ────────────────────
         authBreakdown: [
-          { $group: { _id: { $ifNull: ["$authProvider", "email"] }, count: { $sum: 1 } } },
+          { $group:   { _id: { $ifNull: ["$authProvider", "email"] }, count: { $sum: 1 } } },
           { $project: { provider: "$_id", count: 1, _id: 0 } },
         ],
       },
     },
   ]);
 
-  const total = result.total[0]?.count ?? 0;
-  const pct   = (n) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "0%");
+  const total         = result.total[0]?.count        ?? 0;
+  const pct           = (n) => total > 0 ? `${Math.round((n / total) * 100)}%` : '0%';
+  const activeTodayN  = result.activeToday[0]?.count  ?? 0;
+  const activeLast7N  = result.activeLast7[0]?.count  ?? 0;
+  const activeLast30N = result.activeLast30[0]?.count ?? 0;
 
   res.status(200).json({
-    success: true,
-    generatedAt: now_,
+    success: true, generatedAt: now_,
     overview: {
-      // Totals
-      totalUsers:     total,
-      newToday:       result.newToday[0]?.count    ?? 0,
-      newLast7Days:   result.newLast7[0]?.count    ?? 0,
-      newLast30Days:  result.newLast30[0]?.count   ?? 0,
-
-      // Engagement
-      activeLast7Days:  result.activeLast7[0]?.count  ?? 0,
-      activeLast30Days: result.activeLast30[0]?.count ?? 0,
-      churnedUsers:     result.churned30[0]?.count    ?? 0,
-      activeRate30:     pct(result.activeLast30[0]?.count ?? 0),
-      churnRate30:      pct(result.churned30[0]?.count    ?? 0),
-
-      // Profiles
+      totalUsers:       total,
+      newToday:         result.newToday[0]?.count  ?? 0,
+      newLast7Days:     result.newLast7[0]?.count  ?? 0,
+      newLast30Days:    result.newLast30[0]?.count ?? 0,
+      activeToday:      activeTodayN,
+      activeLast7Days:  activeLast7N,
+      activeLast30Days: activeLast30N,
+      churnedUsers:     result.churned30[0]?.count ?? 0,
+      activeRate30:     pct(activeLast30N),
+      churnRate30:      pct(result.churned30[0]?.count ?? 0),
       profileCompletion: {
-        completed:  result.profileComplete[0]?.count ?? 0,
-        rate:       pct(result.profileComplete[0]?.count ?? 0),
-        hasBio:     result.hasBio[0]?.count   ?? 0,
-        hasAvatar:  result.hasAvatar[0]?.count ?? 0,
+        completed: result.profileComplete[0]?.count ?? 0,
+        rate:      pct(result.profileComplete[0]?.count ?? 0),
+        hasBio:    result.hasBio[0]?.count    ?? 0,
+        hasAvatar: result.hasAvatar[0]?.count ?? 0,
       },
-
-      // Study
       study: {
         activeStudiersLast7: result.studyingLast7[0]?.count  ?? 0,
         plannerAdopted:      result.plannerAdopted[0]?.count ?? 0,
         plannerAdoptionRate: pct(result.plannerAdopted[0]?.count ?? 0),
       },
-
-      // Paywall
       access: {
         paidActive: result.paidActive[0]?.count ?? 0,
         paidRate:   pct(result.paidActive[0]?.count ?? 0),
       },
-
-      // Breakdowns
       roleBreakdown: result.roleBreakdown,
       authBreakdown: result.authBreakdown,
     },

@@ -57,6 +57,7 @@ import ogProxyRouter from './ROUTES/ogProxy.route.js'
 import pwaRoutes from "./ROUTES/pwa.routes.js";
 import userAnalyticsRoutes from './ROUTES/userAnalytics.routes.js';
 import clientErrorRoutes from './ROUTES/clientError.routes.js';
+import presenceRoutes from './ROUTES/presence.routes.js';
 
 
 import { initCloudinarySnapshotCron } from './UTIL/cloudinarySnapshotCron.js';
@@ -263,6 +264,7 @@ app.use("/api/v1/search/admin", searchAdminAnalyticsRoutes);
 app.use('/api/v1/search/failed',failedSearchRoutes);
 app.use("/api/v1/search/admin/manage", searchAdminManageRoutes);
 app.use('/api/v1/filter-analytics',filterRoute);
+app.use('/api/v1/presence', presenceRoutes);
 // 🎯 ArkShots — Public + Auth
 app.use('/api/v1/arkshots',              arkShotRoutes);
 

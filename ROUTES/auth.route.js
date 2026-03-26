@@ -146,7 +146,7 @@ router.get("/google/callback",
 
             // ✅ CRITICAL: Send token in URL (not just cookie)
             const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
-            const redirectURL = `${frontendURL}?googleAuth=success&token=${token}`;
+            const redirectURL = `${frontendURL}?googleAuth=success&token=${token}&isNewUser=${req.user.isNewUser ? '1' : '0'}`;
 
             // console.log('🔄 Redirecting with token to:', frontendURL);
             res.redirect(redirectURL);

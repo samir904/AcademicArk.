@@ -47,7 +47,7 @@ router.get("/:id/viewers",
 );
 router.route("/:id")
 .get(
-    optionalAuth,
+    isLoggedIn,// protected by islogged in new 
     asyncWrap(getNote)
 )
 .put(

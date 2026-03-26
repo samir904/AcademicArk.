@@ -265,7 +265,13 @@ const userSchema = new Schema({
             type: Date,
             default: null
         }
-    }
+    },
+// In your existing user.model.js — just add this one field
+lastSeenAt: {
+  type: Date,
+  default: null,
+  index: true,   // ← index it — we query this frequently
+},
 
 
 
