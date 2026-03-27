@@ -208,28 +208,41 @@ export const trackPixel = async (req, res) => {
 //     Returns only safe public fields, never internal stats
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/utm/c/:identifier
+// GET /api/v1/utm/c/:slug?utm_content=variant_a
 export const getCampaignBySlug = async (req, res, next) => {
   try {
-    const { slug } = req.params; // ✅ was: const { slug } = req.params
+    const { slug }        = req.params;
+    const { utm_content } = req.query;   // ← read discriminator from query
 
-   // utm.controller.js — getCampaignBySlug
-const campaign = await UTMCampaign
-  .findOne({
-    $or: [{ slug }, { utm_campaign: slug }],
-    status: 'active',
-  })
-  .select('name description thumbnail utm_source utm_medium utm_campaign utm_content fullUrl slug status') // ✅ ADD status
-  .lean();
+    // ── Build match query ─────────────────────────────────────────────
+    // Priority 1: slug is always unique → exact match, no ambiguity
+    // Priority 2: utm_campaign match → MUST also match utm_content if provided
+    //             Without utm_content check, two campaigns with same utm_campaign
+    //             but different utm_content both resolve to the first DB result ❌
+    const campaign = await UTMCampaign.findOne({
+      $or: [
+        // slug match — always unambiguous (slug is unique index)
+        { slug, status: 'active' },
 
+        // utm_campaign match — only valid when utm_content also matches
+        // If utm_content not in URL → match campaigns where utm_content is null/unset
+        {
+          utm_campaign: slug,
+          utm_content:  utm_content
+            ? utm_content.toLowerCase().trim()   // match exact variant ✅
+            : { $in: [null, ''] },               // no content → null-content campaigns only ✅
+          status: 'active',
+        },
+      ],
+    })
+    .select('name description thumbnail utm_source utm_medium utm_campaign utm_content utm_term fullUrl slug status')
+    .lean();
 
     if (!campaign) {
       return next(new AppError('Campaign not found or inactive', 404));
     }
 
-    return res.status(200).json({
-      success: true,
-      data:    campaign,
-    });
+    return res.status(200).json({ success: true, data: campaign });
 
   } catch (err) {
     return next(new AppError(err.message, 500));

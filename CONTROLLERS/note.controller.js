@@ -473,7 +473,55 @@ export const getAllNotes = async (req, res) => {
                     as: "uploadedBy"
                 }
             },
-            { $unwind: "$uploadedBy" }
+            { $unwind: "$uploadedBy" },
+            // ── STRIP SENSITIVE FIELDS ──────────────────────────────────────
+            // fileDetails.secure_url  → full PDF download URL (paywall bypass)
+            // fileDetails.public_id   → Cloudinary ID (security exposure)
+            // previewFile.public_id   → Cloudinary ID (security exposure)
+            // viewedBy                → privacy leak (array of user IDs)
+            // bookmarkedBy            → privacy leak (array of user IDs)
+            // uploadedBy.password     → should never leave server
+            // uploadedBy.email        → privacy (not needed on cards)
+            {
+                $project: {
+                    // ── NOTE FIELDS: include only what the card UI needs ──
+                    title:           1,
+                    slug:            1,
+                    description:     1,
+                    subject:         1,
+                    unit:            1,
+                    course:          1,
+                    semester:        1,
+                    university:      1,
+                    category:        1,
+                    downloads:       1,
+                    views:           1,
+                    rating:          1,
+                    isLocked:        1,
+                    previewPages:    1,
+                    recommended:     1,
+                    recommendedRank: 1,
+                    createdAt:       1,
+                    updatedAt:       1,
+                    seoTitle:        1,
+                    seoDescription:  1,
+
+                    // ── PREVIEW URL only (watermarked/limited — safe to expose) ──
+                    "previewFile.secure_url": 1,
+                    //   previewFile.public_id  → NOT included ✅
+
+                    // ── fileDetails: public_id and secure_url BOTH removed ──
+                    //   DO NOT add fileDetails here at all ✅
+
+                    // ── Uploader: only safe public fields ──
+                    "uploadedBy._id":             1,
+                    "uploadedBy.fullName":         1,
+                    "uploadedBy.avatar.secure_url": 1,
+                    //   uploadedBy.email    → NOT included ✅
+                    //   uploadedBy.password → NOT included ✅
+                    //   uploadedBy.role     → NOT included ✅
+                }
+            }
         ];
 
         const result = await Note.aggregate(pipeline);
@@ -493,11 +541,11 @@ export const getAllNotes = async (req, res) => {
             }))
             : null;
 
-        console.log({
-            semester: semesterNumber,
-            matchedCount: await Note.countDocuments(filters),
-            cursor
-        });
+        // console.log({
+        //     semester: semesterNumber,
+        //     matchedCount: await Note.countDocuments(filters),
+        //     cursor
+        // });
         res.setHeader("Cache-Control", "no-store");
 
         res.status(200).json({
@@ -543,39 +591,45 @@ export const getSemesterPreviewNotes = async (req, res) => {
         }
 
         const notes = await Note.find(filters)
+            // ── EXCLUSION-ONLY select ─────────────────────────────────────
+            // Mongoose rule: NEVER mix inclusions + exclusions in .select()
+            // Mixing causes exclusions to be silently ignored → full doc returned
+            // Solution: exclude only the fields we want gone, keep everything else
+            .select(`
+                -fileDetails
+                -viewedBy
+                -bookmarkedBy
+                -previewFile.public_id
+            `)
             .sort({
-                recommended: -1,
-                recommendedRank: 1,
-                downloads: -1,
-                views: -1,
-                createdAt: -1,
-                _id: -1
+                recommended:     -1,
+                recommendedRank:  1,
+                downloads:       -1,
+                views:           -1,
+                createdAt:       -1,
+                _id:             -1
             })
             .limit(limit + 1)
-            .populate("uploadedBy", "fullName avatar");
+            // ── populate: exclude sensitive user fields ────────────────────
+            .populate("uploadedBy", "-password -email -role -__v");
 
         const hasMore = notes.length > limit;
-        const sliced = hasMore ? notes.slice(0, limit) : notes;
-
-        const last = sliced[sliced.length - 1];
+        const sliced  = hasMore ? notes.slice(0, limit) : notes;
+        const last    = sliced[sliced.length - 1];
 
         const nextCursor = last
-            ? encodeURIComponent(
-                JSON.stringify({
-                    createdAt: last.createdAt,
-                    _id: last._id
-                })
-            )
+            ? encodeURIComponent(JSON.stringify({
+                createdAt: last.createdAt,
+                _id:       last._id
+            }))
             : null;
+
+        res.setHeader("Cache-Control", "no-store");
 
         res.status(200).json({
             success: true,
             mode: "SEMESTER_PREVIEW",
-            data: {
-                notes: sliced,
-                nextCursor,
-                hasMore
-            }
+            data: { notes: sliced, nextCursor, hasMore }
         });
 
     } catch (error) {
@@ -586,6 +640,7 @@ export const getSemesterPreviewNotes = async (req, res) => {
         });
     }
 };
+
 
 
 export const getAllNoteStats = async (req, res) => {
