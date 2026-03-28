@@ -642,6 +642,192 @@ export const getSemesterPreviewNotes = async (req, res) => {
 };
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET RELATED NOTES
+// GET /api/v1/notes/:id/related
+// Auth: optional — public endpoint, no fileDetails returned
+// ─────────────────────────────────────────────────────────────────────────────
+export const getRelatedNotes = async (req, res, next) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new Apperror("Invalid note ID", 400));
+  }
+
+  // ── Fetch current note metadata only ────────────────────────────────
+  const currentNote = await Note.findById(id)
+    .select("subject unit semester category")
+    .lean();
+
+  if (!currentNote) return next(new Apperror("Note not found", 404));
+
+  const { subject, unit, semester, category } = currentNote;
+  const semArray = Array.isArray(semester) ? semester : [semester];
+
+  // ── Shared exclusion selects (no fileDetails, no PII) ───────────────
+ const SAFE_SELECT = "_id title category unit downloads views isLocked previewPages recommended recommendedRank";
+ const SAFE_POPULATE = "fullName avatar.secure_url";
+  // ── Base filter — same subject + semester, exclude current note ──────
+  // subject stored lowercase → case-insensitive regex match still correct
+  const baseFilter = {
+    subject:  new RegExp(`^${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+    semester: { $in: semArray },
+    _id:      { $ne: new mongoose.Types.ObjectId(id) },
+  };
+
+  const isStudyContent = ["Notes", "Handwritten Notes"].includes(category);
+
+  let related = {};
+  let strategy;
+if (isStudyContent) {
+  strategy = "STUDY_CONTENT";
+
+  const unitFilter     = unit ? { unit }           : {};
+  const nextUnitFilter = unit ? { unit: unit + 1 } : null;
+
+  // ── Run all four queries in parallel ─────────────────────────────────
+  const [
+    allSameUnit,          // ← fetch all, filter after
+    importantQuestions,
+    pyqs,
+    nextUnitNotes,
+  ] = await Promise.all([
+
+    // ── Same-unit: Notes + Handwritten Notes ─────────────────────────
+    // Fetch up to 6 sorted recommended-first.
+    // After fetch: if any recommended exist → keep only those (curated).
+    // Otherwise  → keep all (fallback).
+    Note.find({
+      ...baseFilter,
+      ...unitFilter,
+      category: { $in: ["Notes", "Handwritten Notes"] },
+    })
+      .select(SAFE_SELECT)
+      .populate("uploadedBy", SAFE_POPULATE)
+      .sort({ recommended: -1, recommendedRank: 1, downloads: -1 })
+      .limit(6)
+      .lean(),
+
+    // ── Important Questions ───────────────────────────────────────────
+    Note.find({ ...baseFilter, category: "Important Question" })
+      .select(SAFE_SELECT)
+      .populate("uploadedBy", SAFE_POPULATE)
+      .sort({ recommended: -1, downloads: -1, views: -1 })
+      .limit(6)
+      .lean(),
+
+    // ── PYQs ─────────────────────────────────────────────────────────
+    Note.find({ ...baseFilter, category: "PYQ" })
+      .select(SAFE_SELECT)
+      .populate("uploadedBy", SAFE_POPULATE)
+      .sort({ recommended: -1,title: -1, downloads: -1, views: -1 })
+      .limit(6)
+      .lean(),
+
+    // ── Next unit notes ───────────────────────────────────────────────
+    nextUnitFilter
+      ? Note.find({
+          ...baseFilter,
+          ...nextUnitFilter,
+          category: { $in: ["Notes", "Handwritten Notes"] },
+        })
+          .select(SAFE_SELECT)
+          .populate("uploadedBy", SAFE_POPULATE)
+          .sort({ recommended: -1, recommendedRank: 1, downloads: -1 })
+          .limit(5)
+          .lean()
+      : Promise.resolve([]),
+  ]);
+
+  // ── Recommended-first logic for sameUnitNotes ─────────────────────
+  // If the DB has any curated (recommended) notes for this unit → show only those.
+  // Keeps the sidebar tight and high-signal.
+  // If nothing is curated → fallback to all same-unit notes so section never disappears.
+  const hasRecommended = allSameUnit.some((n) => n.recommended === true);
+  const sameUnitNotes  = hasRecommended
+    ? allSameUnit.filter((n) => n.recommended === true)
+    : allSameUnit;
+
+  related = {
+    sameUnitNotes,
+    importantQuestions,
+    pyqs,
+    nextUnitNotes,
+  };
+  } else {
+    // ────────────────────────────────────────────────────────────────────
+    // Strategy B: User is reading PYQ or Important Question
+    // Show:  more of same type | recommended notes | handwritten notes
+    // ────────────────────────────────────────────────────────────────────
+    strategy = "ASSESSMENT_CONTENT";
+// ── Cross-category: PYQ viewer gets ImpQ, ImpQ viewer gets PYQ ──────
+  const crossCategory = category === "PYQ" ? "Important Question" : "PYQ";
+  const crossLabel    = category === "PYQ" ? "importantQuestions" : "pyqs";
+
+    const [
+      moreLikeThis,
+      crossCategoryNotes,    // ← NEW
+      recommendedNotes,
+      handwrittenNotes,
+    ] = await Promise.all([
+
+      // ── More of same category (PYQ or ImpQ) — same subject ──
+      Note.find({ ...baseFilter, category })
+        .select(SAFE_SELECT)
+        .populate("uploadedBy", SAFE_POPULATE)
+        .sort({ recommended: -1,title: -1, downloads: -1, views: -1 })
+        .limit(8),
+ // ── Cross-category: PYQ ↔ Important Question ─────────────────────
+    // User in "practice mode" — show the complementary exam-prep content
+    // PYQ viewer   → sees Important Questions (what to expect)
+    // ImpQ viewer  → sees PYQs (actual past papers to practice)
+    Note.find({ ...baseFilter, category: crossCategory })
+      .select(SAFE_SELECT)
+      .populate("uploadedBy", SAFE_POPULATE)
+      .sort({ recommended: -1, downloads: -1, views: -1 })
+      .limit(6),
+
+      // ── Admin recommended Notes — same subject (2-3 max) ──
+      Note.find({ ...baseFilter, category: "Notes", recommended: true })
+        .select(SAFE_SELECT)
+        .populate("uploadedBy", SAFE_POPULATE)
+        .sort({ recommendedRank: 1, downloads: -1 })
+        .limit(3),
+
+      // ── Handwritten Notes — same subject (2-3 max) ──
+      Note.find({ ...baseFilter, category: "Handwritten Notes" })
+        .select(SAFE_SELECT)
+        .populate("uploadedBy", SAFE_POPULATE)
+        .sort({ recommended: -1, downloads: -1 })
+        .limit(3),
+    ]);
+
+    related = {
+      moreLikeThis,
+      [crossLabel]: crossCategoryNotes,   // ← dynamic key ✅
+      recommendedNotes,
+      handwrittenNotes,
+    };
+  }
+
+  // ── Strip empty sections before sending ─────────────────────────────
+  // Don't send empty arrays — frontend can check section existence
+  Object.keys(related).forEach((k) => {
+    if (!related[k]?.length) delete related[k];
+  });
+
+  res.setHeader("Cache-Control", "public, max-age=300"); // 5 min — safe, no auth data
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      strategy,                                  // frontend uses this to decide layout
+      context: { subject, unit, semester, category }, // what the user is currently viewing
+      related,
+    },
+  });
+};
+
 
 export const getAllNoteStats = async (req, res) => {
     try {

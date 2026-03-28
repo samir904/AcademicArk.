@@ -1,12 +1,13 @@
 import { Router } from "express";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
-import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getAllNoteStats, getNote, getNotesController, getNoteViewers, getRecommendedNotes, getSemesterPreviewNotes, incrementViewCount, registerNote, toggleLockNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
+import { addRating, bookmarkNote, deleteNote, downloadNote, getAllNotes, getAllNoteStats, getNote, getNotesController, getNoteViewers, getRecommendedNotes, getRelatedNotes, getSemesterPreviewNotes, incrementViewCount, registerNote, toggleLockNote, toggleRecommendNote, updateNote } from "../CONTROLLERS/note.controller.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 import { cacheNotes, cacheSemesterPreview } from "../MIDDLEWARES/cache.middleware.js";
 import { addSem2ToFirstYearCommonSubjects, addSem4ToThirdSemCommonSubjects, addSem6ToFifthSemCommonSubjects, normalizeSemesterField, rollbackSemesterToNumber } from "../CONTROLLERS/migration.controller.js";
 import { decideNotesMode } from "../MIDDLEWARES/decideNotesMode.js";
 import { canUserDownload } from "../MIDDLEWARES/canUserDownload.js";
+import { trackRelatedNoteClick } from "../CONTROLLERS/relatedNotesController.js";
 
 const router= Router();
 
@@ -44,6 +45,12 @@ router.get(
 router.get("/:id/viewers",
     optionalAuth,
     asyncWrap(getNoteViewers)
+);
+// ── Add BEFORE /:id route (specific routes must come before param routes) ──
+router.get(
+  "/:id/related",
+  optionalAuth,
+  asyncWrap(getRelatedNotes)
 );
 router.route("/:id")
 .get(
@@ -103,7 +110,9 @@ router.route("/admin/lock/:id")
     asyncWrap(authorizedRoles("ADMIN")),
     asyncWrap(toggleLockNote)
   );
-
+// POST /api/v1/notes/related-click
+// optionalAuth → attaches req.user if token present, doesn't block if not
+router.post("/related-click", optionalAuth, trackRelatedNoteClick);
 
 // Optional: Get all notes for admin dashboard
 // router.route("/admin/all")

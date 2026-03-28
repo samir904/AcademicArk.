@@ -19,6 +19,8 @@ import { authorizedRoles, isLoggedIn } from "../MIDDLEWARES/auth.middleware.js";
 import asyncWrap from "../UTIL/asyncWrap.js";
 import notificationRoutes from "./admin.notification.routes.js";
 import { logAdminAction } from "../MIDDLEWARES/logAdminAction.middleware.js";
+import { getRelatedClickAnalytics } from "../CONTROLLERS/relatedNotesController.js";
+
 // import emailRoutes from './email.routes.js'
 import emailCampaignRoutes from "./emailCampaign.routes.js";
 import userRequestRoutes from "./userRequest.routes.js"
@@ -126,7 +128,13 @@ router.get(
   asyncWrap(authorizedRoles("ADMIN")),
   asyncWrap(getTrafficPattern)
 );
-
+// GET /api/v1/admin/analytics/related-clicks?range=7d|30d|90d|all
+router.get(
+  "/analytics/related-clicks",
+  isLoggedIn,
+  authorizedRoles("ADMIN"),
+  getRelatedClickAnalytics
+);
 // Add these imports
 import { 
   getRetentionMetrics, 
