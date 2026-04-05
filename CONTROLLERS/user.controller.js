@@ -12,6 +12,10 @@ import asyncWrap from "../UTIL/asyncWrap.js";
 import { createLoginLog } from "../services/loginLog.service.js";
 import { logUserActivity } from "../UTIL/activityLogger.js";
 import { invalidateHomepageCache } from "./homepage.controller.js";
+
+import { isFeatureEnabled } from '../UTIL/featureFlags.js';
+import FeatureFlag           from '../MODELS/featureFlag.model.js';
+
 const cookieoptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -210,7 +214,55 @@ export const getProfile = async (req, res, next) => {
 };
 
 
+// CONTROLLERS/user.controller.js — add this new controller
 
+export const getMyFlags = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select('academicProfile _id')   // only what evaluateFlags needs
+      .lean();
+
+    if (!user) return next(new Apperror('User not found', 404));
+
+    const activeFlags = await getActiveFlagsForUser(user);
+
+    res.status(200).json({
+      success: true,
+      data: { activeFlags },
+    });
+  } catch (error) {
+    next(new Apperror('Failed to fetch flags', 500));
+  }
+};
+// ─────────────────────────────────────────────────────────────────
+// HELPER — fetch all enabled flag keys, eval in parallel,
+//          return only the ones this user qualifies for
+// ─────────────────────────────────────────────────────────────────
+async function getActiveFlagsForUser(user) {
+  try {
+    // Only pull enabled flags — disabled ones can never be true
+    const flags = await FeatureFlag
+      .find({ isEnabled: true })
+      .select('key')    // we only need the key here;
+      .lean();          // isFeatureEnabled re-fetches from Redis/DB internally
+
+    if (!flags.length) return [];
+
+    // Evaluate all in parallel — isFeatureEnabled handles its own Redis cache
+    const results = await Promise.all(
+      flags.map(f =>
+        isFeatureEnabled(f.key, user)
+          .then(enabled => (enabled ? f.key : null))
+      )
+    );
+
+    // Filter out nulls (flags the user doesn't qualify for)
+    return results.filter(Boolean);
+  } catch (err) {
+    console.error('[getProfile] Flag evaluation failed:', err);
+    return [];   // fail safe — never break profile fetch
+  }
+}
 export const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
 

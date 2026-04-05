@@ -10,7 +10,8 @@ import { changePassword,
     approveCustomCollege,
     getAcademicAnalytics, forgotPassword, getMyAnalytics, getMyBookmarks, getMyNotes, getProfile, getPublicProfile, login, logout, register, resetPassword, toggleProfileVisibility, updateProfile, updateSocialLinks, 
     incrementSemesterOnce,
-    getDownloadQuota} from "../CONTROLLERS/user.controller.js";
+    getDownloadQuota,
+    getMyFlags} from "../CONTROLLERS/user.controller.js";
 import { authorizedRoles, isLoggedIn, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
 
@@ -23,7 +24,8 @@ router.post("/login",asyncWrap(login));
 router.get("/logout",asyncWrap(logout));
 // router.post('/validate-token', validateToken);
 router.get("/getprofile",asyncWrap(isLoggedIn),asyncWrap(getProfile));
-
+// ROUTES/user.routes.js — add one line
+router.get('/my-flags', isLoggedIn, getMyFlags);
 router.post("/reset",asyncWrap(forgotPassword));
 router.post("/reset-password/:resetToken",asyncWrap(resetPassword));
 router.post("/change-password",asyncWrap(isLoggedIn),asyncWrap(changePassword));

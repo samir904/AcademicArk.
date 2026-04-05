@@ -13,6 +13,7 @@ const homepageSectionEventSchema = new Schema({
       "continue_where",
       "study_material_today",
       "new_notes_badge",
+      "featured_collections",   // ✅ add this
       "recommended",
       "trending",
       "attendance",
@@ -32,12 +33,17 @@ const homepageSectionEventSchema = new Schema({
 
   // ── Card-level detail (only for CLICK)
   clickMeta: {
-    resourceId:   { type: Schema.Types.ObjectId, ref: "Note", default: null },
-    resourceType: { type: String, default: null },  // "NOTE", "LINK", "CTA"
-    ctaLabel:     { type: String, default: null },  // "Continue Reading", "View all"
-    position:     { type: Number, default: null },  // card index (0-based)
-    cardSection:  { type: String, default: null },  // "notes", "pyq" inside study_material_today
+  // ✅ Remove ref: "Note" — resourceId stores Note OR Collection IDs
+  resourceId:   { type: Schema.Types.ObjectId, default: null },
+  resourceType: {
+    type:    String,
+    enum:    ["NOTE", "COLLECTION", "LINK", "CTA"],  // ✅ add COLLECTION
+    default: null,
   },
+  ctaLabel:    { type: String, default: null },
+  position:    { type: Number, default: null },
+  cardSection: { type: String, default: null },
+},
 
   // ── Context
   deviceType: {

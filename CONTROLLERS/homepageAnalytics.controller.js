@@ -187,29 +187,30 @@ export const getHomepageCTRBySection = async (req, res) => {
 // ─────────────────────────────────────────────
 export const getHomepageTopCards = async (req, res) => {
   try {
-    const days  = parseInt(req.query.days)  || 7;
-    const limit = parseInt(req.query.limit) || 10;
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const days         = parseInt(req.query.days)         || 7;
+    const limit        = parseInt(req.query.limit)        || 10;
+    const resourceType = req.query.resourceType           || null; // ✅ optional filter
+    const since        = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // ✅ Base match — resourceType filter optional
+    const matchStage = {
+      createdAt:              { $gte: since },
+      eventType:              "CLICK",
+      "clickMeta.resourceId": { $ne: null },
+      ...(resourceType && { "clickMeta.resourceType": resourceType }),
+    };
 
     const topCards = await HomepageSectionEvent.aggregate([
-      {
-        $match: {
-          createdAt:                { $gte: since },
-          eventType:                "CLICK",
-          "clickMeta.resourceId":   { $ne: null },
-          "clickMeta.resourceType": "NOTE",
-        },
-      },
+      { $match: matchStage },
       {
         $group: {
-          _id:          "$clickMeta.resourceId",
-          clicks:       { $sum: 1 },
-          uniqueUsers:  { $addToSet: "$userId"  },
-          sections:     { $addToSet: "$section" },
-          topSection:   { $first:    "$section" },
-          lastClickedAt:{ $max:      "$createdAt" },
-          // ✅ Collect positions then avg in project — avoids $$REMOVE issues
-          positions:    {
+          _id:           { resourceId: "$clickMeta.resourceId", resourceType: "$clickMeta.resourceType" },
+          clicks:        { $sum: 1 },
+          uniqueUsers:   { $addToSet: "$userId"  },
+          sections:      { $addToSet: "$section" },
+          topSection:    { $first:    "$section" },
+          lastClickedAt: { $max:      "$createdAt" },
+          positions: {
             $push: {
               $cond: [
                 { $ne: ["$clickMeta.position", null] },
@@ -222,24 +223,60 @@ export const getHomepageTopCards = async (req, res) => {
       },
       { $sort:  { clicks: -1 } },
       { $limit: limit },
+
+      // ✅ Lookup NOTE if resourceType is NOTE
       {
         $lookup: {
-          from:         "notes",
-          localField:   "_id",
-          foreignField: "_id",
-          as:           "note",
+          from:     "notes",
+          let:      { rid: "$_id.resourceId", rtype: "$_id.resourceType" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$_id", "$$rid"]    },
+                    { $eq: ["$$rtype", "NOTE"]  },
+                  ],
+                },
+              },
+            },
+            { $project: { title: 1, subject: 1, category: 1 } },
+          ],
+          as: "note",
         },
       },
-      { $unwind: { path: "$note", preserveNullAndEmptyArrays: true } },
+
+      // ✅ Lookup COLLECTION if resourceType is COLLECTION
+      {
+        $lookup: {
+          from:     "arkshotcollections",
+          let:      { rid: "$_id.resourceId", rtype: "$_id.resourceType" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$_id",    "$$rid"]        },
+                    { $eq: ["$$rtype", "COLLECTION"]   },
+                  ],
+                },
+              },
+            },
+            { $project: { name: 1, subject: 1, coverTemplate: 1, colorTheme: 1 } },
+          ],
+          as: "collection",
+        },
+      },
+
       {
         $project: {
-          resourceId:    "$_id",
+          resourceId:    "$_id.resourceId",
+          resourceType:  "$_id.resourceType",
           clicks:        1,
           uniqueUsers:   { $size: "$uniqueUsers" },
           sections:      1,
           topSection:    1,
           lastClickedAt: 1,
-          // ✅ Safe avg — only from collected non-null positions
           avgPosition: {
             $cond: [
               { $gt: [{ $size: "$positions" }, 0] },
@@ -247,9 +284,28 @@ export const getHomepageTopCards = async (req, res) => {
               null,
             ],
           },
-          title:    { $ifNull: ["$note.title",    "Deleted Note"] },
-          subject:  { $ifNull: ["$note.subject",  "Unknown"]      },
-          category: { $ifNull: ["$note.category", "Notes"]        },
+          // ✅ NOTE fields
+          title: {
+            $ifNull: [
+              { $arrayElemAt: ["$note.title", 0] },
+              { $ifNull: [
+                { $arrayElemAt: ["$collection.name", 0] },
+                "Deleted Resource"
+              ]}
+            ]
+          },
+          subject: {
+            $ifNull: [
+              { $arrayElemAt: ["$note.subject", 0] },
+              { $arrayElemAt: ["$collection.subject", 0] }
+            ]
+          },
+          category: {
+            $ifNull: [
+              { $arrayElemAt: ["$note.category", 0] },
+              "$_id.resourceType"   // "COLLECTION" as category label
+            ]
+          },
         },
       },
     ]);
@@ -571,10 +627,46 @@ export const generateDailySnapshot = async () => {
     const [sectionStats, topCards, deviceStats, overviewRaw, peakHours] =
       await Promise.all([
 
-        HomepageSectionEvent.aggregate([
-          { $match: { createdAt: { $gte: today, $lt: tomorrow } } },
-          { $group: { _id: { section: "$section", eventType: "$eventType" }, count: { $sum: 1 } } },
-        ]),
+        // Inside generateDailySnapshot — replace the topCards aggregation:
+HomepageSectionEvent.aggregate([
+  {
+    $match: {
+      createdAt:              { $gte: today, $lt: tomorrow },
+      eventType:              "CLICK",
+      "clickMeta.resourceId": { $ne: null },
+      // ✅ removed hardcoded resourceType: "NOTE"
+    },
+  },
+  { $group: {
+      _id:    { resourceId: "$clickMeta.resourceId", resourceType: "$clickMeta.resourceType" },
+      clicks: { $sum: 1 },
+  }},
+  { $sort:  { clicks: -1 } },
+  { $limit: 10 },
+
+  // ✅ Lookup notes
+  { $lookup: { from: "notes", localField: "_id.resourceId", foreignField: "_id", as: "note" } },
+
+  // ✅ Lookup collections
+  { $lookup: { from: "arkshotcollections", localField: "_id.resourceId", foreignField: "_id", as: "collection" } },
+
+  {
+    $project: {
+      resourceId:   "$_id.resourceId",
+      resourceType: "$_id.resourceType",
+      clicks:       1,
+      title: {
+        $ifNull: [
+          { $arrayElemAt: ["$note.title",       0] },
+          { $ifNull: [
+            { $arrayElemAt: ["$collection.name", 0] },
+            "Deleted Resource"
+          ]}
+        ]
+      },
+    },
+  },
+]),
 
         HomepageSectionEvent.aggregate([
           {

@@ -58,6 +58,7 @@ const ArkShotProgressSchema = new Schema({
     default: null
     // stored for analytics: do users go back to re-read?
   },
+  
 
   // ── Button actions (explicit user intent) ──────
   // ✅ NEW — separate from swipe, tracks what user tapped
@@ -81,6 +82,23 @@ const ArkShotProgressSchema = new Schema({
   likedAt: {
     type:    Date,
     default: null
+  },
+   // ── ✅ Adaptive Learning ────────────────────────
+  // Scored after each recordView — drives card UI adaptation
+  adaptiveMode: {
+    type:    String,
+    enum:    ['normal', 'simplified', 'hinted', 'strong'],
+    default: 'normal',
+  },
+  adaptiveScore: {
+    type:    Number,
+    default: 50,   // neutral start — not assumed weak or strong
+    min:     0,
+    max:     100,
+  },
+  lastScoredAt: {
+    type:    Date,
+    default: null,
   },
 
 }, { timestamps: true });

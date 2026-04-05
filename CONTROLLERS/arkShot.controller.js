@@ -4,12 +4,14 @@ import ArkShotProgress  from "../MODELS/arkShotProgress.model.js";
 import ArkShotSession   from "../MODELS/arkShotSession.model.js";
 import ArkShotAnalytics from "../MODELS/arkShotAnalytics.model.js";
 import ArkShotCollection from "../MODELS/arkShotCollection.model.js";
+import ArkMicroFeedback from '../MODELS/ArkMicroFeedback.model.js'
 import UTMCampaign from '../MODELS/UTMCampaign.model.js'
 import AppError         from "../UTIL/error.util.js";
 import { v4 as uuidv4 } from "uuid";
 // CONTROLLERS/arkShot.controller.js — top imports
 import UTMEvent from "../MODELS/UTMEvent.model.js";  // ✅ ADD if not already there
-
+import { scoreView, deriveMode, blendScore } from "../UTIL/adaptiveScore.util.js";
+import mongoose from "mongoose";
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER — detect device from user-agent
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,13 +73,19 @@ export const getFeed = async (req, res, next) => {
     const limit      = Number(req.query.limit) || 20;
     const skip       = (page - 1) * limit;
 
+    console.log('\n╔══════════════════════════════════════════');
+    console.log(`║  📡 getFeed  user=${userId}  page=${page}`);
+    console.log(`║  filters → sem=${semester} sub=${subject} unit=${unit} diff=${difficulty} pyq=${isPYQ}`);
+    console.log('╚══════════════════════════════════════════');
+
     // ── Mastered IDs ──────────────────────────────
     const masteredProgress = await ArkShotProgress.find({
       user: userId, isMastered: true,
     }).select('arkShot').lean();
     const masteredIds = masteredProgress.map(p => p.arkShot);
 
-    // ── baseFilter: no mastered exclusion (to count real totals) ──
+    console.log(`  🏆 mastered count : ${masteredIds.length}`);
+
     const baseFilter = {
       status:   'published',
       isActive: true,
@@ -88,7 +96,6 @@ export const getFeed = async (req, res, next) => {
     if (difficulty) baseFilter.difficulty = difficulty;
     if (isPYQ)      baseFilter.isPYQ      = true;
 
-    // ── primaryFilter: with mastered exclusion ────
     const primaryFilter = { ...baseFilter };
     if (masteredIds.length > 0) primaryFilter._id = { $nin: masteredIds };
 
@@ -96,29 +103,35 @@ export const getFeed = async (req, res, next) => {
     let shots = await ArkShot
       .find(primaryFilter)
       .select(PUBLIC_SELECT)
-      .populate('relatedNotes', '_id title subject unit semester')
+      .populate('relatedNotes', '_id title subject unit semester category')
       .sort({ isPYQ: -1, frequencyScore: -1, unit: 1, order: 1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    let total    = await ArkShot.countDocuments(primaryFilter);
-    // How many shots exist ignoring mastered — to distinguish "empty subject" vs "all mastered"
+    let total           = await ArkShot.countDocuments(primaryFilter);
     const totalExisting = await ArkShot.countDocuments(baseFilter);
+
+    console.log(`  📦 shots fetched  : ${shots.length} (total unmastered: ${total}, totalExisting: ${totalExisting})`);
 
     let feedExhausted = false;
     let continuedFrom = null;
     const hasExplicitFilter = !!(subject || difficulty || isPYQ);
 
-    // ── Auto-continue only when no explicit filter ──
+    console.log(`  🔍 hasExplicitFilter : ${hasExplicitFilter}`);
+
+    // ── Auto-continue ─────────────────────────────
     if (shots.length === 0 && !hasExplicitFilter) {
       feedExhausted = true;
+      console.log('  ⚠️  shots = 0, no explicit filter → checking auto-continue...');
 
       const otherSubjects = await ArkShot.distinct('subject', {
         status:   'published',
         isActive: true,
         semester: { $elemMatch: { $eq: semester } },
       });
+
+      console.log(`  🔎 other subjects available : [${otherSubjects.join(', ')}]`);
 
       if (otherSubjects.length > 0) {
         const nextSubjectStats = await ArkShot.aggregate([
@@ -147,6 +160,8 @@ export const getFeed = async (req, res, next) => {
           const nextSubject = nextSubjectStats[0]._id;
           continuedFrom     = nextSubject;
 
+          console.log(`  ➡️  auto-continue → subject="${nextSubject}" (pyq=${nextSubjectStats[0].pyqCount} avgFreq=${nextSubjectStats[0].avgFrequency?.toFixed(1)})`);
+
           const continueFilter = {
             status:   'published',
             isActive: true,
@@ -155,17 +170,20 @@ export const getFeed = async (req, res, next) => {
             ...(masteredIds.length > 0 && { _id: { $nin: masteredIds } }),
           };
 
-          // ✅ reassign let vars — no const crash
           [shots, total] = await Promise.all([
             ArkShot
               .find(continueFilter)
               .select(PUBLIC_SELECT)
-              .populate('relatedNotes', '_id title subject unit semester')
+              .populate('relatedNotes', '_id title subject unit semester category')
               .sort({ isPYQ: -1, frequencyScore: -1, unit: 1, order: 1 })
               .limit(limit)
               .lean(),
             ArkShot.countDocuments(continueFilter),
           ]);
+
+          console.log(`  📦 continued shots : ${shots.length} (total: ${total})`);
+        } else {
+          console.log('  🚫 no next subject found after aggregate');
         }
       }
     }
@@ -173,6 +191,7 @@ export const getFeed = async (req, res, next) => {
     // ── Explicit filter + 0 results ───────────────
     if (shots.length === 0 && hasExplicitFilter) {
       feedExhausted = true;
+      console.log('  🚫 explicit filter + 0 results → feedExhausted=true');
     }
 
     // ── Attach user progress ──────────────────────
@@ -180,32 +199,49 @@ export const getFeed = async (req, res, next) => {
     const progressList = await ArkShotProgress.find({
       user:    userId,
       arkShot: { $in: shotIds },
-    }).select('arkShot isLiked isBookmarked isMastered status').lean();
+    }).select('arkShot isLiked isBookmarked isMastered status adaptiveMode adaptiveScore').lean();
 
     const progressMap = {};
     progressList.forEach(p => {
       progressMap[p.arkShot.toString()] = {
-        isLiked:      p.isLiked,
-        isBookmarked: p.isBookmarked,
-        isMastered:   p.isMastered,
-        status:       p.status,
+        isLiked:       p.isLiked,
+        isBookmarked:  p.isBookmarked,
+        isMastered:    p.isMastered,
+        status:        p.status,
+        adaptiveMode:  p.adaptiveMode  ?? 'normal',
+        adaptiveScore: p.adaptiveScore ?? 50,
       };
     });
+
+    // ── Adaptive mode distribution log ───────────
+    const modeCounts = { normal: 0, simplified: 0, hinted: 0, strong: 0 };
+    progressList.forEach(p => {
+      const m = p.adaptiveMode ?? 'normal';
+      if (modeCounts[m] !== undefined) modeCounts[m]++;
+    });
+    console.log(`  🧠 adaptiveModes  : normal=${modeCounts.normal} simplified=${modeCounts.simplified} hinted=${modeCounts.hinted} strong=${modeCounts.strong}`);
+    console.log(`  📊 progress docs  : ${progressList.length} / ${shots.length} shots have progress`);
 
     const shotsWithProgress = shots.map(shot => ({
       ...shot,
       userProgress: progressMap[shot._id.toString()] || {
-        isLiked: false, isBookmarked: false,
-        isMastered: false, status: null,
+        isLiked:       false,
+        isBookmarked:  false,
+        isMastered:    false,
+        status:        null,
+        adaptiveMode:  'normal',
+        adaptiveScore: 50,
       },
     }));
 
-    // ✅ allMastered only true if shots actually EXIST but are all mastered
     const allMastered =
       shots.length === 0 &&
       feedExhausted &&
       !continuedFrom &&
-      totalExisting > 0;   // ← shots exist in DB but user mastered all
+      totalExisting > 0;
+
+    console.log(`  ✅ response → shots=${shotsWithProgress.length} feedExhausted=${feedExhausted} allMastered=${allMastered} continuedFrom=${continuedFrom}`);
+    console.log('══════════════════════════════════════════\n');
 
     return res.status(200).json({
       success: true,
@@ -219,16 +255,16 @@ export const getFeed = async (req, res, next) => {
         feedExhausted,
         continuedFrom,
         allMastered,
-        noShotsExist:   totalExisting === 0,  // subject exists but has no content yet
+        noShotsExist:   totalExisting === 0,
         currentSubject: continuedFrom || subject,
       },
     });
 
   } catch (err) {
+    console.error('❌ getFeed error:', err.message);
     return next(new AppError(err.message, 500));
   }
 };
-
 
 
 
@@ -329,31 +365,36 @@ export const getCollectionById = async (req, res, next) => {
     if (!collection) return next(new AppError('Collection not found', 404));
 
     // ✅ Attach user progress to each shot (same pattern as getFeed)
-    if (userId && collection.arkShots?.length > 0) {
-      const shotIds      = collection.arkShots.map(s => s._id);
-      const progressList = await ArkShotProgress.find({
-        user:    userId,
-        arkShot: { $in: shotIds },
-      }).select('arkShot isLiked isBookmarked isMastered status').lean();
+  // ✅ Full fixed block in getCollectionById
+if (userId && collection.arkShots?.length > 0) {
+  const shotIds      = collection.arkShots.map(s => s._id);
+  const progressList = await ArkShotProgress.find({
+    user:    userId,
+    arkShot: { $in: shotIds },
+  }).select('arkShot isLiked isBookmarked isMastered status adaptiveMode adaptiveScore').lean();
 
-      const progressMap = {};
-      progressList.forEach(p => {
-        progressMap[p.arkShot.toString()] = {
-          isLiked:      p.isLiked,
-          isBookmarked: p.isBookmarked,
-          isMastered:   p.isMastered,
-          status:       p.status,
-        };
-      });
+  const progressMap = {};  // ← THIS LINE WAS MISSING
 
-      collection.arkShots = collection.arkShots.map(shot => ({
-        ...shot,
-        userProgress: progressMap[shot._id.toString()] || {
-          isLiked: false, isBookmarked: false,
-          isMastered: false, status: null,
-        },
-      }));
-    }
+  progressList.forEach(p => {
+    progressMap[p.arkShot.toString()] = {
+      isLiked:       p.isLiked,
+      isBookmarked:  p.isBookmarked,
+      isMastered:    p.isMastered,
+      status:        p.status,
+      adaptiveMode:  p.adaptiveMode  ?? 'normal',
+      adaptiveScore: p.adaptiveScore ?? 50,
+    };
+  });
+
+  collection.arkShots = collection.arkShots.map(shot => ({
+    ...shot,
+    userProgress: progressMap[shot._id.toString()] || {
+      isLiked: false, isBookmarked: false,
+      isMastered: false, status: null,
+      adaptiveMode: 'normal', adaptiveScore: 50,
+    },
+  }));
+}
 
     res.status(200).json({ success: true, data: collection });
   } catch (err) {
@@ -538,6 +579,46 @@ export const recordView = async (req, res, next) => {
     Promise.all(writes).catch(err =>
       console.error('[recordView] background writes failed:', err)
     );
+    // ── Adaptive scoring (background, never blocks response) ──────────────────
+// Skip for 'opened' actions — only score real view events
+if (!isOpenedAction) {
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+  ArkShotProgress.findOne(
+    { user: userId, arkShot: id },
+    { adaptiveScore: 1, lastScoredAt: 1 }
+  )
+  .lean()
+  .then(current => {
+    // ✅ Cooldown — skip if scored in last 10 min (prevents thrash on re-views)
+    if (current?.lastScoredAt > tenMinutesAgo) return;
+
+    const prevScore = current?.adaptiveScore ?? 50; // neutral start
+    const viewScore = scoreView({
+      readDepthPercent,
+      pauseCount,
+      hesitationCount,
+      expandedDefinition,
+      timeSpentSeconds,
+    });
+
+    const blended = blendScore(prevScore, viewScore);
+    const mode    = deriveMode(blended, timeSpentSeconds);
+
+    return ArkShotProgress.findOneAndUpdate(
+      { user: userId, arkShot: id },
+      {
+        $set: {
+          adaptiveScore: blended,
+          adaptiveMode:  mode,
+          lastScoredAt:  new Date(),
+        },
+      },
+      { upsert: true }
+    );
+  })
+  .catch(err => console.error('[recordView] adaptiveScore update failed:', err));
+}
 
   } catch (err) {
     return next(new AppError(err.message, 500));
@@ -935,6 +1016,13 @@ export const getMyProgress = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
+    // ── Today's date range ────────────────────────────────────────
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // ── Core counts ──────────────────────────────────────────────
     const [
       totalSeen,
       totalLiked,
@@ -947,36 +1035,206 @@ export const getMyProgress = async (req, res, next) => {
       ArkShotProgress.countDocuments({ user: userId, isBookmarked: true }),
     ]);
 
-    // Last session stats
+    // ── Last session (non-empty only) ────────────────────────────
     const lastSession = await ArkShotSession
-      .findOne({ user: userId })
+      .findOne({ user: userId, totalShotsViewed: { $gt: 0 } })
       .sort({ startedAt: -1 })
-      .select("startedAt totalShotsViewed totalDurationSeconds context")
+      .select("startedAt endedAt totalShotsViewed totalDurationSeconds context")
       .lean();
 
-    // Continue from — last shot seen that's not mastered
-    const continueFrom = await ArkShotProgress
-      .findOne({ user: userId, isMastered: false })
-      .sort({ lastViewedAt: -1 })
-      .populate("arkShot", "title subject unit semester resolvedTheme")
-      .lean({ virtuals: true });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        totalSeen,
-        totalLiked,
-        totalMastered,
-        totalBookmarked,
-        lastSession,
-        continueFrom: continueFrom?.arkShot || null,
+    // ── All-time + today aggregate (single pipeline) ─────────────
+    const [sessionInsights] = await ArkShotSession.aggregate([
+      {
+        $match: {
+          user:             new mongoose.Types.ObjectId(userId),
+          totalShotsViewed: { $gt: 0 },
+        },
       },
-    });
+      {
+        $group: {
+          _id: null,
+
+          // ── All-time ──────────────────────────────────────────
+          totalSessions:      { $sum: 1 },
+          totalStudySeconds:  { $sum: "$totalDurationSeconds" },
+          totalShotsViewed:   { $sum: "$totalShotsViewed" },
+          avgSessionSeconds:  { $avg: "$totalDurationSeconds" },
+          avgShotsPerSession: { $avg: "$totalShotsViewed" },
+          bestSessionShots:   { $max: "$totalShotsViewed" },
+          bestSessionSeconds: { $max: "$totalDurationSeconds" },
+          firstStudiedAt:     { $min: "$startedAt" },
+
+          // ── Today only ────────────────────────────────────────
+          todayStudySeconds: {
+            $sum: {
+              $cond: [
+                { $and: [
+                  { $gte: ["$startedAt", todayStart] },
+                  { $lte: ["$startedAt", todayEnd] },
+                ]},
+                "$totalDurationSeconds",
+                0,
+              ],
+            },
+          },
+          todayShotsViewed: {
+            $sum: {
+              $cond: [
+                { $and: [
+                  { $gte: ["$startedAt", todayStart] },
+                  { $lte: ["$startedAt", todayEnd] },
+                ]},
+                "$totalShotsViewed",
+                0,
+              ],
+            },
+          },
+          todaySessions: {
+            $sum: {
+              $cond: [
+                { $and: [
+                  { $gte: ["$startedAt", todayStart] },
+                  { $lte: ["$startedAt", todayEnd] },
+                ]},
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id:                0,
+          totalStudySeconds:  1,
+          totalShotsViewed:   1,
+          totalSessions:      1,
+          avgSessionSeconds:  { $round: ["$avgSessionSeconds", 0] },
+          avgShotsPerSession: { $round: ["$avgShotsPerSession", 1] },
+          bestSessionShots:   1,
+          bestSessionSeconds: 1,
+          firstStudiedAt:     1,
+          todayStudySeconds:  1,
+          todayShotsViewed:   1,
+          todaySessions:      1,
+        },
+      },
+    ]);
+
+    // ── Continue from ─────────────────────────────────────────────
+    const continueFromProgress = await ArkShotProgress
+      .findOne({
+        user:         userId,
+        isMastered:   false,
+        lastViewedAt: { $exists: true },
+      })
+      .sort({ lastViewedAt: -1 })
+      .populate("arkShot", "title subject unit semester")
+      .lean();
+
+    // ── Interpreted signals (raw data → useful data) ─────────────
+  // ── Interpreted signals (raw data → useful data) ─────────────
+const interpreted = sessionInsights ? (() => {
+  const si = sessionInsights;
+
+  // Consistency: days between first session and now
+  const daysSinceStart = si.firstStudiedAt
+    ? Math.max(1, Math.ceil(
+        (Date.now() - new Date(si.firstStudiedAt)) / 86400000
+      ))
+    : 1;
+  const studyFrequency = Math.round((si.totalSessions / daysSinceStart) * 10) / 10;
+
+  // Pace label — based on avg session length
+  const pacingLabel =
+    si.avgSessionSeconds < 60  ? 'Quick glance'    :
+    si.avgSessionSeconds < 180 ? 'Short burst'     :
+    si.avgSessionSeconds < 420 ? 'Focused session' :
+                                  'Deep study';
+
+  // ✅ Consistency label — derived from studyFrequency
+  const consistencyLabel =
+    studyFrequency === 0   ? 'Not yet active'   :
+    studyFrequency < 0.3   ? 'Occasional'       :
+    studyFrequency < 0.7   ? 'Building habit'   :
+    studyFrequency < 1.2   ? 'Consistent'       :
+    studyFrequency < 2.0   ? 'Daily learner'    :
+                              'Highly dedicated';
+
+  // Today activity label
+  const todayLabel =
+    si.todayShotsViewed === 0 ? 'Not started today' :
+    si.todayShotsViewed < 5   ? 'Just warming up'   :
+    si.todayShotsViewed < 15  ? 'Good progress'     :
+    si.todayShotsViewed < 30  ? 'On a roll 🔥'       :
+                                 'Beast mode 🚀';
+
+  return { pacingLabel, consistencyLabel, studyFrequency, todayLabel };
+})() : null;
+
+res.status(200).json({
+  success: true,
+  data: {
+    totalSeen,
+    totalLiked,
+    totalMastered,
+    totalBookmarked,
+
+    // ── Last session ──────────────────────────────────────────
+    lastSession: lastSession
+      ? {
+          _id:                  lastSession._id.toString(),
+          context:              lastSession.context,
+          startedAt:            lastSession.startedAt,
+          endedAt:              lastSession.endedAt,
+          totalDurationSeconds: lastSession.totalDurationSeconds,
+          totalShotsViewed:     lastSession.totalShotsViewed,
+        }
+      : null,
+
+    // ── Activity insights ──────────────────────────────────────
+    activityInsights: sessionInsights
+      ? {
+          // ── Today ──────────────────────────────────────────
+          today: {
+            shotsViewed:  sessionInsights.todayShotsViewed,
+            studySeconds: sessionInsights.todayStudySeconds,
+            sessions:     sessionInsights.todaySessions,
+            label:        interpreted.todayLabel,
+          },
+
+          // ── Lifetime ✅ (was allTime) ───────────────────────
+          lifetime: {
+            totalStudySeconds:  sessionInsights.totalStudySeconds,
+            totalShotsViewed:   sessionInsights.totalShotsViewed,
+            avgSessionSeconds:  sessionInsights.avgSessionSeconds,
+            avgShotsPerSession: sessionInsights.avgShotsPerSession,
+            bestSessionShots:   sessionInsights.bestSessionShots,
+            bestSessionSeconds: sessionInsights.bestSessionSeconds,
+            firstStudiedAt:     sessionInsights.firstStudiedAt,
+            pacingLabel:        interpreted.pacingLabel,
+            studyFrequency:     interpreted.studyFrequency,      // e.g. 1.7
+            consistencyLabel:   interpreted.consistencyLabel,    // ✅ e.g. "Daily learner"
+          },
+        }
+      : null,
+
+    // ── Continue from ──────────────────────────────────────────
+    continueFrom: continueFromProgress?.arkShot
+      ? {
+          _id:      continueFromProgress.arkShot._id.toString(),
+          title:    continueFromProgress.arkShot.title,
+          subject:  continueFromProgress.arkShot.subject,
+          unit:     continueFromProgress.arkShot.unit,
+          semester: continueFromProgress.arkShot.semester,
+        }
+      : null,
+  },
+});
   } catch (err) {
     return next(new AppError(err.message, 500));
   }
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 1️⃣3️⃣ GET MY SAVED (BOOKMARKED) SHOTS
 //     GET /api/v1/arkshots/my/saved
@@ -1212,6 +1470,28 @@ export const recordScrollBehaviour = async (req, res, next) => {
       );
     }
 
+  } catch (err) {
+    return next(new AppError(err.message, 500));
+  }
+};
+
+
+export const recordMicroFeedback = async (req, res, next) => {
+  try {
+    const { triggerType, shotId, sessionId, initialChoice, followUpChoice } = req.body;
+    const userId = req.user.id;
+
+    // You can store in a simple collection or just log for now
+    await ArkMicroFeedback.create({
+      user:          userId,
+      shot:          shotId || null,
+      session:       sessionId || null,
+      triggerType,   // 'fast' | 'pause' | 'hesitation' | 'general'
+      initialChoice,
+      followUpChoice,
+    });
+
+    return res.status(200).json({ success: true });
   } catch (err) {
     return next(new AppError(err.message, 500));
   }

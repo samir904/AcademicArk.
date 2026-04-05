@@ -51,11 +51,24 @@ const DATE_RANGES = {
     "all": null,
 };
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // UTC+5:30
+
 const buildDateFilter = (days) => {
-    if (!days) return {};
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    return { createdAt: { $gte: from } };
+  if (!days) return {};
+
+  // Get current time in IST
+  const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+
+  // Set to start of today in IST (midnight IST)
+  nowIST.setUTCHours(0, 0, 0, 0);
+
+  // Go back `days` days
+  nowIST.setUTCDate(nowIST.getUTCDate() - days);
+
+  // Convert back to UTC for MongoDB comparison
+  const from = new Date(nowIST.getTime() - IST_OFFSET_MS);
+
+  return { createdAt: { $gte: from } };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -246,25 +259,30 @@ export const getRelatedClickAnalytics = async (req, res, next) => {
             ]),
 
             // ── 7. Daily click series (last N days, fills 0 gaps) ────────────
-            RelatedNoteClick.aggregate([
-                { $match: dateFilter },
-                {
-                    $group: {
-                        _id: {
-                            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
-                        },
-                        clicks: { $sum: 1 },
-                    },
-                },
-                { $sort: { _id: 1 } },
-                {
-                    $project: {
-                        _id: 0,
-                        date: "$_id",
-                        clicks: 1,
-                    },
-                },
-            ]),
+            // ── 7. Daily click series ─────────────────────────────────────────────────
+RelatedNoteClick.aggregate([
+  { $match: dateFilter },
+  {
+    $group: {
+      _id: {
+        $dateToString: {
+          format:   "%Y-%m-%d",
+          date:     "$createdAt",
+          timezone: "Asia/Kolkata",   // ← IST grouping
+        },
+      },
+      clicks: { $sum: 1 },
+    },
+  },
+  { $sort: { _id: 1 } },
+  {
+    $project: {
+      _id:    0,
+      date:   "$_id",
+      clicks: 1,
+    },
+  },
+]),
             // ── 8. Avg click position per section ─────────────────────────────────────
             RelatedNoteClick.aggregate([
                 { $match: dateFilter },

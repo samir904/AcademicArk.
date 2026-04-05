@@ -1175,97 +1175,200 @@ export const getABTestResults = async (req, res, next) => {
 // 1️⃣3️⃣ SEND EMAIL CAMPAIGN
 //     POST /api/v1/admin/utm/email/send
 //     Body: { campaignId, subject, htmlBody, targetAudience }
-// ─────────────────────────────────────────────────────────────────────────────
+// CONTROLLERS/adminUTM.controller.js
+// import fs           from 'fs';
+// import path         from 'path';
+// import { fileURLToPath } from 'url';
+import Handlebars   from 'handlebars';
+import EmailCampaignLog from '../MODELS/emailCampaignLog.model.js';
+import FeatureFlag  from '../MODELS/featureFlag.model.js';
+// import User         from '../MODELS/user.model.js';
+// import Apperror     from '../UTIL/error.util.js';
+// import { sendEmail } from '../UTIL/sendemail.js';
+
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname  = path.dirname(__filename);
+
+// Compile once at module load — not on every request
+const UTM_EMAIL_TEMPLATE = (() => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '../TEMPLATES/utmCampaignEmail.hbs'),
+    'utf-8'
+  );
+  return Handlebars.compile(src);
+})();
+
+// Pill label per audience type
+const PILL_LABELS = {
+  all_registered:    'AcademicArk Update',
+  utm_visitors:      'You\'re Invited',
+  campaign_visitors: 'For You',
+  feature_flag:      'Early Access',
+  custom:            'Personal Message',
+};
+
 export const sendEmailCampaign = async (req, res, next) => {
   try {
-    const { campaignId, subject, htmlBody, targetAudience = 'all_users' } = req.body;
+    const {
+      subject,
+      previewText,
+      ctaText,        // ← NEW
+  ctaLink,        // ← NEW
+      body,
+      audience,
+      campaignId,
+      customEmails,
+      flagKey,
+      utm,
+    } = req.body;
 
-    if (!campaignId || !subject || !htmlBody) {
-      return next(new AppError('campaignId, subject and htmlBody are required', 400));
+    if (!subject || !body) {
+      return next(new AppError('subject and body are required', 400));
     }
 
-    const campaign = await UTMCampaign.findById(campaignId);
-    if (!campaign) return next(new AppError('Campaign not found', 404));
-    if (campaign.status !== 'active') {
-      return next(new AppError('Campaign must be active to send emails', 400));
+    // ── Build recipient list ──────────────────────────────────────
+    let recipients = [];
+
+    if (audience === 'all_registered') {
+      recipients = await User
+        .find({ isVerified: true })
+        .select('_id email fullName')
+        .lean();
+
+    } else if (audience === 'utm_visitors') {
+      const visitors = await UTMVisitor
+        .find({ registered: false })
+        .select('email')
+        .lean();
+      recipients = visitors.map(v => ({ email: v.email, fullName: 'there' }));
+
+    } else if (audience === 'campaign_visitors') {
+      if (!campaignId) return next(new AppError('campaignId required', 400));
+      const userIds = await UTMEvent
+        .find({ campaign: campaignId })
+        .distinct('user');
+      recipients = await User
+        .find({ _id: { $in: userIds }, isVerified: true })
+        .select('_id email fullName')
+        .lean();
+
+    } else if (audience === 'feature_flag') {
+      if (!flagKey) return next(new AppError('flagKey required', 400));
+      const flag = await FeatureFlag
+        .findOne({ key: flagKey, isEnabled: true })
+        .lean();
+      if (!flag) return next(new AppError(`Flag "${flagKey}" not found or disabled`, 404));
+
+      const userIds = flag.rollout?.userIds ?? [];
+      if (!userIds.length) return next(new AppError('No users in this flag\'s whitelist', 400));
+
+      recipients = await User
+        .find({ _id: { $in: userIds }, isVerified: true })
+        .select('_id email fullName')
+        .lean();
+
+    } else if (audience === 'custom') {
+      const emails = Array.isArray(customEmails)
+        ? customEmails
+        : (customEmails || '').split(',').map(e => e.trim()).filter(Boolean);
+      if (!emails.length) return next(new AppError('customEmails required', 400));
+
+      const users = await User
+        .find({ email: { $in: emails } })
+        .select('_id email fullName')
+        .lean();
+      const registeredEmails = new Set(users.map(u => u.email));
+      const bareEmails = emails
+        .filter(e => !registeredEmails.has(e))
+        .map(e => ({ email: e, fullName: 'there' }));
+      recipients = [...users, ...bareEmails];
     }
 
-    // ── Build recipient list ──────────────────────
-    const userFilter = { isVerified: true };
-
-    if (targetAudience === 'sem4_only') {
-      userFilter['academicProfile.semester'] = 4;
-    } else if (targetAudience === 'active_users') {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      userFilter.lastHomepageVisit = { $gte: thirtyDaysAgo };
-    } else if (targetAudience === 'inactive_users') {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      userFilter.lastHomepageVisit = { $lt: thirtyDaysAgo };
-    }
-
-    const recipients = await User
-      .find(userFilter)
-      .select('_id email fullName')
-      .lean();
-
-    if (recipients.length === 0) {
+    if (!recipients.length) {
       return next(new AppError('No recipients found for this audience', 400));
     }
 
-    // ── Inject tracking pixel + UTM CTA into htmlBody ─
-    const pixelUrl = `${process.env.BACKEND_URL}/api/v1/utm/pixel/${campaignId}`;
-    const injectedHtml = htmlBody
-      .replace(
-        '</body>',
-        `<img src="${pixelUrl}?uid={{USER_ID}}" width="1" height="1" style="display:none" /></body>`
-      );
+    // ── UTM CTA link (params baked in, hidden from user) ──────────
+    const utmParams = new URLSearchParams({
+      utm_source:   utm?.utm_source   || 'email',
+      utm_medium:   utm?.utm_medium   || 'email',
+      utm_campaign: utm?.utm_campaign || 'campaign',
+    }).toString();
+    const baseCtaLink = `${process.env.FRONTEND_URL}?${utmParams}`;
 
-    // ── Send in batches of 50 to avoid rate limits ─
+    const pillLabel = PILL_LABELS[audience] || 'AcademicArk';
+
+    // ── Send in batches of 50 ─────────────────────────────────────
     const BATCH_SIZE = 50;
     let sent = 0;
+    const errs = [];
 
     for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
       const batch = recipients.slice(i, i + BATCH_SIZE);
 
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         batch.map(user => {
-          const personalizedHtml = injectedHtml
-            .replace(/{{USER_ID}}/g, user.id.toString())
-            .replace(/{{NAME}}/g,    user.fullName || 'there')
-            .replace(/{{UTM_LINK}}/g, campaign.fullUrl);
+  const html = UTM_EMAIL_TEMPLATE({
+  subject,
+  previewText:   previewText || '',
+  pillLabel,
+  recipientName: user.fullName || 'there',
 
-          return sendEmail({
-            to:      user.email,
-            subject,
-            html:    personalizedHtml,
-          });
+  // firstInitial removed — avatar is gone
+
+message: body
+  // ── Strip leading "Hey/Hi/Hello {{name}}," greeting lines ──
+  // Catches: "Hey {{name}},", "Hi {{name}},", "Hello {{name}},"
+  // with optional whitespace/newline after
+  .replace(/^(hey|hi|hello)[,\s]*(\{\{name\}\}|\{\{email\}\})?[,!\s]*\n*/i, '')
+  .replace(/https?:\/\/\S+/gi, '')
+  .replace(/\{\{name\}\}/gi,  user.fullName || 'there')
+  .replace(/\{\{email\}\}/gi, user.email)
+  .trim(),
+
+  ctaText: ctaText || '',
+  ctaLink: (() => {
+    if (!ctaLink) return '';
+    const sep = ctaLink.includes('?') ? '&' : '?';
+    return `${ctaLink}${sep}utm_source=${utm?.utm_source || 'email'}&utm_medium=${utm?.utm_medium || 'email'}&utm_campaign=${utm?.utm_campaign || 'campaign'}`;
+  })(),
+
+  unsubscribeLink: `${process.env.FRONTEND_URL}/unsubscribe?email=${encodeURIComponent(user.email)}`,
+  preferencesLink: `${process.env.FRONTEND_URL}/email-preferences`,
+  pixelUrl: `${process.env.BACKEND_URL}/api/v1/utm/pixel/${utm?.utm_campaign || 'email'}?uid=${user._id || ''}`,
+});
+          return sendEmail(user.email, subject, html);
         })
       );
 
-      sent += batch.length;
+      results.forEach(r => {
+        if (r.status === 'fulfilled') sent++;
+        else errs.push(r.reason?.message);
+      });
     }
 
-    // ── Update emailMeta on campaign ──────────────
-    await UTMCampaign.findByIdAndUpdate(campaignId, {
-      $set: {
-        'emailMeta.subject':        subject,
-        'emailMeta.targetAudience': targetAudience,
-        'emailMeta.sentAt':         new Date(),
-        'emailMeta.totalSent':      sent,
-        'emailMeta.recipientCount': recipients.length,
-      },
+    // ── Log ───────────────────────────────────────────────────────
+    await EmailCampaignLog.create({
+      subject,
+      audience,
+      flagKey:    audience === 'feature_flag'      ? flagKey    : undefined,
+      campaignId: audience === 'campaign_visitors' ? campaignId : undefined,
+      utm,
+      sent,
+      sentAt:  new Date(),
+      sentBy:  req.user.id,
     });
 
     return res.status(200).json({
       success: true,
-      message: `Email sent to ${sent} recipients`,
-      data:    { sent, targetAudience },
+      message: `Email sent to ${sent} of ${recipients.length} recipients`,
+      data:    { sent, total: recipients.length, errors: errs.slice(0, 5) },
     });
+
   } catch (err) {
     return next(new AppError(err.message, 500));
   }
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 1️⃣4️⃣ GET EMAIL STATS
 //     GET /api/v1/admin/utm/email/stats?campaignId=xxx

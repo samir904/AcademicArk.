@@ -11,12 +11,15 @@ import {
   trackCollectionListView,
   trackCollectionOpen,
   recordScrollBehaviour,
+  recordMicroFeedback,
 } from "../CONTROLLERS/arkShot.controller.js";
-import { isLoggedIn, isLoggedInViaQuery, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
+import { authorizedRoles, isLoggedIn, isLoggedInViaQuery, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import { skipDevAnalytics } from "../MIDDLEWARES/skipDevAnalytics.middleware.js";
 
 const router = Router();
 import { v4 as uuidv4 } from "uuid";
+import { EXCLUDED_IDS_SET } from "../CONSTANTS/analyticsConfig.js";
+import { getFeedbackAnalytics } from "../CONTROLLERS/feedbackAnalytics.controller.js";
 
 // Custom skipper for startSession — must return a sessionId
 const skipDevSession = (req, res, next) => {
@@ -38,6 +41,8 @@ router.use(optionalAuth);
 // ════════════════════════════════════════════════════
 // ✅ STATIC ROUTES FIRST
 // ════════════════════════════════════════════════════
+router.post('/feedback/micro', isLoggedIn, recordMicroFeedback);
+router.get('/feedback/analytics', isLoggedIn, authorizedRoles('ADMIN'), getFeedbackAnalytics);
 
 // ── Public ────────────────────────────────────────
 router.get("/teaser",                    getHomepageTeaser);
@@ -77,7 +82,7 @@ router.patch("/collections/:collectionId/track-open", isLoggedIn, skipDevAnalyti
 // ════════════════════════════════════════════════════
 // ✅ DYNAMIC /:id ROUTES LAST
 // ════════════════════════════════════════════════════
-router.get("/collections/:id",           getCollectionById);
+router.get("/collections/:id",          isLoggedIn, getCollectionById);
 router.get("/:id",                       isLoggedIn, getShotById);
 
 // ── Interactions ──────────────────────────────────
