@@ -19,7 +19,7 @@ const isAdmin = [isLoggedIn, authorizedRoles("ADMIN")];
 // ── RULE: ALL static routes BEFORE any /:id routes ────────────────────────
 
 // ── Meta (subjects dropdown) ──────────────────────────────────────────────
-router.get("/meta/subjects",             ...isAdmin, getSubjectsBySemester);  // ← MOVED UP
+router.get("/meta/subjects",              getSubjectsBySemester);  // ← MOVED UP
 
 // ── Notes search ──────────────────────────────────────────────────────────
 router.get("/notes/search",              ...isAdmin, getNotesByFilter);
