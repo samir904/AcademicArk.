@@ -7,6 +7,7 @@ import ArkShotCollection from "../MODELS/arkShotCollection.model.js";
 import ArkMicroFeedback from '../MODELS/ArkMicroFeedback.model.js'
 import UTMCampaign from '../MODELS/UTMCampaign.model.js'
 import AppError         from "../UTIL/error.util.js";
+import FeatureFlag from '../MODELS/featureFlag.model.js';
 import { v4 as uuidv4 } from "uuid";
 // CONTROLLERS/arkShot.controller.js — top imports
 import UTMEvent from "../MODELS/UTMEvent.model.js";  // ✅ ADD if not already there
@@ -1494,5 +1495,82 @@ export const recordMicroFeedback = async (req, res, next) => {
     return res.status(200).json({ success: true });
   } catch (err) {
     return next(new AppError(err.message, 500));
+  }
+};
+
+
+// CONTROLLERS/arkShot.controller.js
+
+/**
+ * GET /arkshots/collections/for-notes?semester=4&subject=java
+ *
+ * Returns lightweight collection cards to show above the note grid.
+ * Only for users who have the arkshots_homepage_section flag active.
+ * Non-flagged users → silently return [] (never throw).
+ */
+export const getCollectionsForNotes = async (req, res, next) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    // ── 1. Flag gate ──────────────────────────────────────────────
+    if (userId) {
+      const flag = await FeatureFlag.findOne({
+        key: 'arkshots_homepage_section',
+        isEnabled: true,
+      }).lean();
+
+      if (!flag) {
+        return res.status(200).json({ success: true, collections: [] });
+      }
+
+      const whitelist = flag.rollout?.userIds?.map(id => id.toString()) ?? [];
+      const isWhitelisted = whitelist.includes(userId.toString());
+
+      if (!isWhitelisted) {
+        return res.status(200).json({ success: true, collections: [] });
+      }
+    } else {
+      // Not logged in — never show
+      return res.status(200).json({ success: true, collections: [] });
+    }
+
+    // ── 2. Parse query params ─────────────────────────────────────
+    const semester = req.query.semester ? Number(req.query.semester) : null;
+    const subject  = req.query.subject?.trim().toLowerCase() || null;
+    const unit     = req.query.unit ? Number(req.query.unit) : null;   // ✅ ADD
+
+    if (!semester) {
+      return res.status(200).json({ success: true, collections: [] });
+    }
+
+    // ── 3. Query ──────────────────────────────────────────────────
+    const filter = {
+      isActive: true,
+      semester,
+    };
+
+    // If subject is selected, match it; otherwise return all for semester
+    if (subject) {
+      filter.subject = subject;
+    }
+    if (unit)    filter.unit    = unit;      // ✅ ADD — unit-level filter
+
+    const collections = await ArkShotCollection.find(filter)
+      .sort({ order: 1, 'stats.totalOpens': -1 })
+      .limit(10)
+      .select(
+        'name description emoji coverTemplate colorTheme coverImage ' +
+        'semester subject unit totalShots isFeatured stats.totalOpens order'
+      )
+      .lean();
+// console.log(collections)
+    return res.status(200).json({
+      success:     true,
+      collections,
+      meta: { semester, subject },
+    });
+
+  } catch (err) {
+    next(err);
   }
 };

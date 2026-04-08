@@ -26,6 +26,43 @@ export const getAllFlags = async (req, res) => {
   }
 };
 
+
+// ─────────────────────────────────────────────
+// PATCH /api/v1/admin/flags/:key/rules/clear
+// Reset ALL rules to their default (no-filter) state
+// ─────────────────────────────────────────────
+export const clearRules = async (req, res) => {
+  try {
+    const flagKey = req.params.key.toLowerCase();
+    const adminId = req.user.id;
+
+    const flag = await FeatureFlag.findOne({ key: flagKey });
+    if (!flag) {
+      return res.status(404).json({ success: false, message: "Flag not found" });
+    }
+
+    // Reset every rule field to its neutral/no-filter default
+    flag.rules = {
+      semesters:             [],
+      branches:              [],
+      minActivityScore:      0,
+      requireProfileComplete: false,
+    };
+    flag.updatedBy = adminId;
+
+    await flag.save();
+    await invalidateFlagCache(flagKey);
+
+    res.status(200).json({
+      success: true,
+      message: `All rules cleared for "${flagKey}" — whitelist-only now`,
+      data: { key: flag.key, rules: flag.rules },
+    });
+  } catch (err) {
+    console.error("clearRules error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 // ─────────────────────────────────────────────
 // GET /api/v1/admin/flags/:key
 // Single flag detail

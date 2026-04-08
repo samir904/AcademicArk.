@@ -12,6 +12,7 @@ import {
   trackCollectionOpen,
   recordScrollBehaviour,
   recordMicroFeedback,
+  getCollectionsForNotes,
 } from "../CONTROLLERS/arkShot.controller.js";
 import { authorizedRoles, isLoggedIn, isLoggedInViaQuery, optionalAuth } from "../MIDDLEWARES/auth.middleware.js";
 import { skipDevAnalytics } from "../MIDDLEWARES/skipDevAnalytics.middleware.js";
@@ -47,6 +48,13 @@ router.get('/feedback/analytics', isLoggedIn, authorizedRoles('ADMIN'), getFeedb
 // ── Public ────────────────────────────────────────
 router.get("/teaser",                    getHomepageTeaser);
 router.get("/collections",               getCollections);
+// ── ADD in the "STATIC ROUTES FIRST" section ─────────────────
+// Must be before /collections/:id to avoid conflict
+router.get(
+  "/collections/for-notes",
+  isLoggedIn,
+  getCollectionsForNotes
+);
 
 // ── Feed (static) ─────────────────────────────────
 router.get("/feed",                      isLoggedIn, getFeed);
@@ -55,6 +63,7 @@ router.get("/feed",                      isLoggedIn, getFeed);
 router.get("/my/progress",               isLoggedIn, getMyProgress);
 router.get("/my/saved",                  isLoggedIn, getMySavedShots);
 router.get("/my/mastered",               isLoggedIn, getMyMasteredShots);
+
 
 // ── Session (static /session/*) ───────────────────
 router.post("/session/start",            isLoggedIn,skipDevSession, startSession);

@@ -24,49 +24,50 @@ export async function isFeatureEnabled(flagKey, user) {
     // ── 2. Master switch ──────────────────────────
     if (!flag || !flag.isEnabled) return false;
 
-    const userId = user._id.toString();
+    const userId   = user._id.toString();
     const { rules, rollout } = flag;
+    const rolloutType = rollout?.type ?? "WHITELIST";
 
-    // ── 3. Eligibility rules (all must pass) ──────
+    // ── 3. WHITELIST bypasses ALL rules ───────────
+    // Whitelisted users are explicitly chosen — rules are irrelevant.
+    // Check this BEFORE eligibility rules.
+    if (rolloutType === "WHITELIST") {
+      return (rollout.userIds ?? [])
+        .map(id => id.toString())
+        .includes(userId);
+    }
+
+    // ── 4. Eligibility rules (PERCENTAGE / ALL only) ──
+    // Rules gate the general population, not hand-picked users.
 
     // Semester filter
-    if (rules.semesters?.length > 0) {
+    if (rules?.semesters?.length > 0) {
       const userSem = user.academicProfile?.semester;
       if (!rules.semesters.includes(userSem)) return false;
     }
 
     // Branch filter
-    if (rules.branches?.length > 0) {
+    if (rules?.branches?.length > 0) {
       const userBranch = user.academicProfile?.branch;
       if (!rules.branches.includes(userBranch)) return false;
     }
 
     // Profile complete
-    if (rules.requireProfileComplete) {
+    if (rules?.requireProfileComplete) {
       if (!user.academicProfile?.isCompleted) return false;
     }
 
-    // Activity score (views + downloads in last 30 days)
-    if (rules.minActivityScore > 0) {
+    // Activity score — only hit DB if threshold is set
+    if (rules?.minActivityScore > 0) {
       const score = await getUserActivityScore(user._id);
       if (score < rules.minActivityScore) return false;
     }
 
-    // ── 4. Rollout strategy ───────────────────────
+    // ── 5. Rollout strategy (ALL / PERCENTAGE) ────
 
-    // Whitelist — explicit user IDs
-    if (rollout.type === "WHITELIST") {
-      return rollout.userIds
-        .map(id => id.toString())
-        .includes(userId);
-    }
+    if (rolloutType === "ALL") return true;
 
-    // All eligible users
-    if (rollout.type === "ALL") return true;
-
-    // Percentage rollout — deterministic hash so same user
-    // always gets same result (not random each request)
-    if (rollout.type === "PERCENTAGE") {
+    if (rolloutType === "PERCENTAGE") {
       const hash = hashUserId(userId, flagKey);
       return hash < rollout.percentage;
     }
@@ -74,13 +75,13 @@ export async function isFeatureEnabled(flagKey, user) {
     return false;
   } catch (err) {
     console.error(`[FeatureFlag] Error checking ${flagKey}:`, err);
-    return false; // fail safe — don't show on error
+    return false; // fail-safe — never show on error
   }
 }
 
 /**
  * Deterministic 0-100 hash from userId + flagKey
- * Same user always gets same bucket — no flickering
+ * Same user always gets same bucket — no flickering across requests
  */
 function hashUserId(userId, flagKey) {
   let hash = 0;
@@ -94,6 +95,7 @@ function hashUserId(userId, flagKey) {
 
 /**
  * Activity score = views + (downloads × 2) in last 30 days
+ * Cached 10 min per user — never called for WHITELIST flags
  */
 async function getUserActivityScore(userId) {
   const cacheKey = `activity_score:${userId}`;
@@ -115,6 +117,6 @@ async function getUserActivityScore(userId) {
   ]);
 
   const score = views + downloads * 2;
-  await redis.setEx(cacheKey, 600, String(score)); // cache 10 min
+  await redis.setEx(cacheKey, 600, String(score));
   return score;
 }
