@@ -141,7 +141,7 @@ const ArkShotSchema = new Schema({
   definition: {
     type:      String,
     trim:      true,
-    maxlength: 700//600
+    maxlength: 800//600
   },
   example: {
     type:      String,
@@ -156,7 +156,7 @@ const ArkShotSchema = new Schema({
   examTip: {
     type:      String,
     trim:      true,
-    maxlength: 300//350
+    maxlength: 350//300
   },
 
   // ── Media ──────────────────────────────────────

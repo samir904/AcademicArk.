@@ -74,10 +74,10 @@ export const getFeed = async (req, res, next) => {
     const limit      = Number(req.query.limit) || 20;
     const skip       = (page - 1) * limit;
 
-    console.log('\n╔══════════════════════════════════════════');
-    console.log(`║  📡 getFeed  user=${userId}  page=${page}`);
-    console.log(`║  filters → sem=${semester} sub=${subject} unit=${unit} diff=${difficulty} pyq=${isPYQ}`);
-    console.log('╚══════════════════════════════════════════');
+    // console.log('\n╔══════════════════════════════════════════');
+    // console.log(`║  📡 getFeed  user=${userId}  page=${page}`);
+    // console.log(`║  filters → sem=${semester} sub=${subject} unit=${unit} diff=${difficulty} pyq=${isPYQ}`);
+    // console.log('╚══════════════════════════════════════════');
 
     // ── Mastered IDs ──────────────────────────────
     const masteredProgress = await ArkShotProgress.find({
@@ -85,7 +85,7 @@ export const getFeed = async (req, res, next) => {
     }).select('arkShot').lean();
     const masteredIds = masteredProgress.map(p => p.arkShot);
 
-    console.log(`  🏆 mastered count : ${masteredIds.length}`);
+    // console.log(`  🏆 mastered count : ${masteredIds.length}`);
 
     const baseFilter = {
       status:   'published',
@@ -113,18 +113,18 @@ export const getFeed = async (req, res, next) => {
     let total           = await ArkShot.countDocuments(primaryFilter);
     const totalExisting = await ArkShot.countDocuments(baseFilter);
 
-    console.log(`  📦 shots fetched  : ${shots.length} (total unmastered: ${total}, totalExisting: ${totalExisting})`);
+    // console.log(`  📦 shots fetched  : ${shots.length} (total unmastered: ${total}, totalExisting: ${totalExisting})`);
 
     let feedExhausted = false;
     let continuedFrom = null;
     const hasExplicitFilter = !!(subject || difficulty || isPYQ);
 
-    console.log(`  🔍 hasExplicitFilter : ${hasExplicitFilter}`);
+    // console.log(`  🔍 hasExplicitFilter : ${hasExplicitFilter}`);
 
     // ── Auto-continue ─────────────────────────────
     if (shots.length === 0 && !hasExplicitFilter) {
       feedExhausted = true;
-      console.log('  ⚠️  shots = 0, no explicit filter → checking auto-continue...');
+      // console.log('  ⚠️  shots = 0, no explicit filter → checking auto-continue...');
 
       const otherSubjects = await ArkShot.distinct('subject', {
         status:   'published',
@@ -132,7 +132,7 @@ export const getFeed = async (req, res, next) => {
         semester: { $elemMatch: { $eq: semester } },
       });
 
-      console.log(`  🔎 other subjects available : [${otherSubjects.join(', ')}]`);
+      // console.log(`  🔎 other subjects available : [${otherSubjects.join(', ')}]`);
 
       if (otherSubjects.length > 0) {
         const nextSubjectStats = await ArkShot.aggregate([
@@ -161,7 +161,7 @@ export const getFeed = async (req, res, next) => {
           const nextSubject = nextSubjectStats[0]._id;
           continuedFrom     = nextSubject;
 
-          console.log(`  ➡️  auto-continue → subject="${nextSubject}" (pyq=${nextSubjectStats[0].pyqCount} avgFreq=${nextSubjectStats[0].avgFrequency?.toFixed(1)})`);
+          // console.log(`  ➡️  auto-continue → subject="${nextSubject}" (pyq=${nextSubjectStats[0].pyqCount} avgFreq=${nextSubjectStats[0].avgFrequency?.toFixed(1)})`);
 
           const continueFilter = {
             status:   'published',
@@ -182,9 +182,9 @@ export const getFeed = async (req, res, next) => {
             ArkShot.countDocuments(continueFilter),
           ]);
 
-          console.log(`  📦 continued shots : ${shots.length} (total: ${total})`);
+          // console.log(`  📦 continued shots : ${shots.length} (total: ${total})`);
         } else {
-          console.log('  🚫 no next subject found after aggregate');
+          // console.log('  🚫 no next subject found after aggregate');
         }
       }
     }
@@ -192,7 +192,7 @@ export const getFeed = async (req, res, next) => {
     // ── Explicit filter + 0 results ───────────────
     if (shots.length === 0 && hasExplicitFilter) {
       feedExhausted = true;
-      console.log('  🚫 explicit filter + 0 results → feedExhausted=true');
+      // console.log('  🚫 explicit filter + 0 results → feedExhausted=true');
     }
 
     // ── Attach user progress ──────────────────────
@@ -220,8 +220,8 @@ export const getFeed = async (req, res, next) => {
       const m = p.adaptiveMode ?? 'normal';
       if (modeCounts[m] !== undefined) modeCounts[m]++;
     });
-    console.log(`  🧠 adaptiveModes  : normal=${modeCounts.normal} simplified=${modeCounts.simplified} hinted=${modeCounts.hinted} strong=${modeCounts.strong}`);
-    console.log(`  📊 progress docs  : ${progressList.length} / ${shots.length} shots have progress`);
+    // console.log(`  🧠 adaptiveModes  : normal=${modeCounts.normal} simplified=${modeCounts.simplified} hinted=${modeCounts.hinted} strong=${modeCounts.strong}`);
+    // console.log(`  📊 progress docs  : ${progressList.length} / ${shots.length} shots have progress`);
 
     const shotsWithProgress = shots.map(shot => ({
       ...shot,
@@ -241,8 +241,8 @@ export const getFeed = async (req, res, next) => {
       !continuedFrom &&
       totalExisting > 0;
 
-    console.log(`  ✅ response → shots=${shotsWithProgress.length} feedExhausted=${feedExhausted} allMastered=${allMastered} continuedFrom=${continuedFrom}`);
-    console.log('══════════════════════════════════════════\n');
+    // console.log(`  ✅ response → shots=${shotsWithProgress.length} feedExhausted=${feedExhausted} allMastered=${allMastered} continuedFrom=${continuedFrom}`);
+    // console.log('══════════════════════════════════════════\n');
 
     return res.status(200).json({
       success: true,

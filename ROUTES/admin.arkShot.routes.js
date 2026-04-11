@@ -9,6 +9,7 @@ import {
   getCollections,
   getSubjectsBySemester,
   getNotesByFilter,
+  bulkUploadShots,
 } from "../CONTROLLERS/adminArkShot.controller.js";
 import { isLoggedIn, authorizedRoles } from "../MIDDLEWARES/auth.middleware.js";
 import upload from "../MIDDLEWARES/multer.middleware.js";
@@ -39,7 +40,8 @@ router.patch("/bulk/publish",            ...isAdmin, bulkPublish);
 // ── Base CRUD ─────────────────────────────────────────────────────────────
 router.get  ("/",                        ...isAdmin, getAllShots);
 router.post ("/",                        ...isAdmin, upload.single("diagram"), createShot);
-
+// ── Add BEFORE /:id routes ─────────────────────────────────────────────────
+router.post("/bulk/upload",   ...isAdmin, bulkUploadShots);   // ✅ JSON body — no multer
 // ── /:id routes LAST ──────────────────────────────────────────────────────
 router.get   ("/:id/analytics",          ...isAdmin, getShotAnalyticsById);
 router.get   ("/:id/stats",              ...isAdmin, getShotStats);

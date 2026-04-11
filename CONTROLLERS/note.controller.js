@@ -18,6 +18,12 @@ import { generatePreviewFromUrl } from "../UTIL/generatePreviewFromUrl.js";
 import { uploadPdfBuffer } from "../UTIL/uploadPdfBuffer.js";
 import slugify from "slugify";
 // import redis      from "../CONFIG/redis.js";           // your ioredis client
+// import Papa from 'papaparse'; // npm install papaparse
+// import path from 'path';
+import Papa from 'papaparse'; // npm install papaparse
+// import fs from 'fs/promises';
+import path from 'path';
+import { bulkJobs } from "../UTIL/job.store.js";
 
 // ─────────────────────────────────────────────
 // CACHE BUST  ← FIX 2: was using undefined `redis`, now `redisClient`
@@ -56,6 +62,7 @@ const fireAndForget = (promise) => {
 //     { new: false }  // don't need the result
 //   );
 // };
+
 // ─────────────────────────────────────────────
 // CACHED NOTE FETCH
 // ─────────────────────────────────────────────
@@ -231,6 +238,273 @@ const ensurePreviewExists = async (note) => {
 //   }
 // };
 
+// CONTROLLERS/note.controller.js — add this function
+
+
+export const bulkUploadNotes = async (req, res, next) => {
+  const userId       = req.user.id;
+  const uploadedFiles = req.files?.files ?? [];
+
+  // ── 1. Parse metadata ─────────────────────────────────────────────
+  let metadataList;
+  try {
+    metadataList = JSON.parse(req.body.metadata);
+  } catch {
+    return next(new Apperror("Invalid metadata JSON", 400));
+  }
+
+  if (!Array.isArray(metadataList) || metadataList.length === 0)
+    return next(new Apperror("Metadata array is required", 400));
+
+  if (uploadedFiles.length === 0)
+    return next(new Apperror("At least one PDF file is required", 400));
+
+  // ── 2. Build filename → file map ──────────────────────────────────
+  const fileMap = {};
+  for (const file of uploadedFiles) {
+    fileMap[file.originalname] = file;
+  }
+
+  // ── 3. Match metadata rows to files ──────────────────────────────
+  const matched   = [];
+  const unmatched = [];
+
+  for (const row of metadataList) {
+    if (fileMap[row.filename]) {
+      matched.push({ meta: row, file: fileMap[row.filename] });
+    } else {
+      unmatched.push(row.filename);
+    }
+  }
+
+  // ── 4. Register job AFTER matched is built ✅ ─────────────────────
+  const jobId = req.body.jobId ?? `bulk_${Date.now()}`;
+
+  const results = {
+    success: [],
+    failed:  [],
+    skipped: unmatched.map(f => ({
+      filename: f,
+      reason: "Not found in uploaded files",
+    })),
+  };
+
+  // Now safe — matched.length is known
+  bulkJobs.set(jobId, {
+    total:   matched.length,
+    done:    0,
+    current: null,
+    results,   // ← shared reference, updates live as results arrays fill up
+  });
+
+  // ── 5. Validate all rows before any upload ────────────────────────
+  const validationErrors = [];
+  for (const { meta } of matched) {
+    const errs = [];
+    if (!meta.title?.trim() || meta.title.trim().length < 3)
+      errs.push("Title must be at least 3 characters");
+    if (!meta.description?.trim() || meta.description.trim().length < 10)
+      errs.push("Description must be at least 10 characters");
+    if (!meta.subject?.trim())
+      errs.push("Subject is required");
+    const semArray = normalizeSemesters(meta.semester);
+    if (!semArray.length)
+      errs.push("At least one semester is required");
+    const validCategories = ["Notes", "Important Question", "PYQ", "Handwritten Notes"];
+    if (!validCategories.includes(meta.category))
+      errs.push(`Invalid category: ${meta.category}`);
+    if (errs.length)
+      validationErrors.push({ filename: meta.filename, errors: errs });
+  }
+
+  if (validationErrors.length > 0) {
+    bulkJobs.delete(jobId); // clean up — job never started
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed — fix errors and retry",
+      validationErrors,
+    });
+  }
+
+  // ── 6. Sequential upload loop ─────────────────────────────────────
+  for (let i = 0; i < matched.length; i++) {
+    const { meta, file } = matched[i];
+
+    // Update current file BEFORE upload attempt ✅
+    bulkJobs.get(jobId).current = meta.filename;
+
+    try {
+      const extractedUnit = extractUnitFromTitle(meta.title);
+      const semesterArray = normalizeSemesters(meta.semester);
+
+      // Unique slug
+      const baseSlug = slugify(
+        `${meta.title}-semester-${semesterArray[0]}-${meta.subject}-aktu`,
+        { lower: true, strict: true }
+      );
+      let slug = baseSlug;
+      let counter = 1;
+      while (await Note.findOne({ slug })) {
+        slug = `${baseSlug}-${counter++}`;
+      }
+
+      // SEO fields
+      const seoTitle = `${meta.title} | AKTU ${meta.subject} Semester ${semesterArray[0]} Notes`;
+      const seoDescription = `Download ${meta.title} for AKTU ${meta.subject} semester ${semesterArray[0]}. Updated syllabus notes, important questions and PYQ available on AcademicArk.`;
+
+      // Create note doc
+      const note = await Note.create({
+        title:       meta.title.trim(),
+        description: meta.description.trim(),
+        subject:     meta.subject.toLowerCase().trim(),
+        course:      'BTECH',
+        semester:    semesterArray,
+        university:  'AKTU',
+        category:    meta.category.trim(),
+        unit:        extractedUnit,
+        uploadedBy:  userId,
+        slug,
+        seoTitle,
+        seoDescription,
+        fileDetails: { public_id: meta.title, secure_url: 'pending' },
+      });
+
+      // Watermark + Cloudinary
+      if (file.mimetype === 'application/pdf') {
+        await addWatermarkToPDF(file.path, 'AcademicArk');
+      }
+
+      const result = await cloudinary.v2.uploader.upload(file.path, {
+        folder:          "AcademicArk",
+        resource_type:   'auto',
+        access_mode:     'public',
+        type:            'upload',
+        use_filename:    true,
+        unique_filename: true,
+      });
+
+      note.fileDetails.public_id  = result.public_id;
+      note.fileDetails.secure_url = result.secure_url;
+      await note.save();
+
+      await fs.rm(file.path);
+
+      results.success.push({
+        filename: meta.filename,
+        title:    note.title,
+        id:       note._id,
+        slug:     note.slug,
+      });
+
+    } catch (err) {
+      console.error(`[BulkUpload] Failed: ${meta.filename}`, err.message);
+      try { await fs.rm(file.path); } catch {}
+
+      results.failed.push({
+        filename: meta.filename,
+        title:    meta.title,
+        reason:   err.message,
+      });
+    }
+
+    // ✅ Increment done OUTSIDE try/catch — always runs after success OR failure
+    bulkJobs.get(jobId).done = i + 1;
+  }
+
+  // ── 7. Bust cache ─────────────────────────────────────────────────
+  await redisClient.del(`notes:${JSON.stringify({})}`);
+
+  // ── 8. Return summary with jobId ✅ ──────────────────────────────
+  res.status(200).json({
+    success: true,
+    message: `Bulk upload complete: ${results.success.length} uploaded, ${results.failed.length} failed, ${results.skipped.length} skipped`,
+    jobId,   // ← frontend needs this to poll SSE
+    summary: {
+      total:    matched.length,
+      uploaded: results.success.length,
+      failed:   results.failed.length,
+      skipped:  results.skipped.length,
+    },
+    results,
+  });
+};
+
+// ── Helper ────────────────────────────────────────────────────────
+function normalizeSemesters(semester) {
+  if (!semester) return [];
+  if (Array.isArray(semester))
+    return semester.map(Number).filter(n => n >= 1 && n <= 8);
+  return String(semester)
+    .split(',')
+    .map(s => parseInt(s.trim()))
+    .filter(n => n >= 1 && n <= 8);
+}
+
+// ── Helper: normalize semester field from CSV string or array ──────
+// function normalizeSemesters(semester) {
+//   if (!semester) return [];
+//   // CSV might send "5" or "5,6" or [5,6]
+//   if (Array.isArray(semester)) return semester.map(Number).filter(n => n >= 1 && n <= 8);
+//   return String(semester).split(',').map(s => parseInt(s.trim())).filter(n => n >= 1 && n <= 8);
+// }
+// // CONTROLLERS/note.controller.js — add this function
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/notes/subjects/suggestions?q=oper&semester=5
+// Returns distinct subjects matching the query, optionally filtered by semester
+// ─────────────────────────────────────────────────────────────────────────────
+export const getSubjectSuggestions = async (req, res, next) => {
+  try {
+    const { q = '', semester } = req.query;
+
+    if (!q.trim()) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+
+    const matchFilter = {
+      subject: { $regex: escapeRegex(q.trim()), $options: 'i' },
+    };
+
+    // Semester filter — supports single or comma-separated "5" or "5,6"
+    if (semester) {
+      const semNums = String(semester)
+        .split(',')
+        .map((s) => parseInt(s.trim()))
+        .filter((n) => n >= 1 && n <= 8);
+
+      if (semNums.length) {
+        matchFilter.semester = { $in: semNums };
+      }
+    }
+
+    const suggestions = await Note.aggregate([
+      { $match: matchFilter },
+      {
+        $group: {
+          _id: { $toLower: '$subject' },          // normalize case
+          displaySubject: { $first: '$subject' }, // original casing for display
+          count: { $sum: 1 },                     // note count per subject
+        },
+      },
+      { $sort: { count: -1 } },                  // most-noted subjects first
+      { $limit: 8 },                             // cap suggestions
+      {
+        $project: {
+          _id: 0,
+          subject: '$displaySubject',
+          count: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json({ success: true, data: suggestions });
+  } catch (err) {
+    console.error('getSubjectSuggestions error:', err);
+    return next(new AppError('Failed to fetch subject suggestions', 500));
+  }
+};
 export const registerNote = async (req, res, next) => {
     const { title, description, subject, course, semester, university, category } = req.body;
     const userId = req.user.id;

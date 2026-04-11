@@ -232,7 +232,7 @@ export const isLoggedIn = async (req, res, next) => {
       // console.log('✅ Token verified:', decoded.email);
       next();
     } catch (error) {
-      console.error('❌ Token verification failed:', error.message);
+      // console.error('❌ Token verification failed:', error.message);
       return res.status(401).json({
         success: false,
         message: 'Session expired. Please login again.'

@@ -12,7 +12,7 @@ const ArkShotCollectionSchema = new Schema({
   description: {
     type:      String,
     trim:      true,
-    maxlength: 300
+    maxlength: 400
   },
   // ── Cover ───────────────────────────────────────
 // Add these fields to your ArkShotCollection schema
