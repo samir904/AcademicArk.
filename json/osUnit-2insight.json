@@ -1,0 +1,122 @@
+[
+  {
+    "cardId": "OS-U2-C1",
+    "type": "REPEAT",
+    "priority": 1,
+    "headline": "Critical Section Problem is Unit 2's most repeated long question — 6 papers straight",
+    "subtext": "OS-U2-MUTEX-CS appeared in every single paper: 2018, 2019, 2022, 2023, 2024, and 2025 — always as a 7 to 10 mark question. The framing rotates between 'state and illustrate', 'conditions a solution must satisfy', 'challenges of mutual exclusion', and 'define and list conditions'. All four framings need to be prepared. This is the single safest long-answer topic in Unit 2.",
+    "confidence": 99,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U2-MUTEX",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C2",
+    "type": "REPEAT",
+    "priority": 2,
+    "headline": "Dekker's and Peterson's Algorithms showed up two years in a row",
+    "subtext": "After being absent until 2023, Dekker's and Peterson's solutions appeared as long-answer questions in both 2024 (compare and contrast) and 2025 (limitations on multiprocessor architectures). Two consecutive years signals this subtopic has entered active rotation. Prepare both algorithms side by side with code/pseudocode and a comparison table.",
+    "confidence": 87,
+    "tag": "VERY_LIKELY",
+    "relatedTopicId": "OS-U2-MUTEX",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C3",
+    "type": "REPEAT",
+    "priority": 3,
+    "headline": "Dining Philosophers appeared in 3 of 6 papers as a 7-10 mark question",
+    "subtext": "OS-U2-CLASSICAL-DINING was asked in 2018, 2022, and 2023 — always as a detailed long answer worth 7 to 10 marks. It was skipped in 2024 and 2025, making it a strong comeback candidate. The solution via semaphore is the consistently expected approach. Diagrams are common.",
+    "confidence": 78,
+    "tag": "HIGH_PRIORITY",
+    "relatedTopicId": "OS-U2-CLASSICAL",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C4",
+    "type": "DUE_COMEBACK",
+    "priority": 4,
+    "headline": "Dining Philosophers is overdue — skipped in 2024 and 2025 after 3-paper streak",
+    "subtext": "OS-U2-CLASSICAL-DINING was asked in 2018, 2022, and 2023 consecutively, then went missing in both 2024 and 2025. A two-year gap after a strong streak makes this the top DUE_COMEBACK topic in Unit 2. Prioritize the semaphore-based solution with a table-state diagram.",
+    "confidence": 76,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U2-CLASSICAL",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C5",
+    "type": "REPEAT",
+    "priority": 5,
+    "headline": "Producer-Consumer Problem keeps returning across the newer papers",
+    "subtext": "OS-U2-PROCESS-PRODCONS appeared in 2019, 2023, and 2025 — and the 2025 ask added a numerical twist (buffer size calculation). This shows the topic is evolving from purely theory to applied problem-solving. Prepare both the conceptual explanation with semaphore solution and a buffer-count numerical example.",
+    "confidence": 82,
+    "tag": "HIGH_PRIORITY",
+    "relatedTopicId": "OS-U2-PROCESS",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C6",
+    "type": "REPEAT",
+    "priority": 6,
+    "headline": "Semaphore Definition is a reliable short-answer every 2 years",
+    "subtext": "OS-U2-SEMAPHORE-DEF appeared as a short 2-mark question in 2019 and 2023. The gap is exactly 4 years — it was not asked in 2022, 2024, or 2025. Based on the alternating pattern, it is a moderate candidate for a 2-mark definition in 2026. Prepare: definition, binary vs. counting semaphores, P and V operations.",
+    "confidence": 67,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U2-SEMAPHORE",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C7",
+    "type": "DUE_COMEBACK",
+    "priority": 7,
+    "headline": "Semaphore as a full long-answer topic is due — absent since 2019",
+    "subtext": "Semaphores were asked as a 7-mark long answer in both 2018 (Test and Set) and 2019 (usage, implementation, binary semaphore), but have not appeared as a standalone long question since. A 6-year gap with strong prior frequency makes this a credible comeback for Unit 2 long-answer section.",
+    "confidence": 69,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U2-SEMAPHORE",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C8",
+    "type": "PATTERN",
+    "priority": 8,
+    "headline": "Unit 2 long questions always demand solutions, not just definitions",
+    "subtext": "Every long question in Unit 2 (7 or 10 marks) across all 6 papers asked for a solution, implementation, algorithm, or code alongside the concept. Bare definitions never scored full marks here. Always pair every Unit 2 concept with: pseudocode or algorithm, a worked example or state diagram, and clearly labeled conditions.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": null,
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C9",
+    "type": "PATTERN",
+    "priority": 9,
+    "headline": "IPC questions shifted from theory-only to process-generation numericals",
+    "subtext": "IPC was asked as a theory question in 2018 and 2022 (models and schemes), but in 2025 it appeared as a fork() numerical — 'how many processes are created?'. This shift to applied numericals in the newer BCS401 papers suggests Unit 2 IPC may continue trending toward calculation-based 2-mark questions in future papers.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": "OS-U2-IPC",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U2-C10",
+    "type": "SKIP_SAFE",
+    "priority": 10,
+    "headline": "Test and Set (TSL) as a standalone topic is very low priority",
+    "subtext": "OS-U2-SEMAPHORE-TSL appeared only once across 6 papers — as a 7-mark question in 2018 and never again in 2019, 2022, 2023, 2024, or 2025. It is safe to include TSL as 2-3 lines inside a broader Mutual Exclusion answer, but do not spend dedicated prep time preparing it as a standalone topic.",
+    "confidence": null,
+    "tag": "LOW_PRIORITY",
+    "relatedTopicId": "OS-U2-SEMAPHORE",
+    "isVisible": true,
+    "isLocked": false
+  }
+]

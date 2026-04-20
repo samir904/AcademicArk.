@@ -1,0 +1,122 @@
+[
+  {
+    "cardId": "OS-U5-C1",
+    "type": "REPEAT",
+    "priority": 1,
+    "headline": "File Allocation Methods appeared in 5 of 6 papers as a long answer",
+    "subtext": "OS-U5-FILE-IMPL appeared in 2018, 2023, 2024, and the broader file system question in 2022 and 2019 — always as a 7 to 10 mark question covering contiguous, linked, and indexed allocation. The question consistently asks: explain each method, compare them, and state which minimizes directory space. Draw allocation diagrams for all three. This is the single safest long-answer topic in Unit 5.",
+    "confidence": 93,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U5-FILE",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C2",
+    "type": "REPEAT",
+    "priority": 2,
+    "headline": "Disk Scheduling Numericals appeared in 4 of 6 papers — always a 7-10 mark solve",
+    "subtext": "OS-U5-DISK-SCHED appeared as a numerical in 2019, 2022, 2023, and 2025. SSTF and FCFS were asked in 2019 and 2022 using the exact same 2000-cylinder queue. SCAN, CSCAN, and LOOK were added in 2023. C-LOOK appeared in 2025. Practise all five algorithms (FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK) with head movement calculation. The same queue values have been reused across papers.",
+    "confidence": 91,
+    "tag": "VERY_LIKELY",
+    "relatedTopicId": "OS-U5-DISK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C3",
+    "type": "REPEAT",
+    "priority": 3,
+    "headline": "File Directories is the fastest-rising topic — appeared 3 years in a row",
+    "subtext": "OS-U5-FILE-DIR appeared in 2023, 2024, and 2025 consecutively — a clean streak from zero prior appearances. In 2023 it was a 2-mark short on tree directory structure, in 2024 a 7-mark on hierarchical vs flat structures, and in 2025 a 7-mark on file directories and directory structures in OS. This topic has fully entered active rotation and is a very likely long-answer in 2026.",
+    "confidence": 88,
+    "tag": "VERY_LIKELY",
+    "relatedTopicId": "OS-U5-FILE",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C4",
+    "type": "REPEAT",
+    "priority": 4,
+    "headline": "RAID Levels appeared in 3 consecutive papers (2022, 2023, 2025)",
+    "subtext": "OS-U5-DISK-RAID appeared in 2022 (all RAID levels with advantages and disadvantages — 10 marks), 2023 (same question repeated — 10 marks), and 2025 (RAID 0, 1, and 5 specifically — 7 marks). It was skipped only in 2024. The consistent return after a single skip makes RAID a high-confidence recurring topic. Prepare RAID 0, 1, 5 with diagrams and trade-offs.",
+    "confidence": 85,
+    "tag": "HIGH_PRIORITY",
+    "relatedTopicId": "OS-U5-DISK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C5",
+    "type": "DUE_COMEBACK",
+    "priority": 5,
+    "headline": "File Concept and Access Methods is overdue — absent in 2024 and 2025",
+    "subtext": "OS-U5-FILE-CONCEPT appeared in 2018, 2019, 2022, and 2023 — always as a 7 to 10 mark long answer covering file definition, types, attributes, and sequential/direct/indexed access methods. It completely dropped out of 2024 and 2025. A two-year gap after four straight appearances makes this a strong comeback candidate.",
+    "confidence": 79,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U5-FILE",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C6",
+    "type": "DUE_COMEBACK",
+    "priority": 6,
+    "headline": "File System Protection and Security is overdue — absent since 2022",
+    "subtext": "OS-U5-FILE-PROTECT was a heavy topic in 2018, 2019, and 2022 — asked as a 7 to 10 mark long answer in all three. It has been completely absent in 2023, 2024, and 2025. A three-year gap after three straight appearances makes this the strongest DUE_COMEBACK topic in Unit 5. Prepare: access matrix, access control lists, password protection, and encryption concepts.",
+    "confidence": 74,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U5-FILE",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C7",
+    "type": "DUE_COMEBACK",
+    "priority": 7,
+    "headline": "IO Buffering and DMA is overdue — absent in 2024 and 2025",
+    "subtext": "OS-U5-IO-BUFFER appeared in 2018 (short note), 2022 (2-mark definition), and 2023 (10-mark explain covering Buffering, Polling, and DMA). It was completely absent in 2024 and 2025. The 2023 framing expanded the topic to include Polling and DMA alongside Buffering — prepare all three together as a bundled short-note answer.",
+    "confidence": 68,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U5-IO",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C8",
+    "type": "PATTERN",
+    "priority": 8,
+    "headline": "The same disk scheduling numerical (2000 cylinders, head at 143) was reused twice",
+    "subtext": "The exact disk scheduling problem — 2000 cylinders, head at cylinder 143, previous at 125, queue: 86, 1470, 913, 1774, 948, 1509, 1022, 1750, 130 — appeared identically in both 2019 and 2022. AKTU setters have a clear pattern of recycling disk scheduling data. Solve this specific problem for all algorithms and you can answer it from memory if it reappears.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": "OS-U5-DISK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C9",
+    "type": "PATTERN",
+    "priority": 9,
+    "headline": "Unit 5 always has one disk scheduling numerical and one file system theory question",
+    "subtext": "Across all 6 papers, Unit 5 consistently contributed: one disk scheduling numerical (7-10 marks) and one file system long answer (7-10 marks). These two slots are stable across every exam. In newer papers (2023 onwards), RAID and Directory Structure have also become regular contributors alongside these two anchor topics.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": null,
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U5-C10",
+    "type": "SKIP_SAFE",
+    "priority": 10,
+    "headline": "IO Devices and Subsystems is very low priority as a standalone topic",
+    "subtext": "OS-U5-IO-DEVICES appeared only once across 6 papers — as a 2-mark definition in 2024 ('Define an IO subsystem'). It has never been asked as a long answer. Safe to prepare as a single-line definition only; do not invest time in a detailed essay on IO device categories or subsystem architecture.",
+    "confidence": null,
+    "tag": "LOW_PRIORITY",
+    "relatedTopicId": "OS-U5-IO",
+    "isVisible": true,
+    "isLocked": false
+  }
+]

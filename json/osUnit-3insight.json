@@ -1,0 +1,122 @@
+[
+  {
+    "cardId": "OS-U3-C1",
+    "type": "REPEAT",
+    "priority": 1,
+    "headline": "Banker's Algorithm appeared in ALL 6 papers — the most repeated numerical in OS",
+    "subtext": "OS-U3-DEADLOCK-PREV has a 100% appearance rate: 2018, 2019, 2022, 2023, 2024, and 2025. It appears in every exam — sometimes twice in the same paper. The format always involves an Allocation matrix, Maximum matrix, Available vector, and asks: (1) compute Need matrix, (2) is the system in a safe state, and often (3) can a new request be granted? Solve this in under 10 minutes. This is non-negotiable preparation.",
+    "confidence": 99,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U3-DEADLOCK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C2",
+    "type": "REPEAT",
+    "priority": 2,
+    "headline": "Deadlock Characterization (4 conditions + RAG) appeared in all 6 papers",
+    "subtext": "OS-U3-DEADLOCK-CHAR was asked in 2018, 2019, 2022, 2023, 2024, and 2025 — always as a 7 to 10 mark theory question. The ask rotates between: 'define deadlock and necessary conditions', 'explain resource allocation graph', and 'explain how deadlock occurs with semaphore example'. All three framings are exam-ready. Memorise the 4 Coffman conditions cold.",
+    "confidence": 98,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U3-DEADLOCK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C3",
+    "type": "REPEAT",
+    "priority": 3,
+    "headline": "Process States and PCB is asked in 5 of 6 papers as a long answer",
+    "subtext": "OS-U3-SCHED-STATES appeared in 2019, 2022, 2023, 2024, and 2025 — always as a 7 to 10 mark question. The framing varies slightly: 'define PCB', 'process state transition diagram', 'list PCB components', and 'explain process concept with states'. It was only absent in 2018. Prepare a labeled 5-state transition diagram and a structured PCB table — this question is almost guaranteed.",
+    "confidence": 95,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U3-SCHED",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C4",
+    "type": "REPEAT",
+    "priority": 4,
+    "headline": "Scheduling Algorithm numericals (FCFS, SJF, RR, Priority) appear every exam",
+    "subtext": "OS-U3-SCHED-ALGO numerical questions appeared in 2018, 2019, 2023, and 2025 as Gantt chart solve questions. They were framed as comparisons in 2022 and conceptually in 2024. Every paper had at least one scheduling question. The 2025 paper asked both a priority scheduling numerical AND a compare/contrast of FCFS, SJF, and Round Robin. Prepare all four algorithms with Gantt chart practice.",
+    "confidence": 96,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U3-SCHED",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C5",
+    "type": "PREDICTION",
+    "priority": 5,
+    "headline": "Deadlock Prevention vs Avoidance vs Detection vs Recovery is the rising essay topic",
+    "subtext": "Starting from 2024, setters began asking broader comparative essays on all four deadlock strategies together — not just Banker's algorithm. This appeared in 2024 (two separate questions on prevention+avoidance and detection+recovery) and continued in 2025. This pattern signals a trend toward synthesis questions where you must compare all strategies in one answer. Prepare a 4-column comparison table.",
+    "confidence": 84,
+    "tag": "HIGH_PRIORITY",
+    "relatedTopicId": "OS-U3-DEADLOCK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C6",
+    "type": "PATTERN",
+    "priority": 6,
+    "headline": "Unit 3 contributes the most marks of any unit — always 2 to 3 long questions",
+    "subtext": "Across all 6 papers, Unit 3 contributed between 26 and 32 marks per paper. Every exam had at minimum: one scheduling numerical (7m), one process/PCB theory (7m), one Banker's algorithm numerical (7m), and one deadlock characterization theory (7m). Unit 3 is the heaviest unit — treat it as a 28-mark certainty zone.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": null,
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C7",
+    "type": "PATTERN",
+    "priority": 7,
+    "headline": "Scheduling Concepts (criteria and performance) is a reliable 2-mark Section A ask",
+    "subtext": "OS-U3-SCHED-CONCEPTS appeared as a 2-mark short question in 2018, 2019, 2022, and 2025. It has never been asked as a long answer. The question always asks for scheduling criteria or performance metrics. Safe to prepare as a 5-point bullet list: CPU utilization, throughput, turnaround time, waiting time, response time.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": "OS-U3-SCHED",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C8",
+    "type": "PREDICTION",
+    "priority": 8,
+    "headline": "Multilevel Feedback Queue Scheduling is an emerging long-answer topic",
+    "subtext": "MLFQ appeared for the first time as a 10-mark explain question in 2023 and has not yet been asked in 2024 or 2025. Given that newer BCS401 papers are expanding the scheduling section beyond basic FCFS/SJF/RR, MLFQ is a credible target for 2026 — either as a standalone 7-mark or bundled with another scheduling concept.",
+    "confidence": 66,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U3-SCHED",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C9",
+    "type": "DUE_COMEBACK",
+    "priority": 9,
+    "headline": "Deadlock Detection (Wait-for Graph) is overdue — asked only once in 2018",
+    "subtext": "OS-U3-DEADLOCK-DETECT appeared as a 2-mark question in 2018 and has never returned in any of the 5 subsequent papers. Given that the 2024 paper explicitly asked about detection and recovery strategies, the wait-for graph and deadlock detection algorithm may reappear as a short note or part of a combined deadlock question.",
+    "confidence": 58,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U3-DEADLOCK",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U3-C10",
+    "type": "SKIP_SAFE",
+    "priority": 10,
+    "headline": "Threads and Thread Management is very low priority as a standalone topic",
+    "subtext": "OS-U3-THREAD appeared exactly once — as a 10-mark question in 2022 — and has not returned in 2023, 2024, or 2025. Three consecutive years of absence after a single appearance makes it the lowest priority long-answer topic in Unit 3. Read a brief overview to handle a 2-mark definition, but do not invest in a full essay-level answer.",
+    "confidence": null,
+    "tag": "LOW_PRIORITY",
+    "relatedTopicId": "OS-U3-SCHED",
+    "isVisible": true,
+    "isLocked": false
+  }
+]

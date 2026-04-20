@@ -1,0 +1,441 @@
+{
+  "_id": "OOP_JAVA",
+  "name": "Object Oriented Programming with Java",
+  "code": "BCS403",
+  "paperCodes": ["BCS403"],
+  "semester": 4,
+  "branch": ["CSE", "IT"],
+  "totalUnits": 5,
+  "analyticsReady": false,
+  "totalPapersAnalysed": 0,
+  "units": [
+    {
+      "unitId": "OOP_JAVA-U1",
+      "unitNumber": 1,
+      "title": "Introduction, Programming Structures, OOP and Packages",
+      "syllabusTopics": [
+        {
+          "topicId": "OOP_JAVA-U1-INTRO",
+          "canonicalName": "Introduction to Java",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U1-INTRO-JVM",
+              "canonicalName": "JVM JRE Java Environment",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-INTRO-STRUCT",
+              "canonicalName": "Java Source File Structure",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U1-BASICS",
+          "canonicalName": "Java Programming Fundamentals",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U1-BASICS-DATATYPES",
+              "canonicalName": "Data Types Variables Operators",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-BASICS-CONTROL",
+              "canonicalName": "Control Flow Statements",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-BASICS-ARRAYS",
+              "canonicalName": "Arrays and Strings",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U1-CLASS",
+          "canonicalName": "Classes and Objects",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U1-CLASS-DEF",
+              "canonicalName": "Defining Classes Constructors Methods",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-CLASS-ACCESS",
+              "canonicalName": "Access Specifiers Static Final Members",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U1-OOP",
+          "canonicalName": "Object Oriented Programming Concepts",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U1-OOP-INHERIT",
+              "canonicalName": "Inheritance Super Sub Class",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-OOP-POLY",
+              "canonicalName": "Polymorphism Overriding Overloading",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-OOP-ABSTR",
+              "canonicalName": "Abstraction and Encapsulation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-OOP-INTERFACE",
+              "canonicalName": "Interfaces and Abstract Class",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U1-PACKAGE",
+          "canonicalName": "Packages in Java",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U1-PACKAGE-DEF",
+              "canonicalName": "Defining and Importing Packages",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U1-PACKAGE-JAR",
+              "canonicalName": "JAR Files CLASSPATH Setting",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OOP_JAVA-U2",
+      "unitNumber": 2,
+      "title": "Exception Handling, Input Output and Multithreading",
+      "syllabusTopics": [
+        {
+          "topicId": "OOP_JAVA-U2-EXCEPTION",
+          "canonicalName": "Exception Handling",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U2-EXCEPTION-TYPES",
+              "canonicalName": "Types Checked Unchecked Exceptions",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U2-EXCEPTION-KEYWORDS",
+              "canonicalName": "Try Catch Finally Throw Throws",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U2-EXCEPTION-USRDEF",
+              "canonicalName": "User Defined Exceptions",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U2-IO",
+          "canonicalName": "Input Output Basics",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U2-IO-STREAMS",
+              "canonicalName": "Byte and Character Streams",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U2-IO-FILE",
+              "canonicalName": "Reading and Writing Files",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U2-THREAD",
+          "canonicalName": "Multithreading",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U2-THREAD-LIFECYCLE",
+              "canonicalName": "Thread Life Cycle Creating Threads",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U2-THREAD-SYNC",
+              "canonicalName": "Thread Synchronization Priorities",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U2-THREAD-INTERCOMM",
+              "canonicalName": "Inter Thread Communication",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OOP_JAVA-U3",
+      "unitNumber": 3,
+      "title": "Java New Features",
+      "syllabusTopics": [
+        {
+          "topicId": "OOP_JAVA-U3-FUNCTIONAL",
+          "canonicalName": "Functional Interfaces and Lambda",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U3-FUNCTIONAL-LAMBDA",
+              "canonicalName": "Lambda Expressions",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U3-FUNCTIONAL-METHREF",
+              "canonicalName": "Method References",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U3-STREAM",
+          "canonicalName": "Stream API",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U3-STREAM-DEFAULT",
+              "canonicalName": "Default and Static Methods",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U3-STREAM-FOREACH",
+              "canonicalName": "ForEach Method Stream Operations",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U3-ANNOTATIONS",
+          "canonicalName": "Annotations and Modules",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U3-ANNOTATIONS-TYPE",
+              "canonicalName": "Type and Repeating Annotations",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U3-ANNOTATIONS-MODULE",
+              "canonicalName": "Java Module System",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U3-MODERN",
+          "canonicalName": "Modern Java Syntax Features",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U3-MODERN-SWITCH",
+              "canonicalName": "Switch Expressions Yield Keyword",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U3-MODERN-TEXTBLOCK",
+              "canonicalName": "Text Blocks Records Sealed Classes",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U3-MODERN-VAR",
+              "canonicalName": "Local Variable Type Inference",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U3-MISC",
+          "canonicalName": "Miscellaneous Java Features",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U3-MISC-BASE64",
+              "canonicalName": "Base64 Encode Decode",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U3-MISC-TRY",
+              "canonicalName": "Try With Resources",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OOP_JAVA-U4",
+      "unitNumber": 4,
+      "title": "Java Collections Framework",
+      "syllabusTopics": [
+        {
+          "topicId": "OOP_JAVA-U4-COLLECTION",
+          "canonicalName": "Collection Framework Overview",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U4-COLLECTION-HIER",
+              "canonicalName": "Hierarchy Iterator Collection Interface",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U4-LIST",
+          "canonicalName": "List Interface Implementations",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U4-LIST-ARRAY",
+              "canonicalName": "ArrayList LinkedList Vector Stack",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U4-LIST-QUEUE",
+              "canonicalName": "Queue Interface",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U4-SET",
+          "canonicalName": "Set Interface Implementations",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U4-SET-HASH",
+              "canonicalName": "HashSet LinkedHashSet TreeSet",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U4-MAP",
+          "canonicalName": "Map Interface Implementations",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U4-MAP-HASH",
+              "canonicalName": "HashMap LinkedHashMap TreeMap Hashtable",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U4-SORTING",
+          "canonicalName": "Sorting and Comparators",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U4-SORTING-COMP",
+              "canonicalName": "Comparable and Comparator Interface",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U4-SORTING-PROPS",
+              "canonicalName": "Properties Class in Java",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OOP_JAVA-U5",
+      "unitNumber": 5,
+      "title": "Spring Framework and Spring Boot",
+      "syllabusTopics": [
+        {
+          "topicId": "OOP_JAVA-U5-SPRING-CORE",
+          "canonicalName": "Spring Core Basics",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U5-SPRING-CORE-DI",
+              "canonicalName": "Dependency Injection IoC",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U5-SPRING-CORE-AOP",
+              "canonicalName": "Aspect Oriented Programming",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U5-SPRING-CORE-BEANS",
+              "canonicalName": "Bean Scopes Autowiring Annotations",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U5-SPRING-CORE-LIFECYCLE",
+              "canonicalName": "Life Cycle Callbacks Bean Configuration",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U5-SPRINGBOOT",
+          "canonicalName": "Spring Boot",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U5-SPRINGBOOT-STRUCT",
+              "canonicalName": "Spring Boot Build Structure Runners",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U5-SPRINGBOOT-LOG",
+              "canonicalName": "Spring Boot Logger",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U5-REST",
+          "canonicalName": "RESTful Web Services",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OOP_JAVA-U5-REST-CTRL",
+              "canonicalName": "Rest Controller Request Mapping",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U5-REST-CRUD",
+              "canonicalName": "GET POST PUT DELETE APIs",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OOP_JAVA-U5-REST-PARAMS",
+              "canonicalName": "Request Body Path Variable Request Parameter",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OOP_JAVA-U5-WEBAPP",
+          "canonicalName": "Building Web Applications",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    }
+  ]
+}

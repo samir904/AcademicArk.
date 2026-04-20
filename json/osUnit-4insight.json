@@ -1,0 +1,122 @@
+[
+  {
+    "cardId": "OS-U4-C1",
+    "type": "REPEAT",
+    "priority": 1,
+    "headline": "Page Replacement Algorithms appeared in 5 of 6 papers as a must-solve numerical",
+    "subtext": "OS-U4-VIRTUAL-REPLACE has a 5/6 hit rate: 2018, 2019, 2022, 2023, and 2025 — always as a 7 to 10 mark numerical. The reference string format is identical across most papers; only the algorithm asked changes. FIFO, Optimal, and LRU all appear. The 2025 paper introduced a modified Optimal variant. Practise all three algorithms on at least 3 different reference strings each. This is the single most repeated numerical in Unit 4.",
+    "confidence": 97,
+    "tag": "CERTAIN",
+    "relatedTopicId": "OS-U4-VIRTUAL",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C2",
+    "type": "REPEAT",
+    "priority": 2,
+    "headline": "Fragmentation (Internal vs External) appeared in 4 of 6 papers",
+    "subtext": "OS-U4-BASIC-VAR appeared in 2018, 2019, 2023, and 2025 — always as a 2-mark short question or bundled inside a 7-mark answer about variable partitions. The framing is always 'define and differentiate' or 'how does paging solve fragmentation'. A 5-line comparison table covering definition, cause, and solution is all you need.",
+    "confidence": 88,
+    "tag": "VERY_LIKELY",
+    "relatedTopicId": "OS-U4-BASIC",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C3",
+    "type": "REPEAT",
+    "priority": 3,
+    "headline": "Basic Memory Management (Fixed vs Variable Partitions) is a recurring 7-marker",
+    "subtext": "OS-U4-BASIC appeared in all 6 papers, and fixed vs variable partition comparisons were asked as 7-mark long answers in 2019, 2022, 2024, and 2025. The question always includes: definition of both, advantages and disadvantages, fragmentation implications. Prepare a structured comparison table with a diagram of memory layout.",
+    "confidence": 90,
+    "tag": "VERY_LIKELY",
+    "relatedTopicId": "OS-U4-BASIC",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C4",
+    "type": "REPEAT",
+    "priority": 4,
+    "headline": "Paging and Segmentation comparison is asked every alternate year",
+    "subtext": "OS-U4-PAGING appeared as a long question in 2019, 2022, 2023, and 2024. The Paging vs Segmentation comparison was asked in 2019, 2023, and 2024, while TLB/paging hardware was asked in 2022 and 2023. Paging was absent in 2025 — making it a moderate comeback candidate. Prepare: paging mechanism diagram, TLB explanation, and a paging vs segmentation table.",
+    "confidence": 82,
+    "tag": "HIGH_PRIORITY",
+    "relatedTopicId": "OS-U4-PAGING",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C5",
+    "type": "DUE_COMEBACK",
+    "priority": 5,
+    "headline": "Paging / TLB is overdue — completely absent from the 2025 paper",
+    "subtext": "OS-U4-PAGING appeared in 2019, 2022, 2023, and 2024 but was entirely skipped in 2025. Specifically OS-U4-PAGING-PAGE (logical vs physical address, TLB, hit ratio) has not appeared since 2023. A two-year gap after consistent appearance makes this a strong comeback candidate for 2026 — both as a 2-mark short and a 7-mark long answer.",
+    "confidence": 77,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U4-PAGING",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C6",
+    "type": "PREDICTION",
+    "priority": 6,
+    "headline": "Demand Paging is an accelerating trend — appeared in 2024 AND 2025 consecutively",
+    "subtext": "OS-U4-VIRTUAL-DEMAND was absent until 2024, then appeared in both 2024 (explain demand paging, address translation, page tables) and 2025 (numerical — find max page table entries). Two consecutive years of appearance signals active rotation. Prepare: concept explanation + at least one address-calculation numerical involving logical address bits, page size, and page table size.",
+    "confidence": 83,
+    "tag": "HIGH_PRIORITY",
+    "relatedTopicId": "OS-U4-VIRTUAL",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C7",
+    "type": "DUE_COMEBACK",
+    "priority": 7,
+    "headline": "Thrashing and Locality of Reference is due after missing in 2024 and 2025",
+    "subtext": "OS-U4-VIRTUAL-THRASH was asked in 2018 and 2023 but skipped in both 2024 and 2025. The 2023 ask bundled it with 'locality of reference'. A two-year absence after a strong conceptual ask pattern makes this a credible short-note target. Prepare: definition, causes, working set model, and how the OS detects and resolves thrashing.",
+    "confidence": 65,
+    "tag": "WATCH_OUT",
+    "relatedTopicId": "OS-U4-VIRTUAL",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C8",
+    "type": "PATTERN",
+    "priority": 8,
+    "headline": "The same reference string (7,0,1,2,0,3... 20 items) was reused across 3 papers",
+    "subtext": "The exact reference string '7,0,1,2,0,3,0,4,2,3,0,3,2,1,2,0,1,7,0,1' appeared in 2019, 2022, and a variation appeared in 2023. AKTU setters have historically recycled the same numerical setups. Solve this specific string for all three algorithms (FIFO, Optimal, LRU) with 3 frames — if it appears again, you solve it in under 3 minutes.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": "OS-U4-VIRTUAL",
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C9",
+    "type": "PATTERN",
+    "priority": 9,
+    "headline": "Unit 4 always has one 2-mark and one or two 7-mark questions from Virtual Memory",
+    "subtext": "In every paper, Virtual Memory contributed both a short 2-mark question (page replacement definition, thrashing, Belady's anomaly) and at least one 7 to 10 mark numerical. This dual appearance pattern is consistent across all 6 papers — prepare a short definition for each virtual memory subtopic in addition to full numerical practice.",
+    "confidence": null,
+    "tag": null,
+    "relatedTopicId": null,
+    "isVisible": true,
+    "isLocked": false
+  },
+  {
+    "cardId": "OS-U4-C10",
+    "type": "SKIP_SAFE",
+    "priority": 10,
+    "headline": "Fixed Partition Multiprogramming as a standalone topic is low priority",
+    "subtext": "OS-U4-BASIC-FIXED appeared only twice — as a 2-mark short question in 2018 and 2022 — and has not been asked in 2023, 2024, or 2025. It is always subsumed within the broader Fixed vs Variable Partition comparison. Safe to cover in 3 lines as part of the memory management comparison answer; do not prepare it as an independent long-answer topic.",
+    "confidence": null,
+    "tag": "LOW_PRIORITY",
+    "relatedTopicId": "OS-U4-BASIC",
+    "isVisible": true,
+    "isLocked": false
+  }
+]

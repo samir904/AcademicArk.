@@ -370,9 +370,18 @@ export const bulkUploadNotes = async (req, res, next) => {
       });
 
       // Watermark + Cloudinary
-      if (file.mimetype === 'application/pdf') {
-        await addWatermarkToPDF(file.path, 'AcademicArk');
-      }
+      // In your bulk upload loop — replace this section:
+if (file.mimetype === 'application/pdf') {
+  try {
+    await addWatermarkToPDF(file.path, 'AcademicArk');
+  } catch (wmErr) {
+    // Watermark failed — log it but don't abort the upload
+    console.warn(`⚠️ Watermark skipped for ${meta.filename}: ${wmErr.message}`);
+    // Continue to upload the original un-watermarked file
+  }
+}
+
+
 
       const result = await cloudinary.v2.uploader.upload(file.path, {
         folder:          "AcademicArk",

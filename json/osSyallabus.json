@@ -1,0 +1,413 @@
+{
+  "_id": "OS",
+  "name": "Operating System",
+  "code": "BCS401",
+  "paperCodes": ["BCS401", "KCS401", "RCS401"],
+  "semester": 4,
+  "branch": ["CSE", "IT"],
+  "totalUnits": 5,
+  "analyticsReady": false,
+  "totalPapersAnalysed": 0,
+  "units": [
+    {
+      "unitId": "OS-U1",
+      "unitNumber": 1,
+      "title": "Introduction to Operating Systems",
+      "syllabusTopics": [
+        {
+          "topicId": "OS-U1-INTRO",
+          "canonicalName": "OS Functions and Structure",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U1-INTRO-FUNC",
+              "canonicalName": "Operating System Functions",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U1-INTRO-STRUCT",
+              "canonicalName": "OS Layered Structure",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U1-INTRO-SERVICES",
+              "canonicalName": "Operating System Services",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U1-CLASSIFY",
+          "canonicalName": "Classification of Operating Systems",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U1-CLASSIFY-BATCH",
+              "canonicalName": "Batch and Interactive Systems",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U1-CLASSIFY-RT",
+              "canonicalName": "Real Time Systems",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U1-CLASSIFY-MULTI",
+              "canonicalName": "Multiprocessor and Multithreaded Systems",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U1-KERNEL",
+          "canonicalName": "Kernel Types",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U1-KERNEL-MONO",
+              "canonicalName": "Monolithic Kernel",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U1-KERNEL-MICRO",
+              "canonicalName": "Microkernel",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U1-KERNEL-REENTRANT",
+              "canonicalName": "Reentrant Kernels",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OS-U2",
+      "unitNumber": 2,
+      "title": "Concurrent Processes",
+      "syllabusTopics": [
+        {
+          "topicId": "OS-U2-PROCESS",
+          "canonicalName": "Process Concept and Concurrency",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U2-PROCESS-CONCEPT",
+              "canonicalName": "Process Concept",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-PROCESS-CONCURRENCY",
+              "canonicalName": "Principle of Concurrency",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-PROCESS-PRODCONS",
+              "canonicalName": "Producer Consumer Problem",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U2-MUTEX",
+          "canonicalName": "Mutual Exclusion",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U2-MUTEX-CS",
+              "canonicalName": "Critical Section Problem",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-MUTEX-DEKKER",
+              "canonicalName": "Dekker's Solution",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-MUTEX-PETERSON",
+              "canonicalName": "Peterson's Solution",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U2-SEMAPHORE",
+          "canonicalName": "Semaphores and Test Set",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U2-SEMAPHORE-DEF",
+              "canonicalName": "Semaphores",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-SEMAPHORE-TSL",
+              "canonicalName": "Test and Set Operation",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U2-CLASSICAL",
+          "canonicalName": "Classical Concurrency Problems",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U2-CLASSICAL-DINING",
+              "canonicalName": "Dining Philosopher Problem",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-CLASSICAL-BARBER",
+              "canonicalName": "Sleeping Barber Problem",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U2-IPC",
+          "canonicalName": "Inter Process Communication",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U2-IPC-MODELS",
+              "canonicalName": "IPC Models and Schemes",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U2-IPC-PROCGEN",
+              "canonicalName": "Process Generation",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OS-U3",
+      "unitNumber": 3,
+      "title": "CPU Scheduling and Deadlock",
+      "syllabusTopics": [
+        {
+          "topicId": "OS-U3-SCHED",
+          "canonicalName": "CPU Scheduling",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U3-SCHED-CONCEPTS",
+              "canonicalName": "Scheduling Concepts and Criteria",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U3-SCHED-STATES",
+              "canonicalName": "Process States and PCB",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U3-SCHED-ALGO",
+              "canonicalName": "Scheduling Algorithms",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U3-SCHED-MULTI",
+              "canonicalName": "Multiprocessor Scheduling",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U3-THREAD",
+          "canonicalName": "Threads and Management",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "OS-U3-DEADLOCK",
+          "canonicalName": "Deadlock",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U3-DEADLOCK-CHAR",
+              "canonicalName": "Deadlock Characterization",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U3-DEADLOCK-PREV",
+              "canonicalName": "Deadlock Prevention and Avoidance",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U3-DEADLOCK-DETECT",
+              "canonicalName": "Deadlock Detection and Recovery",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OS-U4",
+      "unitNumber": 4,
+      "title": "Memory Management",
+      "syllabusTopics": [
+        {
+          "topicId": "OS-U4-BASIC",
+          "canonicalName": "Basic Memory Management",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U4-BASIC-FIXED",
+              "canonicalName": "Fixed Partition Multiprogramming",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-BASIC-VAR",
+              "canonicalName": "Variable Partition Multiprogramming",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-BASIC-PROTECTION",
+              "canonicalName": "Protection Schemes",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U4-PAGING",
+          "canonicalName": "Paging and Segmentation",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U4-PAGING-PAGE",
+              "canonicalName": "Paging",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-PAGING-SEG",
+              "canonicalName": "Segmentation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-PAGING-PAGED-SEG",
+              "canonicalName": "Paged Segmentation",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U4-VIRTUAL",
+          "canonicalName": "Virtual Memory",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U4-VIRTUAL-DEMAND",
+              "canonicalName": "Demand Paging",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-VIRTUAL-REPLACE",
+              "canonicalName": "Page Replacement Algorithms",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-VIRTUAL-THRASH",
+              "canonicalName": "Thrashing",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U4-CACHE",
+          "canonicalName": "Cache Memory",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U4-CACHE-ORG",
+              "canonicalName": "Cache Memory Organization",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U4-CACHE-LOCALITY",
+              "canonicalName": "Locality of Reference",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "OS-U5",
+      "unitNumber": 5,
+      "title": "I/O Management and File Systems",
+      "syllabusTopics": [
+        {
+          "topicId": "OS-U5-IO",
+          "canonicalName": "I/O Management",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U5-IO-DEVICES",
+              "canonicalName": "I/O Devices and Subsystems",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U5-IO-BUFFER",
+              "canonicalName": "I/O Buffering",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U5-DISK",
+          "canonicalName": "Disk Scheduling",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U5-DISK-STORAGE",
+              "canonicalName": "Disk Storage",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U5-DISK-SCHED",
+              "canonicalName": "Disk Scheduling Algorithms",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U5-DISK-RAID",
+              "canonicalName": "RAID",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "OS-U5-FILE",
+          "canonicalName": "File System",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "OS-U5-FILE-CONCEPT",
+              "canonicalName": "File Concept and Organization",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U5-FILE-DIR",
+              "canonicalName": "File Directories and Sharing",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U5-FILE-IMPL",
+              "canonicalName": "File System Implementation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "OS-U5-FILE-PROTECT",
+              "canonicalName": "File System Protection and Security",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

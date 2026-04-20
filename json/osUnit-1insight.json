@@ -1,0 +1,129 @@
+{
+  "subjectCode": "KCS401",
+  "unitId": "OS-U1",
+  "cards": [
+    {
+      "cardId": "OS-U1-C1",
+      "type": "REPEAT",
+      "priority": 1,
+      "headline": "OS Functions appeared in ALL 6 papers — the safest bet in Unit 1",
+      "subtext": "OS-U1-INTRO-FUNC has a 100% appearance rate: 2018, 2019, 2022, 2023, 2024, and 2025 — always as a Section A 2-mark definition, and once as a 7-mark full answer in 2019. Write a sharp 3-line definition plus 6-8 functions. This is the single highest-certainty topic in the entire unit.",
+      "confidence": 99,
+      "tag": "CERTAIN",
+      "relatedTopicId": "OS-U1-INTRO",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C2",
+      "type": "REPEAT",
+      "priority": 2,
+      "headline": "OS Classification is a long-answer repeat across every paper",
+      "subtext": "OS-U1-CLASSIFY appeared in all 6 papers with long questions (7–10 marks) in 2018, 2019, 2022, 2023, 2024, and 2025. Batch, Interactive, Time-Sharing, Multiprogramming, Multiprocessor, and Real-Time systems are all in rotation. Always one of the safest long-answer picks.",
+      "confidence": 96,
+      "tag": "CERTAIN",
+      "relatedTopicId": "OS-U1-CLASSIFY",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C3",
+      "type": "REPEAT",
+      "priority": 3,
+      "headline": "Batch vs Interactive vs Time-Sharing comparison is asked almost every exam",
+      "subtext": "OS-U1-CLASSIFY-BATCH appeared in 4 of 6 papers (2018, 2019, 2024, 2025) and is always framed as a COMPARE or EXPLAIN question worth 7 marks. 2025 specifically added real-world applications to the ask. Prepare a side-by-side table with examples, advantages, and use cases.",
+      "confidence": 91,
+      "tag": "VERY_LIKELY",
+      "relatedTopicId": "OS-U1-CLASSIFY",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C4",
+      "type": "PREDICTION",
+      "priority": 4,
+      "headline": "Multiprocessor and Multithreaded Systems is the rising long-answer topic",
+      "subtext": "OS-U1-CLASSIFY-MULTI appeared as a long question in 3 consecutive papers — 2022, 2023, and 2024 — after being absent before that. The pattern is accelerating. Expect it as a 7-mark compare or explain in the next paper, especially since 2025 did not directly ask it.",
+      "confidence": 82,
+      "tag": "HIGH_PRIORITY",
+      "relatedTopicId": "OS-U1-CLASSIFY",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C5",
+      "type": "DUE_COMEBACK",
+      "priority": 5,
+      "headline": "Kernel Types (Monolithic / Microkernel) is overdue — absent since 2022",
+      "subtext": "OS-U1-KERNEL was asked as a 7-mark in 2019 and a 10-mark in 2022, but skipped in 2023, 2024, and 2025. A 3-year gap makes it a strong comeback candidate. Prepare monolithic vs microkernel vs layered comparisons with diagrams.",
+      "confidence": 74,
+      "tag": "WATCH_OUT",
+      "relatedTopicId": "OS-U1-KERNEL",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C6",
+      "type": "DUE_COMEBACK",
+      "priority": 6,
+      "headline": "OS Layered Structure is due after missing in 2022 and 2023",
+      "subtext": "OS-U1-INTRO-STRUCT appeared in 2018 and 2024 but was absent in 2019, 2022, 2023, and 2025. Its 2024 reappearance shows setters have not dropped it. It is frequently combined with OS components and protection. Sketch-based explanation is expected.",
+      "confidence": 68,
+      "tag": "WATCH_OUT",
+      "relatedTopicId": "OS-U1-INTRO",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C7",
+      "type": "DUE_COMEBACK",
+      "priority": 7,
+      "headline": "OS Services is a gap topic — not asked since 2022",
+      "subtext": "OS-U1-INTRO-SERVICES was a 7-mark in 2018 and a 10-mark in 2022, but has not appeared in 2023, 2024, or 2025. Services are a core syllabus item and the gap makes this a moderate comeback risk for 2026.",
+      "confidence": 65,
+      "tag": "WATCH_OUT",
+      "relatedTopicId": "OS-U1-INTRO",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C8",
+      "type": "PATTERN",
+      "priority": 8,
+      "headline": "Unit 1 always contributes exactly one Section A short question",
+      "subtext": "Across all 6 papers, Unit 1 consistently delivered one 2-mark question in Section A — and it was OS Functions every single time. This pattern is extremely stable. Treat OS Functions as your guaranteed 2-marker: no deviation across 6 years.",
+      "confidence": null,
+      "tag": null,
+      "relatedTopicId": "OS-U1-INTRO",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C9",
+      "type": "PATTERN",
+      "priority": 9,
+      "headline": "Classification questions evolved from simple definitions to applied comparisons",
+      "subtext": "Early papers (2018–2019) asked straightforward differentiate questions. By 2023–2025, setters added real-world applications, system-level trade-offs, and multi-concept explanations in one question. Prepare each OS type with a concrete example, not just a textbook definition.",
+      "confidence": null,
+      "tag": null,
+      "relatedTopicId": "OS-U1-CLASSIFY",
+      "isVisible": true,
+      "isLocked": false
+    },
+    {
+      "cardId": "OS-U1-C10",
+      "type": "SKIP_SAFE",
+      "priority": 10,
+      "headline": "Real-Time OS as a standalone topic is very low priority",
+      "subtext": "OS-U1-CLASSIFY-RT appeared only once in all 6 papers — as a 2-mark definition in 2022. It has never appeared as a long question on its own. Safe to cover in 5 minutes as part of the broader OS classification answer; do not spend dedicated prep time on it alone.",
+      "confidence": null,
+      "tag": "LOW_PRIORITY",
+      "relatedTopicId": "OS-U1-CLASSIFY",
+      "isVisible": true,
+      "isLocked": false
+    }
+  ],
+  "generatedAt": "2026-04-14T04:22:00.000Z",
+  "editedByAdmin": false,
+  "isStale": false
+}

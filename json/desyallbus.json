@@ -1,0 +1,400 @@
+{
+  "_id": "DE",
+  "name": "Digital Electronics",
+  "code": "BOE310",
+  "paperCodes": ["BOE310", "BOE410", "BOE310H", "BOE410H", "KOE039", "BEE401", "KEE401", "KOE049"],
+  "semester": [3, 4],
+  "branch": ["CSE", "IT", "ECE", "EE", "EN", "ME"],
+  "totalUnits": 5,
+  "analyticsReady": false,
+  "totalPapersAnalysed": 0,
+  "units": [
+    {
+      "unitId": "DE-U1",
+      "unitNumber": 1,
+      "title": "Digital System, Binary Numbers and Logic Simplification",
+      "syllabusTopics": [
+        {
+          "topicId": "DE-U1-NUMSYS",
+          "canonicalName": "Number Systems and Arithmetic",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U1-NUMSYS-CONV",
+              "canonicalName": "Number System Conversions",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U1-NUMSYS-SIGNED",
+              "canonicalName": "Signed Binary Numbers",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U1-CODES",
+          "canonicalName": "Binary Codes and Conversion",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U1-CODES-BCD",
+              "canonicalName": "BCD and Code Conversion",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U1-BOOLEAN",
+          "canonicalName": "Boolean Algebra and De Morgan",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U1-BOOLEAN-SOP",
+              "canonicalName": "SOP POS Canonical Forms",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U1-BOOLEAN-DEMORGAN",
+              "canonicalName": "De Morgan Theorem",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U1-BOOLEAN-LAWS",
+              "canonicalName": "Boolean Laws and Theorems",
+              "aliases": ["Duality Principle", "Boolean Theorems", "Postulates"]
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U1-KMAP",
+          "canonicalName": "Karnaugh Map Simplification",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U1-KMAP-DONTCARE",
+              "canonicalName": "Don't Care Conditions",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U1-KMAP-POS",
+              "canonicalName": "POS Simplification",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U1-KMAP-5VAR",
+              "canonicalName": "Five Variable K-Map",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U1-KMAP-QUINE",
+              "canonicalName": "Quine McCluskey Method",
+              "aliases": ["Tabular Method", "Quine McClusky", "QM Method"]
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U1-NANDNOR",
+          "canonicalName": "NAND NOR Implementation",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "DE-U1-QM",
+          "canonicalName": "Quine McClusky Tabular Method",
+          "aliases": ["Tabular Minimization"],
+          "subTopics": []
+        }
+      ]
+    },
+    {
+      "unitId": "DE-U2",
+      "unitNumber": 2,
+      "title": "Combinational Logic",
+      "syllabusTopics": [
+        {
+          "topicId": "DE-U2-ADDSUB",
+          "canonicalName": "Adders and Subtractors",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U2-ADDSUB-HALF",
+              "canonicalName": "Half and Full Adder",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U2-ADDSUB-SERIAL",
+              "canonicalName": "Serial and Parallel Adders",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U2-ADDSUB-BCD",
+              "canonicalName": "BCD Adder",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U2-MUX",
+          "canonicalName": "Multiplexer and Demultiplexer",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U2-MUX-IMPL",
+              "canonicalName": "Multiplexer Implementation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U2-MUX-DEMUX",
+              "canonicalName": "Demultiplexer Circuit",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U2-ENCDEC",
+          "canonicalName": "Encoders and Decoders",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U2-ENCDEC-ENC",
+              "canonicalName": "Encoder Types and Design",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U2-ENCDEC-DEC",
+              "canonicalName": "Decoder Types and Design",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U2-COMPARATOR",
+          "canonicalName": "Magnitude Comparator",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "DE-U2-MUXDISP",
+          "canonicalName": "Multiplexed Display",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    },
+    {
+      "unitId": "DE-U3",
+      "unitNumber": 3,
+      "title": "Sequential Logic and Its Applications",
+      "syllabusTopics": [
+        {
+          "topicId": "DE-U3-LATCH-FF",
+          "canonicalName": "Latches and Flip Flops",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U3-LATCH-FF-SR",
+              "canonicalName": "SR and D Latch",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U3-LATCH-FF-CHAR",
+              "canonicalName": "Characteristic Equations Flip Flops",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U3-LATCH-FF-CONV",
+              "canonicalName": "Flip Flop Conversion",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U3-SHIFT-REG",
+          "canonicalName": "Shift Registers",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U3-SHIFT-REG-SISO",
+              "canonicalName": "SISO SIPO PISO PIPO Types",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U3-SHIFT-REG-BIDIR",
+              "canonicalName": "Bidirectional Shift Register",
+              "aliases": ["Bi-directional Register", "Universal Shift Register"]
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U3-RIPPLE",
+          "canonicalName": "Ripple Counters",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U3-RIPPLE-UP",
+              "canonicalName": "Ripple Up Down Counter",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U3-SYNC-CTR",
+          "canonicalName": "Synchronous Counters",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "DE-U3-ASYNC-CTR",
+          "canonicalName": "Asynchronous Counters",
+          "aliases": ["Modulo Counter", "MOD Counter", "Ripple Counter Design"],
+          "subTopics": []
+        },
+        {
+          "topicId": "DE-U3-OTHER-CTR",
+          "canonicalName": "Johnson and Ring Counter",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    },
+    {
+      "unitId": "DE-U4",
+      "unitNumber": 4,
+      "title": "Synchronous and Asynchronous Sequential Circuits",
+      "syllabusTopics": [
+        {
+          "topicId": "DE-U4-SYNC-ANALYSIS",
+          "canonicalName": "Synchronous Circuit Analysis",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U4-SYNC-ANALYSIS-STATE",
+              "canonicalName": "State Machine Design",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U4-SYNC-ANALYSIS-REDUCE",
+              "canonicalName": "State Reduction and Assignment",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U4-SYNC-ANALYSIS-MEALY",
+              "canonicalName": "Mealy and Moore Models",
+              "aliases": ["Mealy Machine", "Moore Machine", "Mealy Moore FSM"]
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U4-SYNC-DESIGN",
+          "canonicalName": "Synchronous Circuit Design Procedure",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "DE-U4-ASYNC-ANALYSIS",
+          "canonicalName": "Asynchronous Circuit Analysis",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U4-ASYNC-ANALYSIS-LATCH",
+              "canonicalName": "Circuit with Latches",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U4-ASYNC-DESIGN",
+          "canonicalName": "Asynchronous Circuit Design",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U4-ASYNC-DESIGN-FLOW",
+              "canonicalName": "Flow Table State Reduction",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U4-ASYNC-DESIGN-RACE",
+              "canonicalName": "Race Free State Assignment",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U4-HAZARDS",
+          "canonicalName": "Hazards in Digital Circuits",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    },
+    {
+      "unitId": "DE-U5",
+      "unitNumber": 5,
+      "title": "Memory, Programmable Logic and Digital Logic Families",
+      "syllabusTopics": [
+        {
+          "topicId": "DE-U5-LOGIC-FAM",
+          "canonicalName": "Digital Logic Families",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U5-LOGIC-FAM-TTL",
+              "canonicalName": "TTL and DTL Circuits",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U5-LOGIC-FAM-CMOS",
+              "canonicalName": "ECL and CMOS Circuits",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U5-LOGIC-FAM-PARAM",
+              "canonicalName": "Fan In Fan Out Noise Margin",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U5-INTERFACE",
+          "canonicalName": "Interfacing Logic Families",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "DE-U5-MEMORY",
+          "canonicalName": "RAM and ROM",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U5-MEMORY-RAM",
+              "canonicalName": "RAM Types and Organisation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U5-MEMORY-ROM",
+              "canonicalName": "ROM Circuit Implementation",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "DE-U5-PLD",
+          "canonicalName": "PLA and PAL Devices",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "DE-U5-PLD-PLA",
+              "canonicalName": "PLA Circuit Implementation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "DE-U5-PLD-PAL",
+              "canonicalName": "PAL Circuit Implementation",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

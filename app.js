@@ -60,8 +60,9 @@ import clientErrorRoutes from './ROUTES/clientError.routes.js';
 import presenceRoutes from './ROUTES/presence.routes.js';
 import featureFlagRoutes from './ROUTES/featureFlag.routes.js';
 import sessionAnalyticsRoutes from "./ROUTES/admin.sessionAnalytics.routes.js";
-
-
+import pyqRoutes       from './ROUTES/pyq.routes.js';
+import adminPyqRoutes  from './ROUTES/admin.pyq.routes.js';
+import pyqSessionRoutes from './ROUTES/pyqSession.routes.js';
 import { initCloudinarySnapshotCron } from './UTIL/cloudinarySnapshotCron.js';
 
 import sessionV2Routes from './ROUTES/session.v2.routes.js'
@@ -278,6 +279,13 @@ app.use('/api/v1/admin/arkshots',        adminArkShotRoutes);
 // 📊 ArkShots — Session tracking
 app.use('/api/v1/arkshots/sessions',     arkShotSessionRoutes);
 
+// ── PYQ Analytics — Student
+app.use('/api/v1/pyq', pyqRoutes);
+
+// ── PYQ Analytics — Admin
+app.use('/api/v1/admin/pyq', adminPyqRoutes);
+// mount (with other routes)
+app.use('/api/v1/pyq-sessions', pyqSessionRoutes);
 // 📊 UTM Tracking — Public (pixel + event tracking)
 app.use('/api/v1/utm',              utmRoutes);
 
