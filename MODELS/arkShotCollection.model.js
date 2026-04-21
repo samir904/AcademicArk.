@@ -16,10 +16,17 @@ const ArkShotCollectionSchema = new Schema({
   },
   // ── Cover ───────────────────────────────────────
 // Add these fields to your ArkShotCollection schema
+// MODELS/arkShotCollection.model.js
 coverTemplate: {
   type:    String,
   default: "gradient",
-  enum:    ["gradient","aurora","neon","minimal","grid","stripes","radial","glass","duotone","circuit"],
+  enum: [
+    "gradient",   "aurora",      "neon",      "minimal",   "grid",
+    "stripes",    "radial",      "glass",     "duotone",   "circuit",
+    "blueprint",  "holographic", "cassette",  "terminal",  "ink",
+    "manga",      "vhs",         "origami",   "noise",     "topography",
+    "galaxy",     "brutalist",   "thermal",   "waveform",  "stained",
+  ],
 },
 colorTheme: {
   type:    String,
