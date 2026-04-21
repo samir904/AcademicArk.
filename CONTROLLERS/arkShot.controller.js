@@ -1512,48 +1512,79 @@ export const getCollectionsForNotes = async (req, res, next) => {
   try {
     const userId = req.user?.id || req.user?._id;
 
-    // ── 1. Flag gate ──────────────────────────────────────────────
-    if (userId) {
-      const flag = await FeatureFlag.findOne({
-        key: 'arkshots_homepage_section',
-        isEnabled: true,
-      }).lean();
-
-      if (!flag) {
-        return res.status(200).json({ success: true, collections: [] });
-      }
-
-      const whitelist = flag.rollout?.userIds?.map(id => id.toString()) ?? [];
-      const isWhitelisted = whitelist.includes(userId.toString());
-
-      if (!isWhitelisted) {
-        return res.status(200).json({ success: true, collections: [] });
-      }
-    } else {
-      // Not logged in — never show
+    // Not logged in — never show
+    if (!userId) {
       return res.status(200).json({ success: true, collections: [] });
     }
 
-    // ── 2. Parse query params ─────────────────────────────────────
+    // ── 1. Flag gate ──────────────────────────────────────────────
+    const flag = await FeatureFlag.findOne({
+      key: 'arkshots_homepage_section',
+      isEnabled: true,
+    }).lean();
+
+    if (!flag) {
+      return res.status(200).json({ success: true, collections: [] });
+    }
+
+    const rolloutType = flag.rollout?.type ?? 'WHITELIST';
+    let hasAccess = false;
+
+    if (rolloutType === 'ALL') {
+      // ✅ Everyone passes — just check semester rules below
+      hasAccess = true;
+
+    } else if (rolloutType === 'WHITELIST') {
+      // ✅ Only users explicitly in userIds list
+      const whitelist = flag.rollout?.userIds?.map(id => id.toString()) ?? [];
+      hasAccess = whitelist.includes(userId.toString());
+
+    } else if (rolloutType === 'PERCENTAGE') {
+      // ✅ Deterministic % check based on userId hash
+      const whitelist = flag.rollout?.userIds?.map(id => id.toString()) ?? [];
+      const inWhitelist = whitelist.includes(userId.toString());
+      if (inWhitelist) {
+        hasAccess = true;
+      } else {
+        // Hash userId to a stable 0-99 bucket
+        const hash = userId.toString().split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+        hasAccess = (hash % 100) < (flag.rollout?.percentage ?? 0);
+      }
+    }
+
+    if (!hasAccess) {
+      return res.status(200).json({ success: true, collections: [] });
+    }
+
+    // ── 2. Semester rules check ───────────────────────────────────
     const semester = req.query.semester ? Number(req.query.semester) : null;
-    const subject  = req.query.subject?.trim().toLowerCase() || null;
-    const unit     = req.query.unit ? Number(req.query.unit) : null;   // ✅ ADD
 
     if (!semester) {
       return res.status(200).json({ success: true, collections: [] });
     }
 
-    // ── 3. Query ──────────────────────────────────────────────────
+    // If flag has semester restrictions, enforce them
+    const allowedSemesters = flag.rules?.semesters ?? [];
+    if (allowedSemesters.length > 0 && !allowedSemesters.includes(semester)) {
+      // This semester is not enabled in flag rules
+      return res.status(200).json({ success: true, collections: [] });
+    }
+
+    // ── 3. Parse remaining query params ──────────────────────────
+    const subject = req.query.subject?.trim().toLowerCase() || null;
+    // NOTE: Don't filter collections by unit — unit is a note-level filter
+    // Collections are semester+subject level, not unit level
+
+    // ── 4. DB Query ───────────────────────────────────────────────
     const filter = {
       isActive: true,
       semester,
     };
 
-    // If subject is selected, match it; otherwise return all for semester
     if (subject) {
       filter.subject = subject;
     }
-    if (unit)    filter.unit    = unit;      // ✅ ADD — unit-level filter
+    // ❌ Removed: filter.unit — collections don't have unit-level granularity
 
     const collections = await ArkShotCollection.find(filter)
       .sort({ order: 1, 'stats.totalOpens': -1 })
@@ -1563,9 +1594,9 @@ export const getCollectionsForNotes = async (req, res, next) => {
         'semester subject unit totalShots isFeatured stats.totalOpens order'
       )
       .lean();
-// console.log(collections)
+
     return res.status(200).json({
-      success:     true,
+      success: true,
       collections,
       meta: { semester, subject },
     });
