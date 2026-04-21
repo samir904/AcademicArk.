@@ -1572,9 +1572,8 @@ export const getCollectionsForNotes = async (req, res, next) => {
 
     // ── 3. Parse remaining query params ──────────────────────────
     const subject = req.query.subject?.trim().toLowerCase() || null;
-    // NOTE: Don't filter collections by unit — unit is a note-level filter
-    // Collections are semester+subject level, not unit level
-
+    const unit = req.query.unit ? Number(req.query.unit) : null;
+  
     // ── 4. DB Query ───────────────────────────────────────────────
     const filter = {
       isActive: true,
@@ -1584,8 +1583,15 @@ export const getCollectionsForNotes = async (req, res, next) => {
     if (subject) {
       filter.subject = subject;
     }
-    // ❌ Removed: filter.unit — collections don't have unit-level granularity
-
+    // ✅ SOFT unit filter:
+// Show collections that match the unit OR have no unit (cross-unit collections)
+if (unit) {
+  filter.$or = [
+    { unit: unit },        // exact unit match
+    { unit: null },        // semester/subject-level collections (no unit restriction)
+    { unit: { $exists: false } }  // documents where unit field doesn't exist at all
+  ];
+}
     const collections = await ArkShotCollection.find(filter)
       .sort({ order: 1, 'stats.totalOpens': -1 })
       .limit(10)
