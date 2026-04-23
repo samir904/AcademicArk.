@@ -359,67 +359,169 @@ export const deletePaper = asyncHandler(async (req, res) => {
 
 // CONTROLLERS/pyq.controller.js — ADD THIS
 // GET /api/v1/pyq/subject-brief?name=operating+system&semester=4
+// CONTROLLERS/pyq.controller.js
+// GET /api/v1/pyq/subject-brief?name=operating+system&semester=4
+// GET /api/v1/pyq/subject-brief?name=operating+system&semester=4
+// GET /api/v1/pyq/subject-brief?name=operating+system&semester=4
+// GET /api/v1/pyq/subject-brief?name=operating+system&semester=4&unitNumber=3  ← unit mode
 export const getSubjectBrief = asyncHandler(async (req, res) => {
-  const { name, semester } = req.query;
+  const { name, semester, unitNumber } = req.query;
 
   if (!name || !semester) {
     return res.status(400).json({ success: false, message: "name and semester required" });
   }
 
-  // ── Normalize: replace any lookalike Unicode chars → ASCII equivalents
-// This handles accidental Cyrillic/homoglyph characters in query strings
-// CONTROLLERS/pyq.controller.js — getSubjectBrief
+  // ── Normalize name ────────────────────────────────────────────────────────
+  const asciiWords = name
+    .trim()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x00-\x7F]/g, (ch) => {
+      const map = {
+        "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041A": "K",
+        "\u041C": "M", "\u041D": "H", "\u041E": "O", "\u0420": "P",
+        "\u0421": "C", "\u0422": "T", "\u0425": "X",
+        "\u0430": "a", "\u0435": "e", "\u043E": "o", "\u0440": "p",
+        "\u0441": "c", "\u0445": "x",
+      };
+      return map[ch] ?? "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
 
+  const words = asciiWords.split(" ").filter(w => w.length > 3);
+  const regexParts = words.map(w => `(?=.*${w})`).join("");
+  const flexRegex = new RegExp(`^${regexParts}`, "i");
 
-// Instead of matching the whole string with Cyrillic contamination,
-// extract pure ASCII words and match each one
-const asciiWords = name
-  .trim()
-  .normalize("NFKD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .replace(/[^\x00-\x7F]/g, (ch) => {
-    // comprehensive lookalike map
-    const map = {
-      "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041A": "K",
-      "\u041C": "M", "\u041D": "H", "\u041E": "O", "\u0420": "P",
-      "\u0421": "C", "\u0422": "T", "\u0425": "X",
-      "\u0430": "a", "\u0435": "e", "\u043E": "o", "\u0440": "p",
-      "\u0441": "c", "\u0445": "x",
-    };
-    return map[ch] ?? "";
-  })
-  .replace(/\s+/g, " ")
-  .trim();
-
-// Match on key distinctive words only (e.g. "Automata" + "Formal")
-// This survives partial contamination
-const words = asciiWords.split(" ").filter(w => w.length > 3);
-const regexParts = words.map(w => `(?=.*${w})`).join("");
-const flexRegex = new RegExp(`^${regexParts}`, "i");
-
-const subject = await SubjectMeta.findOne({
-  name:     { $regex: flexRegex },
-  semester: Number(semester),
-}, { _id: 1, name: 1, code: 1 }).lean();
+  const subject = await SubjectMeta.findOne(
+    { name: { $regex: flexRegex }, semester: Number(semester) },
+    { _id: 1, name: 1, code: 1 }
+  ).lean();
 
   if (!subject) {
     return res.status(404).json({ success: false, message: "Subject not found" });
   }
 
-  // ── Fetch full analytics (need topics for quickInsight)
+  const targetUnit = unitNumber ? Number(unitNumber) : null;
+
+  // ── MODE: Unit selected → full unit deep-dive ─────────────────────────────
+  if (targetUnit) {
+    const analytics = await SubjectAnalytics.findOne(
+      { subjectCode: subject._id },
+      { units: 1, trustMeta: 1, totalPapersAnalysed: 1, yearsCovered: 1 }
+    ).lean();
+
+    if (!analytics) {
+      return res.status(404).json({ success: false, message: "Analytics not ready" });
+    }
+
+    const unit = analytics.units.find(u => u.unitNumber === targetUnit);
+    if (!unit) {
+      return res.status(404).json({ success: false, message: `Unit ${targetUnit} not found` });
+    }
+
+    // ── Reuse fetchYearMatrix for real topic × year heatmap ──────────────
+    const matrixData = await fetchYearMatrix(subject._id, unit.unitId);
+
+    // ── Same logic as getUnitBrief ─────────────────────────────────────────
+    const allYears   = (analytics.yearsCovered ?? []).sort((a, b) => a - b);
+    const totalYears = allYears.length;
+
+    const unitYears = [
+      ...new Set(
+        (unit.topics ?? []).flatMap(t => t.appearedInYears ?? [])
+      ),
+    ].sort();
+
+    const markTotals = {
+      "2M":  (unit.topics ?? []).reduce((s, t) => s + (t.twoMarkCount  ?? 0), 0),
+      "7M":  (unit.topics ?? []).reduce((s, t) => s + (t.sevenMarkCount ?? 0), 0),
+      "10M": (unit.topics ?? []).reduce((s, t) => s + (t.tenMarkCount   ?? 0), 0),
+    };
+    const topMarkType = Object.entries(markTotals)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    const hotTopics = (unit.topics ?? [])
+      .filter(t => (t.totalAppearances ?? 0) >= 2)
+      .sort((a, b) => (b.totalAppearances ?? 0) - (a.totalAppearances ?? 0))
+      .slice(0, 3)
+      .map(t => ({
+        topicId:           t.topicId,
+        canonicalName:     t.canonicalName,
+        totalAppearances:  t.totalAppearances,
+        lastAskedYear:     t.lastAskedYear,
+        predictionTag:     t.predictionTag,
+        appearedEveryYear: (t.appearedInYears?.length ?? 0) >= totalYears,
+      }));
+
+    const unitInsight = (() => {
+      const parts = [];
+      if (hotTopics[0]) {
+        parts.push(
+          hotTopics[0].appearedEveryYear
+            ? `${hotTopics[0].canonicalName} asked every year`
+            : `${hotTopics[0].canonicalName} most repeated`
+        );
+      }
+      if (topMarkType) parts.push(`${topMarkType} questions dominate`);
+      return parts.join(" · ") || null;
+    })();
+
+    // ── Full topics sorted by predictionScore (same as getUnitAnalytics) ──
+    const sortedTopics = [...(unit.topics ?? [])].sort(
+      (a, b) => (b.predictionScore ?? 0) - (a.predictionScore ?? 0)
+    );
+
+    return res.status(200).json({
+      success: true,
+      mode:    "unit",
+      data: {
+        subjectCode:      subject._id,
+        subjectName:      subject.name,
+        unitId:           unit.unitId,
+        unitNumber:       unit.unitNumber,
+        unitTitle:        unit.title,
+        frequencyScore:   unit.frequencyScore,
+        avgMarksPerPaper: unit.avgMarksPerPaper,
+        predictionTag:    unit.predictionTag,
+        priorityRank:     unit.priorityRank,
+        appearedInYears:  unitYears.length,
+        totalYearsAvailable: totalYears,
+        years:            unitYears,
+        topMarkType,
+        isFrequent:       unitYears.length >= 3,
+        unitInsight,
+        hotTopics,
+        // ── Full topic list with subtopics (same as getUnitAnalytics) ──────
+        topics:           sortedTopics,
+        neverAsked:       unit.neverAsked       ?? [],
+        dueForComeback:   unit.dueForComeback   ?? [],
+        repeatedEveryYear: unit.repeatedEveryYear ?? [],
+        // ── Topic × Year heatmap (real data from fetchYearMatrix) ───────────
+        heatmap:          matrixData,
+        trustMeta:        analytics.trustMeta,
+      },
+    });
+  }
+
+  // ── MODE: Subject only → subject overview + unit × year heatmap ──────────
   const analytics = await SubjectAnalytics.findOne(
     { subjectCode: subject._id },
     {
-      "units.unitNumber":       1,
-      "units.title":            1,
-      "units.avgMarksPerPaper": 1,
-      "units.priorityRank":     1,
-      "units.predictionTag":    1,
-      "units.topics.canonicalName":    1,   // ← needed for hotTopic
-      "units.topics.totalAppearances": 1,   // ← needed for hotTopic
-      "trustMeta":              1,
-      "totalPapersAnalysed":    1,
-      "yearsCovered":           1,
+      "units.unitId":                         1,
+      "units.unitNumber":                     1,
+      "units.title":                          1,
+      "units.avgMarksPerPaper":               1,
+      "units.priorityRank":                   1,
+      "units.predictionTag":                  1,
+      "units.topics.canonicalName":           1,
+      "units.topics.totalAppearances":        1,
+      "units.topics.appearedInYears":         1,
+      "overallInsights.yearWiseUnitWeightage": 1,
+      "overallInsights.unitWeightage":        1,
+      "trustMeta":                            1,
+      "totalPapersAnalysed":                  1,
+      "yearsCovered":                         1,
     }
   ).lean();
 
@@ -427,10 +529,13 @@ const subject = await SubjectMeta.findOne({
     return res.status(404).json({ success: false, message: "Analytics not ready" });
   }
 
-  // ── Slim units for response (strip topics out — don't send to client)
+  const allYears          = (analytics.yearsCovered ?? []).sort((a, b) => a - b);
+  const yearWiseWeightage = analytics.overallInsights?.yearWiseUnitWeightage ?? {};
+
   const units = analytics.units
     .sort((a, b) => a.unitNumber - b.unitNumber)
     .map(u => ({
+      unitId:           u.unitId,
       unitNumber:       u.unitNumber,
       title:            u.title,
       avgMarksPerPaper: u.avgMarksPerPaper,
@@ -438,19 +543,44 @@ const subject = await SubjectMeta.findOne({
       predictionTag:    u.predictionTag,
     }));
 
-  // ── Generate the hook line
+  const heatmapRows = analytics.units
+    .sort((a, b) => a.unitNumber - b.unitNumber)
+    .map(u => {
+      const unitNum   = String(u.unitNumber);
+      const yearMarks = {};
+      for (const year of allYears) {
+        const marksThisYear = yearWiseWeightage[year]?.[unitNum] ?? null;
+        yearMarks[year] = {
+          asked: marksThisYear !== null && marksThisYear > 0,
+          marks: marksThisYear ?? 0,
+        };
+      }
+      return {
+        unitId:          u.unitId,
+        unitNumber:      u.unitNumber,
+        title:           u.title,
+        avgMarksPerPaper: u.avgMarksPerPaper,
+        years:           yearMarks,
+      };
+    });
+
   const quickInsight = buildQuickInsight(units, analytics);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
+    mode:    "subject",
     data: {
       subjectCode:         subject._id,
       subjectName:         subject.name,
       totalPapersAnalysed: analytics.totalPapersAnalysed,
-      yearsCovered:        analytics.yearsCovered,
+      yearsCovered:        allYears,
       trustMeta:           analytics.trustMeta,
-      quickInsight,          // ← "Exception Handling asked every year · Unit 3 carries the most marks"
+      quickInsight,
       units,
+      heatmap: {
+        years: allYears,
+        rows:  heatmapRows,
+      },
     },
   });
 });
