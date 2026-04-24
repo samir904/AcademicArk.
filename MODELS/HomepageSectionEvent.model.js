@@ -11,6 +11,7 @@ const homepageSectionEventSchema = new Schema({
     type: String,
     enum: [
       "continue_where",
+       "subject_heatmap",       // ✅ ADD THIS
       "study_material_today",
       "new_notes_badge",
       "featured_collections",   // ✅ add this

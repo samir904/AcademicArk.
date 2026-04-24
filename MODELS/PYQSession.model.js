@@ -86,6 +86,9 @@ const PYQSessionSchema = new Schema({
       "planner_page",            // Planner page CTA
       "note_insight_card",       // insight card CTA (NoteInsightBanner deep link)
       "direct",                  // direct URL / unknown
+
+      "homepage_heatmap",
+      "homepage_heatmap_all"
     ],
     default: "direct",
   },
