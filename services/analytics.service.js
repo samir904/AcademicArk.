@@ -21,10 +21,16 @@ const toAcademicYear = (endYear) =>
  * weight: 60% frequency, 40% recency
  */
 const calcPredictionScore = (appearances, totalPapers, lastAskedYear, latestYear) => {
+  if (!totalPapers || totalPapers === 0) return 0;          // ← guard division by zero
+  if (!appearances || appearances === 0) return 0;          // ← never asked = score 0
+  if (!lastAskedYear || lastAskedYear === 0) return 0;      // ← no year data = score 0
+
   const frequencyRatio = appearances / totalPapers;
-  const recencyGap     = latestYear - lastAskedYear;         // 0 = asked this year
-  const recencyScore   = Math.max(0, 1 - recencyGap * 0.2); // drops 20% per year gap
-  return Math.round((frequencyRatio * 0.6 + recencyScore * 0.4) * 100);
+  const recencyGap     = latestYear - lastAskedYear;
+  const recencyScore   = Math.max(0, 1 - recencyGap * 0.2);
+  const raw = (frequencyRatio * 0.6 + recencyScore * 0.4) * 100;
+
+  return Math.min(100, Math.round(raw));                    // ← cap at 100 for schema
 };
 
 /**
@@ -97,8 +103,7 @@ const examSlots  = Object.entries(slotMap);  // [ ["2022_EVEN_SEM", [log1, log2]
 const totalSlots = examSlots.length;         // 8 unique exam sittings
 
 const yearsCovered = [...new Set(uploadLogs.map(log => log.year))].sort();
-const latestYear   = Math.max(...yearsCovered);
-
+const latestYear = yearsCovered.length ? Math.max(...yearsCovered) : new Date().getFullYear();
   // ── 4. Build unit analytics
   const unitsAnalytics = subjectMeta.units.map((unit) => {
     const unitQuestions = questions.filter(q => q.unitId === unit.unitId);
@@ -192,9 +197,9 @@ const papersWithUnit = examSlots.filter(([slotKey]) => {
     q => q.year === Number(yr) && q.examType === et
   );
 }).length;
-
-const frequencyScore = Math.round((papersWithUnit / totalSlots) * 100);
-
+const frequencyScore = totalSlots > 0
+  ? Math.round((papersWithUnit / totalSlots) * 100)
+  : 0;
     // ── 4d. Special topic lists
     const allTopicIds      = unit.syllabusTopics.map(t => t.topicId);
     const askedTopicIds    = new Set(unitQuestions.map(q => q.topicId).filter(Boolean));

@@ -18,7 +18,7 @@ const SEM_FALLBACK_SUBJECT = {
     // 3: "data structure",
     4: "operating system",
     // 5: "database management system",
-    // 6: "computer network",
+    6: "computer networks",
 };
 
 /**
