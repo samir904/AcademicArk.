@@ -1838,11 +1838,31 @@ export const downloadNote = async (req, res, next) => {
         // Set headers
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${note.title}.pdf"`);
-        res.setHeader('Content-Length', fileResponse.data.length);
-
+        res.setHeader('Content-Length', pdfBuffer.length); // ✅ CORRECT — watermarked size
         // ✅ STEP 8: SEND PDF
         console.log('📤 Sending PDF to client...');
-        res.status(200).send(pdfBuffer);
+        // res.status(200).send(pdfBuffer);
+        // ✅ NEW — streams in 64KB chunks so browser fires progress events
+const CHUNK_SIZE = 64 * 1024; // 64KB per chunk
+let offset = 0;
+
+const writeChunk = () => {
+  while (offset < pdfBuffer.length) {
+    const chunk = pdfBuffer.slice(offset, offset + CHUNK_SIZE);
+    offset += CHUNK_SIZE;
+    
+    const canContinue = res.write(chunk);
+    
+    // If buffer is full, wait for drain before continuing
+    if (!canContinue) {
+      res.once('drain', writeChunk);
+      return;
+    }
+  }
+  res.end(); // Done
+};
+
+writeChunk();
         console.log('✅ Download completed successfully');
         await markStudyActivity(userId);
     } catch (error) {
