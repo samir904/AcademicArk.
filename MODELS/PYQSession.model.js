@@ -18,6 +18,7 @@ featureType: {
     "imp_sheet",       // ← ADD: ImportantTopicsSheet (Hot Topics + Must-Do Qs)
     "syllabus_sheet",  // SyllabusSheet bottom sheet/drawer from NoteCard
     "pyq_page",        // Full /pyq/* page visit
+    "imp_page"
   ],
 },
 
@@ -62,6 +63,8 @@ featureType: {
       "note_card_pill",          // PYQ U1 pill in metadata row of NoteCard
  "note_card_imp_pill",      // ← ADD: Important Topics pill in NoteCard / ImportantQCard
 "handwritten_card_imp_pill",
+
+"Imp_Topics_EntryCard",
       // ── From PyqCard (PYQ category card)
       "pyq_card_radar",          // PYQ Radar button in PyqCard metadata row
       "imp_card_radar",
