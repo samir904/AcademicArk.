@@ -11,6 +11,8 @@ import {
   getSubjectBrief,
   getSubjectSyllabus,
   getUnitBrief,
+  getImportantQuestions,
+  getImportantTopics,
 } from "../CONTROLLERS/pyq.controller.js";
 import { isLoggedIn } from "../MIDDLEWARES/auth.middleware.js";
 
@@ -20,6 +22,9 @@ const router = Router();
 
 // ── Subjects list (for subject picker UI)
 router.get("/subjects",                        isLoggedIn, getAllSubjects);
+// routes — add near subject-brief:
+router.get("/important-questions", isLoggedIn, getImportantQuestions);
+router.get("/important-topics",    isLoggedIn, getImportantTopics);
 // ROUTES/pyq.routes.js — ADD THIS
 router.get("/subject-brief", isLoggedIn, getSubjectBrief);
 // GET /api/pyq/unit-brief?subjectCode=CS-401&unitId=OS-U2

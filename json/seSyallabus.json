@@ -1,0 +1,368 @@
+{
+  "_id": "SE",
+  "name": "Software Engineering",
+  "code": "BCS601",
+  "paperCodes": ["BCS601", "KCS601", "KDS603", "NCS602"],
+  "semester": [6],
+  "branch": ["CSE", "IT", "CE"],
+  "totalUnits": 5,
+  "analyticsReady": false,
+  "totalPapersAnalysed": 0,
+  "units": [
+    {
+      "unitId": "SE-U1",
+      "unitNumber": 1,
+      "title": "Introduction and SDLC Models",
+      "syllabusTopics": [
+        {
+          "topicId": "SE-U1-INTRO",
+          "canonicalName": "Software Engineering Introduction",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U1-INTRO-CHAR",
+              "canonicalName": "Software Characteristics and Components",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U1-INTRO-CRISIS",
+              "canonicalName": "Software Crisis",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U1-INTRO-PROCESS",
+              "canonicalName": "Software Engineering Processes",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U1-INTRO-QUALITY",
+              "canonicalName": "Software Quality Attributes",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U1-WATERFALL",
+          "canonicalName": "Waterfall Model",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "SE-U1-PROTOTYPE",
+          "canonicalName": "Prototype Model",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "SE-U1-SPIRAL",
+          "canonicalName": "Spiral Model",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "SE-U1-EVOL",
+          "canonicalName": "Evolutionary and Iterative Models",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U1-EVOL-EVDEV",
+              "canonicalName": "Evolutionary Development Model",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U1-EVOL-ITER",
+              "canonicalName": "Iterative Enhancement Model",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "SE-U2",
+      "unitNumber": 2,
+      "title": "SRS and Software Quality Assurance",
+      "syllabusTopics": [
+        {
+          "topicId": "SE-U2-REQ",
+          "canonicalName": "Requirement Engineering Process",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U2-REQ-ELICIT",
+              "canonicalName": "Elicitation and Analysis",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U2-REQ-FEASIBILITY",
+              "canonicalName": "Feasibility Study",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U2-MODELLING",
+          "canonicalName": "Information and Data Modelling",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U2-MODELLING-DFD",
+              "canonicalName": "Data Flow Diagrams",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U2-MODELLING-ERD",
+              "canonicalName": "Entity Relationship Diagrams",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U2-MODELLING-DT",
+              "canonicalName": "Decision Tables",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U2-SRS",
+          "canonicalName": "SRS Document and IEEE Standards",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "SE-U2-SQA",
+          "canonicalName": "Software Quality Assurance",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U2-SQA-VV",
+              "canonicalName": "Verification and Validation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U2-SQA-ISO",
+              "canonicalName": "ISO 9000 Models",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U2-SQA-CMM",
+              "canonicalName": "SEI CMM Model",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "SE-U3",
+      "unitNumber": 3,
+      "title": "Software Design and Metrics",
+      "syllabusTopics": [
+        {
+          "topicId": "SE-U3-DESIGN",
+          "canonicalName": "Software Design Concepts",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U3-DESIGN-ARCH",
+              "canonicalName": "Architectural Design",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U3-DESIGN-MOD",
+              "canonicalName": "Modularization and Design Charts",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U3-DESIGN-COUPLING",
+              "canonicalName": "Coupling and Cohesion",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U3-STRATEGY",
+          "canonicalName": "Design Strategies",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U3-STRATEGY-FOD",
+              "canonicalName": "Function Oriented Design",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U3-STRATEGY-OOD",
+              "canonicalName": "Object Oriented Design",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U3-STRATEGY-TDBU",
+              "canonicalName": "Top Down and Bottom Up Design",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U3-METRICS",
+          "canonicalName": "Software Measurement and Metrics",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U3-METRICS-HALSTEAD",
+              "canonicalName": "Halstead Software Science",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U3-METRICS-FP",
+              "canonicalName": "Function Point Based Measures",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U3-METRICS-CC",
+              "canonicalName": "Cyclomatic Complexity",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "SE-U4",
+      "unitNumber": 4,
+      "title": "Software Testing",
+      "syllabusTopics": [
+        {
+          "topicId": "SE-U4-TESTING",
+          "canonicalName": "Testing Levels and Types",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U4-TESTING-UNIT",
+              "canonicalName": "Unit and Integration Testing",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U4-TESTING-ACCEPT",
+              "canonicalName": "Acceptance and Regression Testing",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U4-TESTING-ALPHA",
+              "canonicalName": "Alpha and Beta Testing",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U4-STRUCTURAL",
+          "canonicalName": "Structural White Box Testing",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "SE-U4-FUNCTIONAL",
+          "canonicalName": "Functional Black Box Testing",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "SE-U4-STRATEGY",
+          "canonicalName": "Top Down and Bottom Up Testing",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U4-STRATEGY-STUB",
+              "canonicalName": "Test Drivers and Stubs",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U4-STATIC",
+          "canonicalName": "Static Testing Strategies",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U4-STATIC-REVIEW",
+              "canonicalName": "Formal Technical Reviews",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U4-STATIC-WALKTHROUGH",
+              "canonicalName": "Walkthrough and Code Inspection",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "SE-U5",
+      "unitNumber": 5,
+      "title": "Maintenance and Project Management",
+      "syllabusTopics": [
+        {
+          "topicId": "SE-U5-MAINTENANCE",
+          "canonicalName": "Software Maintenance",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U5-MAINTENANCE-CAT",
+              "canonicalName": "Categories of Maintenance",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U5-MAINTENANCE-RE",
+              "canonicalName": "Re-Engineering and Reverse Engineering",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U5-SCM",
+          "canonicalName": "Software Configuration Management",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U5-SCM-CHANGE",
+              "canonicalName": "Change Control Process",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U5-SCM-VERSION",
+              "canonicalName": "Software Version Control",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U5-SCM-CASE",
+              "canonicalName": "CASE Tools Overview",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U5-ESTIMATION",
+          "canonicalName": "Cost and Effort Estimation",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "SE-U5-ESTIMATION-COCOMO",
+              "canonicalName": "COCOMO Model",
+              "aliases": []
+            },
+            {
+              "subTopicId": "SE-U5-ESTIMATION-RESOURCE",
+              "canonicalName": "Resource Allocation Models",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "SE-U5-RISK",
+          "canonicalName": "Software Risk Management",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    }
+  ]
+}

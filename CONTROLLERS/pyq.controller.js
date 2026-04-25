@@ -389,14 +389,48 @@ export const getSubjectBrief = asyncHandler(async (req, res) => {
     .replace(/\s+/g, " ")
     .trim();
 
-  const words = asciiWords.split(" ").filter(w => w.length > 3);
-  const regexParts = words.map(w => `(?=.*${w})`).join("");
-  const flexRegex = new RegExp(`^${regexParts}`, "i");
+  const sem = Number(semester);
 
-  const subject = await SubjectMeta.findOne(
-    { name: { $regex: flexRegex }, semester: Number(semester) },
+  // ── STEP 1: Exact match (fastest, most reliable) ──────────────────────────
+  // Handles: "big data and analytics" → BDA exactly
+  let subject = await SubjectMeta.findOne(
+    {
+      name: { $regex: new RegExp(`^${asciiWords.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      $or: [{ semester: sem }, { semester: { $elemMatch: { $eq: sem } } }],
+    },
     { _id: 1, name: 1, code: 1 }
   ).lean();
+
+  // ── STEP 2: All significant words with \b word boundaries ─────────────────
+  // \b prevents "analytics" matching mid-word or as part of a longer phrase
+  // ALL words must appear as whole words → much stricter than Step 1's regex
+  if (!subject) {
+    const words = asciiWords.split(" ").filter(w => w.length > 3);
+    const wordRegexParts = words.map(w => `(?=.*\\b${w}\\b)`).join("");
+    const wordBoundaryRegex = new RegExp(wordRegexParts, "i");
+
+    const candidates = await SubjectMeta.find(
+      {
+        name: { $regex: wordBoundaryRegex },
+        $or: [{ semester: sem }, { semester: { $elemMatch: { $eq: sem } } }],
+      },
+      { _id: 1, name: 1, code: 1 }
+    ).lean();
+
+    if (candidates.length === 1) {
+      // Only one match — safe to use
+      subject = candidates[0];
+    } else if (candidates.length > 1) {
+      // Multiple matches — pick the one whose word count is closest to input
+      // This prevents a shorter-named subject from winning over the right one
+      const inputWordCount = asciiWords.split(" ").length;
+      subject = candidates.sort((a, b) => {
+        const aDiff = Math.abs(a.name.split(" ").length - inputWordCount);
+        const bDiff = Math.abs(b.name.split(" ").length - inputWordCount);
+        return aDiff - bDiff;
+      })[0];
+    }
+  }
 
   if (!subject) {
     return res.status(404).json({ success: false, message: "Subject not found" });
@@ -595,20 +629,30 @@ export const getSubjectSyllabus = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: "name and semester required" });
   }
 
-  const normalized = sanitizeSubjectName(name);
+  const normalized = sanitizeSubjectName(name).trim();
+  const sem = Number(semester);
 
-  const subject = await SubjectMeta.findOne({
-    name:     { $regex: new RegExp(normalized, "i") },
-    semester: Number(semester),
+  // Exact match first
+  let subject = await SubjectMeta.findOne({
+    name: { $regex: new RegExp(`^${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    $or: [{ semester: sem }, { semester: { $elemMatch: { $eq: sem } } }],
   }, {
-    _id:        1,
-    name:       1,
-    totalUnits: 1,
-    "units.unitId":         1,
-    "units.unitNumber":     1,
-    "units.title":          1,
-    "units.syllabusTopics": 1,   // ← the ACTUAL field
+    _id: 1, name: 1, totalUnits: 1,
+    "units.unitId": 1, "units.unitNumber": 1,
+    "units.title": 1, "units.syllabusTopics": 1,
   }).lean();
+
+  // Fallback: partial (original behaviour) only if exact fails
+  if (!subject) {
+    subject = await SubjectMeta.findOne({
+      name:     { $regex: new RegExp(normalized, "i") },
+      $or: [{ semester: sem }, { semester: { $elemMatch: { $eq: sem } } }],
+    }, {
+      _id: 1, name: 1, totalUnits: 1,
+      "units.unitId": 1, "units.unitNumber": 1,
+      "units.title": 1, "units.syllabusTopics": 1,
+    }).lean();
+  }
 
   if (!subject) {
     return res.status(404).json({ success: false, message: "Subject not found" });
@@ -737,5 +781,254 @@ export const getUnitBrief = asyncHandler(async (req, res) => {
       hotTopics,       // ← 🆕
       unitInsight,     // ← 🆕 "Finite Automata asked every year · 7M questions dominate"
     },
+  });
+});
+
+function scoreQuestion(q, maxYear) {
+  let score = 0;
+
+  // ── Repeat signal (strongest) ─────────────────────────────────────────────
+  if (q.isRepeat) score += 50;
+  score += (q.repeatYears?.length ?? 0) * 5;
+
+  // ── Mark weight by TYPE, not raw marks ───────────────────────────────────
+  // TEN  = old 100-mark paper long answer (pre-2022 AKTU)
+  // SEVEN = new 70-mark paper long answer (post-2022 AKTU)
+  // Both are "long answer" → same weight
+  // TWO  = short answer → low weight
+  switch (q.markType) {
+    case "TEN":   score += 30; break;   // old pattern long answer
+    case "SEVEN": score += 30; break;   // new pattern long answer — same importance
+    case "TWO":   score += 5;  break;   // short answer
+    default:      score += 10; break;   // OTHER — unknown, treat as mid
+  }
+
+  // ── Recency bonus 0-10 ────────────────────────────────────────────────────
+  if (maxYear > 2018) {
+    score += Math.round(((q.year - 2018) / (maxYear - 2018)) * 10);
+  }
+
+  return score;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/pyq/important-questions
+// Query: subjectCode* | unitId? | limit? (default 10, max 20)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getImportantQuestions = asyncHandler(async (req, res) => {
+  const { subjectCode, unitId, markType } = req.query;  // ← ADD markType
+  const limit = Math.min(Number(req.query.limit ?? 10), 20);
+
+  if (!subjectCode) {
+    return res.status(400).json({ success: false, message: "subjectCode is required" });
+  }
+
+  const filter = {
+    subjectCode,
+    mappingStatus: { $in: ["MAPPED", "MANUAL"] },
+  };
+  if (unitId) filter.unitId = unitId;
+
+  // ── markType filter pushed into DB query ──────────────────────────────────
+  if (markType) {
+    if (markType === "short" || markType === "TWO") {
+      filter.markType = "TWO";
+    } else if (markType === "long") {
+      filter.markType = { $in: ["TEN", "SEVEN"] };
+    }
+    // unknown value → ignored, returns all
+  }
+
+  // ── Fetch questions + subject meta in parallel ────────────────────────────
+  const [questions, subjectMeta] = await Promise.all([
+    PYQQuestion.find(filter, {
+      rawText: 1, marks: 1, markType: 1,
+      unitId: 1, topicId: 1,
+      canonicalTopicName: 1, canonicalSubTopicName: 1,
+      year: 1, isRepeat: 1, repeatYears: 1,
+      questionType: 1, qNo: 1, section: 1,
+    }).lean(),
+    SubjectMeta.findOne({ _id: subjectCode }, { totalPapersAnalysed: 1 }).lean(),
+  ]);
+
+  if (!questions.length) {
+    return res.status(200).json({
+      success: true, subjectCode,
+      unitId: unitId ?? null,
+      total: 0,
+      totalPapersAnalysed: subjectMeta?.totalPapersAnalysed ?? null,  // ← NEW
+      questions: [],
+    });
+  }
+
+  const maxYear = Math.max(...questions.map((q) => q.year ?? 0));
+
+  const scored = questions
+    .map((q) => ({ ...q, _score: scoreQuestion(q, maxYear) }))
+    .sort((a, b) => {
+      if (b._score !== a._score) return b._score - a._score;
+      if (b.marks  !== a.marks)  return b.marks  - a.marks;
+      return (b.year ?? 0) - (a.year ?? 0);
+    });
+
+  const seen   = new Set();
+  const unique = [];
+  for (const q of scored) {
+    const key = q.rawText.trim().toLowerCase().slice(0, 80);
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(q);
+    }
+    if (unique.length >= limit) break;
+  }
+
+  const result = unique.map(({ _score, ...rest }) => ({
+    ...rest,
+    repeatYears: rest.repeatYears ?? [],
+    importanceLabel:
+      rest.isRepeat                         ? "Repeat"       :
+      (rest.repeatYears?.length ?? 0) >= 2  ? "Frequent"     :
+      (rest.markType === "TEN" ||
+       rest.markType === "SEVEN")           ? "Long Answer"  :
+      rest.markType === "TWO"               ? "Short Answer" : "Good to Know",
+  }));
+
+  return res.status(200).json({
+    success: true, subjectCode,
+    unitId: unitId ?? null,
+    total: result.length,
+    totalPapersAnalysed: subjectMeta?.totalPapersAnalysed ?? null,  // ← NEW
+    questions: result,
+  });
+});
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/pyq/important-topics
+// Query: subjectCode* | unitId? | limit? (default 8, max 15)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getImportantTopics = asyncHandler(async (req, res) => {
+  const { subjectCode, unitId } = req.query;
+  const limit = Math.min(Number(req.query.limit ?? 8), 15);
+
+  if (!subjectCode) {
+    return res.status(400).json({ success: false, message: "subjectCode is required" });
+  }
+
+  // ── 1. Analytics (pre-computed topic stats) ───────────────────────────────
+  const analytics = await SubjectAnalytics.findOne(
+    { subjectCode },
+    {
+      "units.unitId":                  1,
+      "units.unitNumber":              1,
+      "units.title":                   1,
+      "units.topics.topicId":          1,
+      "units.topics.canonicalName":    1,
+      "units.topics.totalAppearances": 1,
+      "units.topics.lastAskedYear":    1,
+      "units.topics.predictionTag":    1,
+      "units.topics.predictionScore":  1,
+      "units.topics.appearedInYears":  1,
+      "units.topics.subTopics":        1,
+    }
+  ).lean();
+
+  if (!analytics) {
+    return res.status(404).json({
+      success: false,
+      message: `Analytics not ready for subject: ${subjectCode}`,
+    });
+  }
+
+  const targetUnits = unitId
+    ? analytics.units.filter((u) => u.unitId === unitId)
+    : analytics.units;
+
+  if (!targetUnits.length) {
+    return res.status(200).json({
+      success: true, subjectCode,
+      unitId: unitId ?? null, total: 0, topics: [],
+    });
+  }
+
+  // ── 2. Aggregate totalMarks per topicId from PYQQuestion ─────────────────
+  // Single aggregation — covers all target units in one query
+  const matchFilter = {
+    subjectCode,
+    mappingStatus: { $in: ["MAPPED", "MANUAL"] },
+  };
+  if (unitId) matchFilter.unitId = unitId;
+
+  const marksAgg = await PYQQuestion.aggregate([
+    { $match: matchFilter },
+    {
+      $group: {
+        _id:        "$topicId",
+        totalMarks: { $sum: "$marks" },
+        // Break down by markType for the bar chart segments
+        twoMarkTotal:   { $sum: { $cond: [{ $eq: ["$markType", "TWO"]   }, "$marks", 0] } },
+        sevenMarkTotal: { $sum: { $cond: [{ $eq: ["$markType", "SEVEN"] }, "$marks", 0] } },
+        tenMarkTotal:   { $sum: { $cond: [{ $eq: ["$markType", "TEN"]   }, "$marks", 0] } },
+      },
+    },
+  ]);
+
+  // Build a lookup map: topicId → marks breakdown
+  const marksMap = {};
+  for (const row of marksAgg) {
+    marksMap[row._id] = {
+      totalMarks:     row.totalMarks,
+      twoMarkTotal:   row.twoMarkTotal,
+      sevenMarkTotal: row.sevenMarkTotal,
+      tenMarkTotal:   row.tenMarkTotal,
+      // Normalize: treat TEN + SEVEN as "long answer" total
+      longAnswerTotal: row.sevenMarkTotal + row.tenMarkTotal,
+    };
+  }
+
+  // ── 3. Build + sort topics ────────────────────────────────────────────────
+  const allTopics = targetUnits.flatMap((u) =>
+    (u.topics ?? []).map((t) => {
+      const marks = marksMap[t.topicId] ?? {
+        totalMarks: 0, twoMarkTotal: 0,
+        sevenMarkTotal: 0, tenMarkTotal: 0, longAnswerTotal: 0,
+      };
+      return {
+        topicId:          t.topicId,
+        canonicalName:    t.canonicalName,
+        unitId:           u.unitId,
+        unitNumber:       u.unitNumber,
+        unitTitle:        u.title,
+        totalAppearances: t.totalAppearances ?? 0,
+        lastAskedYear:    t.lastAskedYear    ?? null,
+        predictionTag:    t.predictionTag    ?? null,
+        predictionScore:  t.predictionScore  ?? 0,
+        appearedInYears:  t.appearedInYears  ?? [],
+        // ── NEW: marks breakdown ──────────────────────────────────────────
+        totalMarks:       marks.totalMarks,
+        marksBreakdown: {
+          shortAnswer:  marks.twoMarkTotal,
+          longAnswer:   marks.longAnswerTotal,   // TEN + SEVEN combined
+        },
+        subTopics: (t.subTopics ?? [])
+          .sort((a, b) => (b.totalAppearances ?? 0) - (a.totalAppearances ?? 0))
+          .slice(0, 3)
+          .map((s) => ({
+            subTopicId:       s.subTopicId,
+            canonicalName:    s.canonicalName,
+            totalAppearances: s.totalAppearances ?? 0,
+          })),
+      };
+    })
+  );
+
+  const result = allTopics
+    .sort((a, b) => {
+      if (b.predictionScore  !== a.predictionScore)  return b.predictionScore  - a.predictionScore;
+      if (b.totalAppearances !== a.totalAppearances) return b.totalAppearances - a.totalAppearances;
+      return (b.lastAskedYear ?? 0) - (a.lastAskedYear ?? 0);
+    })
+    .slice(0, limit);
+
+  return res.status(200).json({
+    success: true, subjectCode,
+    unitId: unitId ?? null, total: result.length, topics: result,
   });
 });

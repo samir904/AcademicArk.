@@ -1,0 +1,393 @@
+{
+  "_id": "CN",
+  "name": "Computer Networks",
+  "code": "BCS603",
+  "paperCodes": ["BCS603", "KCS603", "RCS603", "NCS601"],
+  "semester": [6],
+  "branch": ["CSE", "IT"],
+  "totalUnits": 5,
+  "analyticsReady": false,
+  "totalPapersAnalysed": 0,
+  "units": [
+    {
+      "unitId": "CN-U1",
+      "unitNumber": 1,
+      "title": "Introductory Concepts and Physical Layer",
+      "syllabusTopics": [
+        {
+          "topicId": "CN-U1-INTRO",
+          "canonicalName": "Network Goals and Categories",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U1-INTRO-GOALS",
+              "canonicalName": "Goals and Applications of Networks",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-INTRO-CATEG",
+              "canonicalName": "Categories of Networks",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-INTRO-INTERNET",
+              "canonicalName": "Internet Organization and ISP",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U1-ARCH",
+          "canonicalName": "Network Architecture and Protocols",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U1-ARCH-LAYER",
+              "canonicalName": "Layering Principles and Services",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-ARCH-OSI",
+              "canonicalName": "OSI Reference Model",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-ARCH-TCPIP",
+              "canonicalName": "TCP IP Protocol Suite",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U1-DEVICES",
+          "canonicalName": "Network Devices and Components",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U1-PHYSICAL",
+          "canonicalName": "Physical Layer Transmission",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U1-PHYSICAL-MEDIA",
+              "canonicalName": "Transmission Media and Connections",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-PHYSICAL-SIGNAL",
+              "canonicalName": "Signal Transmission and Encoding",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-PHYSICAL-IMPAIR",
+              "canonicalName": "Network Performance and Impairments",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U1-SWITCHING",
+          "canonicalName": "Switching and Multiplexing",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U1-SWITCHING-TECH",
+              "canonicalName": "Switching Techniques",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U1-SWITCHING-MUX",
+              "canonicalName": "Multiplexing",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "CN-U2",
+      "unitNumber": 2,
+      "title": "Link Layer and Medium Access Control",
+      "syllabusTopics": [
+        {
+          "topicId": "CN-U2-FRAMING",
+          "canonicalName": "Framing",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U2-ERROR",
+          "canonicalName": "Error Detection and Correction",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U2-ERROR-DETECT",
+              "canonicalName": "Error Detection Techniques",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U2-ERROR-CORRECT",
+              "canonicalName": "Error Correction Techniques",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U2-FLOW",
+          "canonicalName": "Flow Control Protocols",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U2-FLOW-ELEM",
+              "canonicalName": "Elementary Data Link Protocols",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U2-FLOW-SLIDING",
+              "canonicalName": "Sliding Window Protocols",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U2-MAC",
+          "canonicalName": "Medium Access Control",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U2-MAC-ALLOC",
+              "canonicalName": "Channel Allocation",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U2-MAC-PROTO",
+              "canonicalName": "Multiple Access Protocols",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U2-MAC-LAN",
+              "canonicalName": "LAN Standards",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U2-BRIDGE",
+          "canonicalName": "Bridges and Link Layer Switches",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U2-BRIDGE-LEARN",
+              "canonicalName": "Learning Bridge",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U2-BRIDGE-SPAN",
+              "canonicalName": "Spanning Tree Algorithm",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "unitId": "CN-U3",
+      "unitNumber": 3,
+      "title": "Network Layer",
+      "syllabusTopics": [
+        {
+          "topicId": "CN-U3-ADDRESSING",
+          "canonicalName": "Logical Addressing and Subnetting",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U3-ADDRESSING-IP",
+              "canonicalName": "IP Addressing and CIDR",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U3-ADDRESSING-SUBNET",
+              "canonicalName": "Subnetting",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U3-PROTOCOLS",
+          "canonicalName": "Internetworking Protocols",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U3-PROTOCOLS-ARP",
+              "canonicalName": "ARP and RARP",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U3-PROTOCOLS-DHCP",
+              "canonicalName": "DHCP",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U3-PROTOCOLS-ICMP",
+              "canonicalName": "ICMP",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U3-ROUTING",
+          "canonicalName": "Routing and Forwarding",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U3-ROUTING-STATIC",
+              "canonicalName": "Static and Dynamic Routing",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U3-ROUTING-ALGO",
+              "canonicalName": "Routing Algorithms and Protocols",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U3-CONGESTION",
+          "canonicalName": "Congestion Control",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U3-IPV6",
+          "canonicalName": "IPv6",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    },
+    {
+      "unitId": "CN-U4",
+      "unitNumber": 4,
+      "title": "Transport Layer",
+      "syllabusTopics": [
+        {
+          "topicId": "CN-U4-DELIVERY",
+          "canonicalName": "Process to Process Delivery",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U4-DELIVERY-PORT",
+              "canonicalName": "Port Addressing",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U4-DELIVERY-MUX",
+              "canonicalName": "Multiplexing and Demultiplexing",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U4-UDP",
+          "canonicalName": "UDP Protocol",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U4-TCP",
+          "canonicalName": "TCP Protocol",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U4-TCP-CONN",
+              "canonicalName": "Connection Management",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U4-TCP-FLOW",
+              "canonicalName": "Flow Control and Retransmission",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U4-TCP-WINDOW",
+              "canonicalName": "Window Management",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U4-TCP-CONGESTION",
+              "canonicalName": "TCP Congestion Control",
+              "aliases": []
+            }
+          ]
+        },
+        {
+          "topicId": "CN-U4-QOS",
+          "canonicalName": "Quality of Service",
+          "aliases": [],
+          "subTopics": []
+        }
+      ]
+    },
+    {
+      "unitId": "CN-U5",
+      "unitNumber": 5,
+      "title": "Application Layer",
+      "syllabusTopics": [
+        {
+          "topicId": "CN-U5-DNS",
+          "canonicalName": "Domain Name System",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U5-WWW",
+          "canonicalName": "WWW and HTTP",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U5-EMAIL",
+          "canonicalName": "Electronic Mail and SMTP",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U5-FTP",
+          "canonicalName": "File Transfer Protocol",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U5-REMOTE",
+          "canonicalName": "Remote Login and Telnet",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U5-NETMGMT",
+          "canonicalName": "Network Management and SNMP",
+          "aliases": [],
+          "subTopics": []
+        },
+        {
+          "topicId": "CN-U5-SECURITY",
+          "canonicalName": "Data Compression and Cryptography",
+          "aliases": [],
+          "subTopics": [
+            {
+              "subTopicId": "CN-U5-SECURITY-COMPRESS",
+              "canonicalName": "Data Compression",
+              "aliases": []
+            },
+            {
+              "subTopicId": "CN-U5-SECURITY-CRYPTO",
+              "canonicalName": "Cryptography Basic Concepts",
+              "aliases": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
