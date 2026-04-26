@@ -40,16 +40,17 @@ export const getPersonalizedHomepage = async (req, res) => {
 
             const showArkShots = await isFeatureEnabled("arkshots_homepage_section", user);
 
-            const [featuredCollections, subjectHeatmap] = await Promise.all([
+            const [featuredCollections, subjectHeatmap,semesterSubjects] = await Promise.all([
                 showArkShots
                     ? getFeaturedArkShotCollections(userId, user)
                     : Promise.resolve(null),
                 getHomepageSubjectHeatmap(userId, user),
+                getSemesterSubjects(user),             // ← ADD
             ]);
 
             return res.status(200).json({
                 success:   true,
-                data:      { ...JSON.parse(cachedData), featuredCollections, subjectHeatmap },
+                data:      { ...JSON.parse(cachedData), featuredCollections, subjectHeatmap,semesterSubjects },
                 fromCache: true,
                 message:   "Homepage data from cache",
             });
@@ -80,6 +81,7 @@ export const getPersonalizedHomepage = async (req, res) => {
             newNotesBadge,
             featuredCollections,
             subjectHeatmap,          // ✅ NEW
+            semesterSubjects,              // ← ADD
         ] = await Promise.all([
             getContinueWhere(userId, user),
             getStudyMaterialForToday(userId, user),
@@ -94,6 +96,7 @@ export const getPersonalizedHomepage = async (req, res) => {
                 ? getFeaturedArkShotCollections(userId, user)
                 : Promise.resolve(null),
             getHomepageSubjectHeatmap(userId, user),  // ✅ NEW
+            getSemesterSubjects(user),     // ← ADD
         ]);
 
         // ── Build cacheable data (flag-independent + stable fields only)
@@ -108,6 +111,7 @@ export const getPersonalizedHomepage = async (req, res) => {
             attendance,
             leaderboard,
             downloads,
+            semesterSubjects,              // ← ADD here (cacheable, stable)
             metadata: {
                 timestamp:       new Date(),
                 profileComplete: user.academicProfile?.isCompleted || false,
@@ -703,7 +707,62 @@ async function getNewNotesBadge(userId, user) {
         return { hasNew: false };
     }
 }
+// homepage.controller.js — ADD this helper function
 
+async function getSemesterSubjects(user) {
+    try {
+        const semester = user.academicProfile?.semester ?? null;
+        if (!semester) return { hasData: false, subjects: [] };
+
+        // Cache key is semester-level, shared across all users (subjects rarely change)
+        const cacheKey = `homepage:subjects:sem${semester}`;
+        const cached   = await redis.get(cacheKey);
+        if (cached) return { hasData: true, semester, subjects: JSON.parse(cached), fromCache: true };
+
+        const subjects = await SubjectMeta.find(
+            {
+                $or: [
+                    { semester: semester },
+                    { semester: { $elemMatch: { $eq: semester } } },
+                ],
+            },
+            {
+                _id:                 1,   // subjectCode e.g. "CN"
+                name:                1,   // "Computer Networks"
+                code:                1,   // "cn"
+                totalUnits:          1,
+                analyticsReady:      1,   // show PYQ badge on card if true
+                totalPapersAnalysed: 1,
+                branch:              1,
+            }
+        )
+            .sort({ name: 1 })
+            .lean();
+
+        const shaped = subjects.map(s => ({
+            subjectCode:         s._id,
+            name:                s.name,
+            code:                s.code,
+            totalUnits:          s.totalUnits          ?? 0,
+            analyticsReady:      s.analyticsReady      ?? false,
+            totalPapersAnalysed: s.totalPapersAnalysed ?? 0,
+            branch:              s.branch              ?? [],
+        }));
+
+        // Cache at semester level — 10 min TTL (subjects change very rarely)
+        await redis.setEx(cacheKey, 600, JSON.stringify(shaped));
+
+        return {
+            hasData:  shaped.length > 0,
+            semester,
+            subjects: shaped,
+        };
+
+    } catch (err) {
+        console.error("getSemesterSubjects error:", err);
+        return { hasData: false, subjects: [] };
+    }
+}
 // ============================================
 // 🆕 HOMEPAGE SUBJECT HEATMAP
 // ============================================

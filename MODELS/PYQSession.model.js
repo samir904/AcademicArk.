@@ -94,7 +94,8 @@ featureType: {
       "direct",                  // direct URL / unknown
 
       "homepage_heatmap",
-      "homepage_heatmap_all"
+      "homepage_heatmap_all",
+      "homepage_subject_card",   // ✅ ADD — SubjectCard on homepage fires this
     ],
     default: "direct",
   },
@@ -110,7 +111,7 @@ featureType: {
       "pyq_subject_dashboard",
       "pyq_unit_deepdive",
       "planner",
-      "home",
+      "homepage",     // ✅ ADD — your SubjectCard dispatch uses "homepage" not "home"
       "unknown",
     ],
     default: "unknown",

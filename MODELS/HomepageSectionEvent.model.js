@@ -11,6 +11,7 @@ const homepageSectionEventSchema = new Schema({
     type: String,
     enum: [
       "continue_where",
+       "semester_subjects",      // ✅ ADD THIS — was missing
        "subject_heatmap",       // ✅ ADD THIS
       "study_material_today",
       "new_notes_badge",
@@ -38,7 +39,7 @@ const homepageSectionEventSchema = new Schema({
   resourceId:   { type: Schema.Types.ObjectId, default: null },
   resourceType: {
     type:    String,
-    enum:    ["NOTE", "COLLECTION", "LINK", "CTA"],  // ✅ add COLLECTION
+    enum:    ["NOTE", "COLLECTION", "LINK", "CTA","SUBJECT"],  // ✅ add COLLECTION
     default: null,
   },
   ctaLabel:    { type: String, default: null },
