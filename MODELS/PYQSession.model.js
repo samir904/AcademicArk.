@@ -18,7 +18,8 @@ featureType: {
     "imp_sheet",       // ← ADD: ImportantTopicsSheet (Hot Topics + Must-Do Qs)
     "syllabus_sheet",  // SyllabusSheet bottom sheet/drawer from NoteCard
     "pyq_page",        // Full /pyq/* page visit
-    "imp_page"
+    "imp_page",
+    "predicted_page",    // ← ADD: /pyq/:subjectCode/predicted-paper
   ],
 },
 
@@ -96,6 +97,7 @@ featureType: {
       "homepage_heatmap",
       "homepage_heatmap_all",
       "homepage_subject_card",   // ✅ ADD — SubjectCard on homepage fires this
+      "homepage_predicted_card",    // ← ADD: PredictedPaperCard on homepage
     ],
     default: "direct",
   },
@@ -112,6 +114,7 @@ featureType: {
       "pyq_unit_deepdive",
       "planner",
       "homepage",     // ✅ ADD — your SubjectCard dispatch uses "homepage" not "home"
+      "predicted_paper_page",    // ← ADD
       "unknown",
     ],
     default: "unknown",
@@ -148,6 +151,14 @@ featureType: {
         // Both
         "scroll",                 // generic scroll inside sheet/page
         "search_within",          // searched within the sheet/page
+        // Inside interactions[].action enum, add after "tab_switch":
+"view_predicted_paper",        // page load / first render
+"regenerate_paper",            // clicked Refresh button
+"change_year",                 // changed year dropdown
+"change_exam_type",            // changed odd/even sem dropdown
+"print_attempt",               // clicked Print (paid user)
+"print_blocked",               // clicked Print (free user → redirected to /support)
+"open_section",                // expanded section A/B/C
       ],
     },
     meta: { type: Schema.Types.Mixed, default: {} },

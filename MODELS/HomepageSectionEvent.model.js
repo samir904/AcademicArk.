@@ -22,6 +22,7 @@ const homepageSectionEventSchema = new Schema({
       "downloads",
       "leaderboard",
       "quick_actions",
+       "predicted_papers",      // ← ADD THIS
     ],
     index: true,
   },
@@ -39,7 +40,7 @@ const homepageSectionEventSchema = new Schema({
   resourceId:   { type: Schema.Types.ObjectId, default: null },
   resourceType: {
     type:    String,
-    enum:    ["NOTE", "COLLECTION", "LINK", "CTA","SUBJECT"],  // ✅ add COLLECTION
+    enum:    ["NOTE", "COLLECTION", "LINK", "CTA","SUBJECT","PREDICTED_PAPER"],  // ✅ add COLLECTION
     default: null,
   },
   ctaLabel:    { type: String, default: null },

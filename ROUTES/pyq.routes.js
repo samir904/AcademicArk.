@@ -13,6 +13,7 @@ import {
   getUnitBrief,
   getImportantQuestions,
   getImportantTopics,
+  getPredictedPaper
 } from "../CONTROLLERS/pyq.controller.js";
 import { isLoggedIn } from "../MIDDLEWARES/auth.middleware.js";
 
@@ -52,4 +53,7 @@ router.get("/:subjectCode/units/:unitId/matrix", isLoggedIn, getYearMatrix);
 // Query params: ?unitId=CN-U3
 router.get("/:subjectCode/insights",           isLoggedIn, getInsightCards);
 
+// ROUTES/pyq.routes.js — add this
+// GET /api/v1/pyq/:subjectCode/predicted-paper?paperType=NEW&year=2026
+router.get("/:subjectCode/predicted-paper", isLoggedIn, getPredictedPaper);
 export default router;
